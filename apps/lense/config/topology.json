@@ -1,0 +1,717 @@
+{
+  "senses": [
+    {
+      "id": "iot-sense-modbus-01",
+      "label": "IoT Sense Modbus",
+      "url": "http://127.0.0.1:8100",
+      "sourceType": "modbus-tcp",
+      "configuration": {
+        "broker": {
+          "host": "mqtt",
+          "port": 1883,
+          "clientId": "iot-sense-modbus-01",
+          "topicPrefix": "iot-lense"
+        },
+        "pollIntervalMs": 1000,
+        "healthTimeoutSeconds": 300,
+        "sources": [
+          {
+            "agentId": "modbus-machine-01",
+            "type": "modbus-tcp",
+            "host": "presense-modbus-01",
+            "port": 5020,
+            "unitId": 1,
+            "metrics": [
+              {
+                "name": "temperature",
+                "register": 0,
+                "scale": 0.1,
+                "unit": "°C",
+                "type": "gauge"
+              },
+              {
+                "name": "humidity",
+                "register": 1,
+                "scale": 0.1,
+                "unit": "%",
+                "type": "gauge"
+              },
+              {
+                "name": "pressure",
+                "register": 2,
+                "scale": 0.01,
+                "unit": "bar",
+                "type": "gauge"
+              },
+              {
+                "name": "vibration",
+                "register": 3,
+                "scale": 0.01,
+                "unit": "mm/s",
+                "type": "gauge"
+              }
+            ]
+          },
+          {
+            "agentId": "modbus-machine-02",
+            "type": "modbus-tcp",
+            "host": "presense-modbus-02",
+            "port": 5020,
+            "unitId": 1,
+            "metrics": [
+              {
+                "name": "temperature",
+                "register": 0,
+                "scale": 0.1,
+                "unit": "°C",
+                "type": "gauge"
+              },
+              {
+                "name": "humidity",
+                "register": 1,
+                "scale": 0.1,
+                "unit": "%",
+                "type": "gauge"
+              },
+              {
+                "name": "pressure",
+                "register": 2,
+                "scale": 0.01,
+                "unit": "bar",
+                "type": "gauge"
+              },
+              {
+                "name": "vibration",
+                "register": 3,
+                "scale": 0.01,
+                "unit": "mm/s",
+                "type": "gauge"
+              }
+            ]
+          },
+          {
+            "agentId": "modbus-machine-03",
+            "type": "modbus-tcp",
+            "host": "presense-modbus-03",
+            "port": 5020,
+            "unitId": 1,
+            "metrics": [
+              {
+                "name": "temperature",
+                "register": 0,
+                "scale": 0.1,
+                "unit": "°C",
+                "type": "gauge"
+              },
+              {
+                "name": "humidity",
+                "register": 1,
+                "scale": 0.1,
+                "unit": "%",
+                "type": "gauge"
+              },
+              {
+                "name": "pressure",
+                "register": 2,
+                "scale": 0.01,
+                "unit": "bar",
+                "type": "gauge"
+              },
+              {
+                "name": "vibration",
+                "register": 3,
+                "scale": 0.01,
+                "unit": "mm/s",
+                "type": "gauge"
+              }
+            ]
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://sense-modbus:8100"
+    },
+    {
+      "id": "iot-sense-opcua-01",
+      "label": "IoT Sense OPC UA",
+      "url": "http://127.0.0.1:8101",
+      "sourceType": "opcua",
+      "configuration": {
+        "broker": {
+          "host": "mqtt",
+          "port": 1883,
+          "clientId": "iot-sense-opcua-01",
+          "topicPrefix": "iot-lense"
+        },
+        "pollIntervalMs": 1000,
+        "healthTimeoutSeconds": 300,
+        "sources": [
+          {
+            "agentId": "opcua-machine-01",
+            "type": "opcua",
+            "host": "presense-opcua-01",
+            "port": 4840,
+            "unitId": 0,
+            "metrics": [
+              {
+                "name": "temperature",
+                "nodeId": "ns=2;s=Machine.Temperature",
+                "scale": 1,
+                "unit": "°C",
+                "type": "gauge"
+              },
+              {
+                "name": "speed",
+                "nodeId": "ns=2;s=Machine.Speed",
+                "scale": 1,
+                "unit": "rpm",
+                "type": "gauge"
+              },
+              {
+                "name": "current",
+                "nodeId": "ns=2;s=Machine.Current",
+                "scale": 1,
+                "unit": "A",
+                "type": "gauge"
+              },
+              {
+                "name": "load",
+                "nodeId": "ns=2;s=Machine.Load",
+                "scale": 1,
+                "unit": "%",
+                "type": "gauge"
+              },
+              {
+                "name": "state",
+                "nodeId": "ns=2;s=Machine.State",
+                "scale": 1,
+                "unit": "",
+                "type": "string"
+              }
+            ],
+            "readMode": "subscription",
+            "subscriptionIntervalMs": 1000
+          },
+          {
+            "agentId": "opcua-machine-02",
+            "type": "opcua",
+            "host": "presense-opcua-02",
+            "port": 4840,
+            "unitId": 0,
+            "metrics": [
+              {
+                "name": "temperature",
+                "nodeId": "ns=2;s=Machine.Temperature",
+                "scale": 1,
+                "unit": "°C",
+                "type": "gauge"
+              },
+              {
+                "name": "speed",
+                "nodeId": "ns=2;s=Machine.Speed",
+                "scale": 1,
+                "unit": "rpm",
+                "type": "gauge"
+              },
+              {
+                "name": "current",
+                "nodeId": "ns=2;s=Machine.Current",
+                "scale": 1,
+                "unit": "A",
+                "type": "gauge"
+              },
+              {
+                "name": "load",
+                "nodeId": "ns=2;s=Machine.Load",
+                "scale": 1,
+                "unit": "%",
+                "type": "gauge"
+              },
+              {
+                "name": "state",
+                "nodeId": "ns=2;s=Machine.State",
+                "scale": 1,
+                "unit": "",
+                "type": "string"
+              }
+            ],
+            "readMode": "subscription",
+            "subscriptionIntervalMs": 1000
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://sense-opcua:8100"
+    }
+  ],
+  "agents": [
+    {
+      "agentId": "modbus-machine-01",
+      "sourceType": "modbus-tcp",
+      "sourceHost": "presense-modbus-01",
+      "senseId": "iot-sense-modbus-01",
+      "url": "http://127.0.0.1:8301",
+      "remoteConfigHash": "#config"
+    },
+    {
+      "agentId": "modbus-machine-02",
+      "sourceType": "modbus-tcp",
+      "sourceHost": "presense-modbus-02",
+      "senseId": "iot-sense-modbus-01",
+      "url": "http://127.0.0.1:8302",
+      "remoteConfigHash": "#config"
+    },
+    {
+      "agentId": "modbus-machine-03",
+      "sourceType": "modbus-tcp",
+      "sourceHost": "presense-modbus-03",
+      "senseId": "iot-sense-modbus-01",
+      "url": "http://127.0.0.1:8303",
+      "remoteConfigHash": "#config"
+    },
+    {
+      "agentId": "opcua-machine-01",
+      "sourceType": "opcua",
+      "sourceHost": "presense-opcua-01",
+      "senseId": "iot-sense-opcua-01",
+      "url": "http://127.0.0.1:4840",
+      "remoteConfigHash": "#config"
+    },
+    {
+      "agentId": "opcua-machine-02",
+      "sourceType": "opcua",
+      "sourceHost": "presense-opcua-02",
+      "senseId": "iot-sense-opcua-01",
+      "url": "http://127.0.0.1:4841",
+      "remoteConfigHash": "#config"
+    }
+  ],
+  "dispenses": [
+    {
+      "id": "iot-dispense-modbus-01",
+      "label": "IoT Dispense Modbus",
+      "url": "http://127.0.0.1:8200",
+      "sourceType": "modbus-tcp",
+      "target": "dispense-target-mqtt",
+      "configuration": {
+        "instanceId": "iot-dispense-modbus-01",
+        "sourceFilter": "modbus-tcp",
+        "sourcePrefix": "iot-lense",
+        "targetPrefix": "dispense/modbus",
+        "bufferLimit": 1500,
+        "inputBroker": {
+          "host": "mqtt",
+          "port": 1883,
+          "clientId": "iot-dispense-modbus-01-in"
+        },
+        "outputBroker": {
+          "host": "dispense-broker",
+          "port": 1883,
+          "clientId": "iot-dispense-modbus-01-out"
+        }
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://dispense-modbus:8200"
+    },
+    {
+      "id": "iot-dispense-opcua-01",
+      "label": "IoT Dispense OPC UA",
+      "url": "http://127.0.0.1:8201",
+      "sourceType": "opcua",
+      "target": "dispense-target-mqtt",
+      "configuration": {
+        "instanceId": "iot-dispense-opcua-01",
+        "sourceFilter": "opcua",
+        "sourcePrefix": "iot-lense",
+        "targetPrefix": "dispense/opcua",
+        "bufferLimit": 1500,
+        "inputBroker": {
+          "host": "mqtt",
+          "port": 1883,
+          "clientId": "iot-dispense-opcua-01-in"
+        },
+        "outputBroker": {
+          "host": "dispense-broker",
+          "port": 1883,
+          "clientId": "iot-dispense-opcua-01-out"
+        }
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://dispense-opcua:8201"
+    }
+  ],
+  "targets": [
+    {
+      "id": "dispense-target-mqtt",
+      "label": "Dispense Target MQTT",
+      "host": "dispense-broker",
+      "port": 1883,
+      "externalPort": 1884
+    }
+  ],
+  "presenses": [
+    {
+      "agentId": "modbus-machine-01",
+      "sourceType": "modbus-tcp",
+      "sourceHost": "presense-modbus-01",
+      "senseId": "iot-sense-modbus-01",
+      "url": "http://127.0.0.1:8301",
+      "configuration": {
+        "deviceId": "modbus-machine-01",
+        "protocol": "modbus-tcp",
+        "host": "presense-modbus-01",
+        "port": 5020,
+        "uiPort": 8301,
+        "generatorMode": "sine",
+        "supportedGenerators": [
+          "sine",
+          "random-int",
+          "random-string",
+          "array",
+          "sawtooth",
+          "square",
+          "triangle"
+        ],
+        "registers": [
+          {
+            "name": "temperature",
+            "register": 0,
+            "scale": 0.1,
+            "unit": "°C",
+            "base": 22.0
+          },
+          {
+            "name": "humidity",
+            "register": 1,
+            "scale": 0.1,
+            "unit": "%",
+            "base": 48.0
+          },
+          {
+            "name": "pressure",
+            "register": 2,
+            "scale": 0.01,
+            "unit": "bar",
+            "base": 1.2
+          },
+          {
+            "name": "vibration",
+            "register": 3,
+            "scale": 0.01,
+            "unit": "mm/s",
+            "base": 0.4
+          },
+          {
+            "name": "cycle",
+            "register": 4,
+            "scale": 1,
+            "unit": "count"
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://presense-modbus-01:8300"
+    },
+    {
+      "agentId": "modbus-machine-02",
+      "sourceType": "modbus-tcp",
+      "sourceHost": "presense-modbus-02",
+      "senseId": "iot-sense-modbus-01",
+      "url": "http://127.0.0.1:8302",
+      "configuration": {
+        "deviceId": "modbus-machine-02",
+        "protocol": "modbus-tcp",
+        "host": "presense-modbus-02",
+        "port": 5020,
+        "uiPort": 8302,
+        "generatorMode": "sawtooth",
+        "supportedGenerators": [
+          "sine",
+          "random-int",
+          "random-string",
+          "array",
+          "sawtooth",
+          "square",
+          "triangle"
+        ],
+        "registers": [
+          {
+            "name": "temperature",
+            "register": 0,
+            "scale": 0.1,
+            "unit": "°C",
+            "base": 24.0
+          },
+          {
+            "name": "humidity",
+            "register": 1,
+            "scale": 0.1,
+            "unit": "%",
+            "base": 52.0
+          },
+          {
+            "name": "pressure",
+            "register": 2,
+            "scale": 0.01,
+            "unit": "bar",
+            "base": 1.35
+          },
+          {
+            "name": "vibration",
+            "register": 3,
+            "scale": 0.01,
+            "unit": "mm/s",
+            "base": 0.55
+          },
+          {
+            "name": "cycle",
+            "register": 4,
+            "scale": 1,
+            "unit": "count"
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://presense-modbus-02:8300"
+    },
+    {
+      "agentId": "modbus-machine-03",
+      "sourceType": "modbus-tcp",
+      "sourceHost": "presense-modbus-03",
+      "senseId": "iot-sense-modbus-01",
+      "url": "http://127.0.0.1:8303",
+      "configuration": {
+        "deviceId": "modbus-machine-03",
+        "protocol": "modbus-tcp",
+        "host": "presense-modbus-03",
+        "port": 5020,
+        "uiPort": 8303,
+        "generatorMode": "triangle",
+        "supportedGenerators": [
+          "sine",
+          "random-int",
+          "random-string",
+          "array",
+          "sawtooth",
+          "square",
+          "triangle"
+        ],
+        "registers": [
+          {
+            "name": "temperature",
+            "register": 0,
+            "scale": 0.1,
+            "unit": "°C",
+            "base": 27.0
+          },
+          {
+            "name": "humidity",
+            "register": 1,
+            "scale": 0.1,
+            "unit": "%",
+            "base": 43.0
+          },
+          {
+            "name": "pressure",
+            "register": 2,
+            "scale": 0.01,
+            "unit": "bar",
+            "base": 1.1
+          },
+          {
+            "name": "vibration",
+            "register": 3,
+            "scale": 0.01,
+            "unit": "mm/s",
+            "base": 0.75
+          },
+          {
+            "name": "cycle",
+            "register": 4,
+            "scale": 1,
+            "unit": "count"
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://presense-modbus-03:8300"
+    },
+    {
+      "agentId": "opcua-machine-01",
+      "sourceType": "opcua",
+      "sourceHost": "presense-opcua-01",
+      "senseId": "iot-sense-opcua-01",
+      "url": "http://127.0.0.1:4840",
+      "configuration": {
+        "deviceId": "opcua-machine-01",
+        "protocol": "opcua-demo-http",
+        "host": "presense-opcua-01",
+        "port": 4840,
+        "uiPort": 4840,
+        "generatorMode": "sine",
+        "supportedGenerators": [
+          "sine",
+          "random-int",
+          "random-string",
+          "array",
+          "sawtooth",
+          "square",
+          "triangle"
+        ],
+        "nodes": [
+          {
+            "name": "temperature",
+            "nodeId": "ns=2;s=Machine.Temperature",
+            "unit": "°C",
+            "base": 31.0
+          },
+          {
+            "name": "speed",
+            "nodeId": "ns=2;s=Machine.Speed",
+            "unit": "rpm",
+            "base": 1420.0
+          },
+          {
+            "name": "current",
+            "nodeId": "ns=2;s=Machine.Current",
+            "unit": "A",
+            "base": 8.2
+          },
+          {
+            "name": "load",
+            "nodeId": "ns=2;s=Machine.Load",
+            "unit": "%",
+            "base": 60
+          },
+          {
+            "name": "state",
+            "nodeId": "ns=2;s=Machine.State",
+            "unit": "",
+            "dataType": "string",
+            "generatorMode": "random-string"
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://presense-opcua-01:4840"
+    },
+    {
+      "agentId": "opcua-machine-02",
+      "sourceType": "opcua",
+      "sourceHost": "presense-opcua-02",
+      "senseId": "iot-sense-opcua-01",
+      "url": "http://127.0.0.1:4841",
+      "configuration": {
+        "deviceId": "opcua-machine-02",
+        "protocol": "opcua-demo-http",
+        "host": "presense-opcua-02",
+        "port": 4840,
+        "uiPort": 4841,
+        "generatorMode": "square",
+        "supportedGenerators": [
+          "sine",
+          "random-int",
+          "random-string",
+          "array",
+          "sawtooth",
+          "square",
+          "triangle"
+        ],
+        "nodes": [
+          {
+            "name": "temperature",
+            "nodeId": "ns=2;s=Machine.Temperature",
+            "unit": "°C",
+            "base": 35.0
+          },
+          {
+            "name": "speed",
+            "nodeId": "ns=2;s=Machine.Speed",
+            "unit": "rpm",
+            "base": 1560.0
+          },
+          {
+            "name": "current",
+            "nodeId": "ns=2;s=Machine.Current",
+            "unit": "A",
+            "base": 9.1
+          },
+          {
+            "name": "load",
+            "nodeId": "ns=2;s=Machine.Load",
+            "unit": "%",
+            "base": 60
+          },
+          {
+            "name": "state",
+            "nodeId": "ns=2;s=Machine.State",
+            "unit": "",
+            "dataType": "string",
+            "generatorMode": "random-string"
+          }
+        ]
+      },
+      "remoteConfigHash": "#config",
+      "internalUrl": "http://presense-opcua-02:4840"
+    }
+  ],
+  "lense": {
+    "id": "iot-lense",
+    "label": "IoT Lense",
+    "url": "http://127.0.0.1:8000",
+    "configuration": {
+      "server": {
+        "host": "0.0.0.0",
+        "port": 8000
+      },
+      "mqtt": {
+        "host": "mqtt",
+        "port": 1883,
+        "clientId": "iot-lense",
+        "topicPrefix": "iot-lense"
+      },
+      "postgres": {
+        "host": "postgres",
+        "port": 5432,
+        "database": "iotdb",
+        "user": "iot"
+      },
+      "topologyPath": "/app/config/topology.json"
+    }
+  },
+  "systemComponents": [
+    {
+      "id": "mqtt",
+      "label": "Internal MQTT Broker",
+      "kind": "broker",
+      "configuration": {
+        "host": "mqtt",
+        "port": 1883,
+        "websocketPort": 9001,
+        "topicPrefix": "iot-lense"
+      }
+    },
+    {
+      "id": "postgres",
+      "label": "Postgres",
+      "kind": "database",
+      "configuration": {
+        "host": "postgres",
+        "port": 5432,
+        "database": "iotdb",
+        "user": "iot"
+      }
+    },
+    {
+      "id": "dispense-target-mqtt",
+      "label": "Dispense Target MQTT",
+      "kind": "broker",
+      "configuration": {
+        "host": "dispense-broker",
+        "port": 1883,
+        "externalPort": 1884,
+        "websocketPort": 9002
+      }
+    }
+  ]
+}

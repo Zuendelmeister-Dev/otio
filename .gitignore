@@ -1,0 +1,51 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Go
+bin/
+dist/
+coverage.out
+*.test
+
+# Local build artifacts
+tmp/
+temp/
+build/
+out/
+
+# Docker / local runtime data
+docker-data/
+data/
+volumes/
+postgres-data/
+mosquitto-data/
+mosquitto-log/
+mosquitto-config-local/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+
+# Local environment overrides
+.env.local
+.env.*.local
+
+# Node / frontend temporary
+node_modules/
+
+# Generated documentation output
+docs/pdf/
+
+# Keep documentation images
+!docs/png/
+!docs/png/**
+!docs/png/.gitkeep

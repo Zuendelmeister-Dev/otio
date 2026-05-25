@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IoT Dispense</title>
+<script src="/static/standard-chart.js"></script>
+<script src="/static/iot-ui.js"></script>
+<style>
+:root{--bg:#14161a;--side:#101216;--panel:#1b1f26;--panel2:#171b21;--border:#2a2f38;--text:#e7e9ee;--muted:#8a9099;--accent:#ef4444;--green:#28c76f;--red:#ff4d4f;--yellow:#febe3b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+aside{background:var(--side);border-right:1px solid var(--border);padding:18px}
+.brand{font-size:22px;font-weight:800;margin-bottom:22px}.brand span{color:var(--accent)}
+nav a{display:block;color:var(--text);text-decoration:none;padding:11px 12px;border-radius:10px;margin:6px 0;border:1px solid transparent}
+nav a.active,nav a:hover{background:var(--panel);border-color:var(--border)}
+main{padding:22px}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px}.overview-card{background:#11151b;border:1px solid var(--border);border-radius:14px;padding:12px}.overview-value{font-size:20px;font-weight:800;margin-top:6px}.overview-hint{color:var(--muted);font-size:12px;margin-top:5px}.health-layout{display:grid;grid-template-columns:360px 1fr;gap:14px;margin-bottom:14px}.health-pie{width:190px;height:190px;border-radius:50%;background:var(--green);margin:22px auto 10px}.health-pie.degraded{background:conic-gradient(var(--green) 0 50%,var(--red) 50% 100%)}@media(max-width:900px){.health-layout{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.k{color:var(--muted);font-size:12px}.v{font-size:24px;font-weight:800;margin-top:6px}
+.hidden{display:none}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+input,select,button{background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px}
+canvas{width:100%;height:340px;display:block}.chart-wrap{position:relative}.tooltip{position:absolute;display:none;background:#0e0f12;border:1px solid var(--border);border-radius:10px;padding:9px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.legend-item{border:1px solid var(--border);background:#11161d;border-radius:999px;padding:5px 10px}.legend-swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px}
+.health-item{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--red)}.ok{background:var(--green)}
+pre{background:#0e0f12;border:1px solid var(--border);border-radius:12px;padding:12px;overflow:auto}
+.node.presense{border-color:#8a9099!important}.node.sense{border-color:#14b8a6!important}.node.lense{border-color:#ff8a1d!important}.node.dispense{border-color:#ef4444!important}.node.system{border-color:#facc15!important}.node.broker{border-color:#facc15!important}.node.target{border-color:#facc15!important}
+
+.node.presense{border-color:#8a9099!important}
+.node.sense{border-color:#14b8a6!important}
+.node.lense{border-color:#ff8a1d!important}
+.node.dispense{border-color:#ef4444!important}
+.node.system,.node.broker,.node.target{border-color:#facc15!important}
+.edge-presense{stroke:#8a9099!important}
+.edge-sense{stroke:#14b8a6!important}
+.edge-lense{stroke:#ff8a1d!important}
+.edge-dispense{stroke:#ef4444!important}
+.edge-system{stroke:#facc15!important}
+
+
+.connection-graph{position:relative;min-height:320px;height:320px;overflow:hidden;background:#11151b;border:1px solid var(--border);border-radius:16px;margin-top:12px}
+.edge-svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.node{position:absolute;min-width:150px;border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:10px 12px;box-shadow:0 8px 20px rgba(0,0,0,.25);z-index:2}
+.node .title{font-weight:800;font-size:15px}.node .sub{color:var(--muted);font-size:12px;margin-top:4px}
+.node.presense{border-color:#8a9099!important}.node.sense{border-color:#14b8a6!important}.node.lense{border-color:#ff8a1d!important}.node.dispense{border-color:#ef4444!important}.node.system,.node.broker,.node.target{border-color:#facc15!important}
+.edge-presense{stroke:#8a9099!important}.edge-sense{stroke:#14b8a6!important}.edge-lense{stroke:#ff8a1d!important}.edge-dispense{stroke:#ef4444!important}.edge-system{stroke:#facc15!important}
+
+</style>
+</head>
+<body>
+<div class="layout">
+<aside><div class="brand">IoT <span>Dispense</span></div><nav>
+<a href="#dashboard" class="active">Dashboard</a>
+<a href="#analytics">Quick Metrics</a>
+<a href="#components">Components</a>
+<a href="#config">Configuration</a>
+<a href="#logs">Logs</a>
+</nav></aside>
+<main>
+<section id="page-dashboard">
+  <div id="dashboardCards"></div>
+  <div class="health-layout">
+    <div class="card"><h3>Health distribution</h3><div id="dispenseHealthPie" class="health-pie"></div><div id="dispenseHealthSummary" class="k" style="text-align:center"></div></div>
+    <div class="card"><h3>Health details</h3><div id="dispenseHealthDetails"></div></div>
+  </div>
+  <div class="card"><h3>Connection graph</h3><div id="dispenseConnectionGraph" class="connection-graph"></div></div>
+</section>
+<section id="page-analytics" class="hidden">
+  <div class="card"><h3>Quick Metrics View</h3>
+    <div class="toolbar"><button onclick="loadMetrics()">Refresh</button><select id="agentFilter"></select><select id="metricFilter"></select><button onclick="exportData('csv')">Export CSV</button><button onclick="exportData('json')">Export JSON</button></div>
+    <div class="chart-wrap"><canvas id="metricsChart" width="1200" height="360"></canvas><div id="metricsTooltip" class="tooltip"></div></div><div id="metricsLegend" class="legend"></div>
+  </div>
+</section>
+<section id="page-components" class="hidden">
+  <div class="card"><h3>Components</h3><div id="componentsCards"></div></div>
+  <div class="card"><h3>Connection graph</h3><div id="dispenseComponentsConnectionGraph" class="connection-graph"></div></div>
+  <div class="grid">
+    <div class="card"><h3>Input broker connection</h3><div id="inputOverview"></div><div class="chart-wrap"><canvas id="inputChart" width="900" height="260"></canvas><div id="inputTooltip" class="tooltip"></div></div><div id="inputLegend" class="legend"></div></div>
+    <div class="card"><h3>Target broker connection</h3><div id="outputOverview"></div><div class="chart-wrap"><canvas id="outputChart" width="900" height="260"></canvas><div id="outputTooltip" class="tooltip"></div></div><div id="outputLegend" class="legend"></div></div>
+  </div>
+</section>
+<section id="page-config" class="hidden">
+  <div class="card"><h3>Configuration</h3><div class="toolbar"><button onclick="loadConfig()">Refresh configuration</button><button onclick="validateConfigDraft()">Validate changes</button><button id="applyConfigButton" disabled>Apply proposal</button><button onclick="resetConfigDraft()">Reset editor</button><span id="configState" class="k">Idle</span></div><div class="grid"><div><div class="k">Editable config</div><textarea id="configEditor" spellcheck="false" style="width:100%;min-height:420px;background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"></textarea></div><div><div class="k">Validation and diff</div><pre id="configDiff" style="min-height:420px"></pre></div></div><h3>Last 5 configs</h3><div id="configHistory" class="k">Backend write-back is not enabled yet.</div></div>
+</section>
+<section id="page-logs" class="hidden">
+  <div class="card"><h3>Logs</h3><div class="toolbar" id="logFilters"><button onclick="loadLogs()">Refresh logs</button><label><input type="checkbox" value="INFO" checked> Info</label><label><input type="checkbox" value="WARN" checked> Warning</label><label><input type="checkbox" value="ERROR" checked> Error</label></div><div id="logs"></div></div>
+</section>
+</main></div>
+<script>
+const BUILD_MARKER='v60-dispense-test-alignment';
+const CONNECTION_PALETTE={presense:'#8a9099',sense:'#14b8a6',lense:'#ff8a1d',dispense:'#ef4444',system:'#facc15',down:'#ff4d4f'};
+let statusData={};let metricsData={};let currentLogs=[];
+const metricsChart=IoTStandardChart.createChart({canvasId:'metricsChart',legendId:'metricsLegend',tooltipId:'metricsTooltip',height:360,yLabel:'value'});
+function page(){return location.hash.replace('#','')||'dashboard'}
+function route(){['dashboard','analytics','components','config','logs'].forEach(p=>document.getElementById('page-'+p).classList.toggle('hidden',p!==page()));document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+page()));if(page()==='dashboard')loadStatus();if(page()==='analytics')loadMetrics();if(page()==='components')loadStatus();if(page()==='logs')loadLogs();if(page()==='config')loadConfig();}
+window.addEventListener('hashchange',route);
+async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(await r.text());return r.json();}
+
+function renderDispenseConnectionGraph(targetId){
+  const box=document.getElementById(targetId);
+  if(!box)return;
+  const input=statusData.inputBroker||{};
+  const output=statusData.outputBroker||{};
+  const instance=statusData.instanceId||'IoT Dispense';
+  const w=Math.max(860, box.clientWidth||860);
+  const h=320;
+  const brokerW=210, dispenseW=240, targetW=230;
+  const brokerX=36, brokerY=118;
+  const dispenseX=Math.max(330, Math.round(w/2)-dispenseW/2), dispenseY=118;
+  const targetX=w-targetW-36, targetY=118;
+  const systemColor=CONNECTION_PALETTE.system;
+  const dispenseColor=CONNECTION_PALETTE.dispense;
+
+  box.style.height=h+'px';
+  box.innerHTML='<div class="k" style="position:absolute;right:14px;top:10px;font-size:11px;z-index:3">build v60-dispense-test-alignment</div><svg class="edge-svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"></svg>';
+  const svg=box.querySelector('svg');
+
+  function addLine(x1,y1,x2,y2,ok,color,cls){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    const dx=Math.max(80, Math.abs(x2-x1)*0.45);
+    path.setAttribute('d','M '+x1+' '+y1+' C '+(x1+dx)+' '+y1+', '+(x2-dx)+' '+y2+', '+x2+' '+y2);
+    path.setAttribute('stroke', ok ? color : '#ff4d4f');
+    path.setAttribute('stroke-width','3');
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke-dasharray', ok ? '' : '7 5');
+    path.setAttribute('class','edge-'+cls);
+    svg.appendChild(path);
+  }
+
+  function addNode(x,y,width,cls,title,sub){
+    const n=document.createElement('div');
+    n.className='node '+cls;
+    n.style.left=x+'px';
+    n.style.top=y+'px';
+    n.style.width=width+'px';
+    n.innerHTML='<div class="title">'+IoTStandardChart.escapeHtml(title)+'</div><div class="sub">'+IoTStandardChart.escapeHtml(sub||'')+'</div>';
+    box.appendChild(n);
+  }
+
+  addLine(brokerX+brokerW,brokerY+38,dispenseX,dispenseY+38,Boolean(input.connected),systemColor,'system');
+  addLine(dispenseX+dispenseW,dispenseY+38,targetX,targetY+38,Boolean(output.connected),dispenseColor,'dispense');
+  addNode(brokerX,brokerY,brokerW,'system','Input MQTT Broker',(input.connected?'connected':'down')+' | '+(input.host||'mqtt')+':'+(input.port||1883));
+  addNode(dispenseX,dispenseY,dispenseW,'dispense',instance,statusData.sourceFilter||'forwarder');
+  addNode(targetX,targetY,targetW,'system','Target MQTT Broker',(output.connected?'connected':'down')+' | '+(output.host||'dispense-broker')+':'+(output.port||1883));
+}
+
+
+async function loadStatus(){
+ statusData=await json('/api/status');
+ renderDispenseConnectionGraph('dispenseConnectionGraph');
+ renderDispenseConnectionGraph('dispenseComponentsConnectionGraph');
+ const input=statusData.inputBroker||{},output=statusData.outputBroker||{},stats=statusData.stats||{};
+ IoTUI.renderOverviewCards('dashboardCards',[
+  {label:'Instance',value:statusData.instanceId||'n/a',hint:statusData.sourceFilter||''},
+  {label:'Input broker',value:input.connected?'connected':'disconnected',hint:(input.host||'')+':'+(input.port||'')},
+  {label:'Target broker',value:output.connected?'connected':'disconnected',hint:(output.host||'')+':'+(output.port||'')},
+  {label:'Forwarded',value:String(stats.forwarded||0),hint:'Messages forwarded'}
+ ]);
+ IoTUI.renderStatusDetails('healthDetails',[
+  {label:'Input broker',value:input.connected?'connected':'down',ok:input.connected},
+  {label:'Target broker',value:output.connected?'connected':'down',ok:output.connected},
+  {label:'Received',value:String(stats.received||0),ok:true},
+  {label:'Dropped',value:String(stats.dropped||0),ok:(stats.dropped||0)===0}
+ ]);
+ const healthyCount=(input.connected?1:0)+(output.connected?1:0)+((stats.dropped||0)===0?1:0);
+ const unhealthyCount=3-healthyCount;
+ const pie=document.getElementById('dispenseHealthPie');
+ if(pie)pie.classList.toggle('degraded',unhealthyCount>0);
+ const sum=document.getElementById('dispenseHealthSummary');
+ if(sum)sum.innerHTML='healthy: '+healthyCount+'<br>unhealthy: '+unhealthyCount;
+ IoTUI.renderStatusDetails('dispenseHealthDetails',[
+  {label:'Input broker',value:input.connected?'connected':'down',ok:input.connected},
+  {label:'Target broker',value:output.connected?'connected':'down',ok:output.connected},
+  {label:'Received',value:String(stats.received||0),ok:true},
+  {label:'Forwarded',value:String(stats.forwarded||0),ok:true},
+  {label:'Dropped',value:String(stats.dropped||0),ok:(stats.dropped||0)===0}
+ ]);
+ IoTUI.renderOverviewCards('componentsCards',[
+  {label:'Dispense instance',value:statusData.instanceId||'n/a',hint:'Forwarder module'},
+  {label:'Source filter',value:statusData.sourceFilter||'all',hint:'Only matching source type is forwarded'},
+  {label:'Input broker',value:(input.host||'')+':'+(input.port||''),hint:input.connected?'connected':'down'},
+  {label:'Target broker',value:(output.host||'')+':'+(output.port||''),hint:output.connected?'connected':'down'},
+  {label:'Received',value:String(stats.received||0),hint:'Input messages'},
+  {label:'Forwarded',value:String(stats.forwarded||0),hint:'Output messages'}
+ ]);
+ IoTUI.renderConnectionOverview({cardsElementId:'inputOverview',canvasId:'inputChart',legendId:'inputLegend',tooltipId:'inputTooltip',name:'Input broker',host:input.host,port:input.port,connected:input.connected,historyKey:'dispense:'+statusData.instanceId+':input',color:CONNECTION_PALETTE.system,windowMinutes:1440});
+ IoTUI.renderConnectionOverview({cardsElementId:'outputOverview',canvasId:'outputChart',legendId:'outputLegend',tooltipId:'outputTooltip',name:'Target broker',host:output.host,port:output.port,connected:output.connected,historyKey:'dispense:'+statusData.instanceId+':output',color:CONNECTION_PALETTE.dispense,windowMinutes:1440});
+}
+async function loadMetrics(){
+ metricsData=await json('/api/metrics');
+ const agents=Object.keys(metricsData).sort();
+ IoTStandardChart.fillSelect(agentFilter,[{value:'all',label:'All agents'}].concat(agents.map(a=>({value:a,label:a}))));
+ const selectedAgent=agentFilter.value||'all';
+ const metricSet=new Set();
+ Object.entries(metricsData).forEach(([agent,metrics])=>{if(selectedAgent==='all'||selectedAgent===agent)Object.keys(metrics).forEach(m=>metricSet.add(m));});
+ IoTStandardChart.fillSelect(metricFilter,[{value:'all',label:'All metrics'}].concat([...metricSet].sort().map(m=>({value:m,label:m}))));
+ renderMetrics();
+}
+function renderMetrics(){
+ const a=agentFilter.value||'all',m=metricFilter.value||'all';const series=[];
+ Object.entries(metricsData).forEach(([agent,metrics])=>{if(a!=='all'&&a!==agent)return;Object.entries(metrics).forEach(([name,pts])=>{if(m!=='all'&&m!==name)return;series.push({key:agent+':'+name,label:agent+' '+name,points:(pts||[]).map(p=>({timestamp:p.timestamp,value:p.value}))});});});
+ metricsChart.draw(series,'value');
+}
+agentFilter.onchange=renderMetrics;metricFilter.onchange=renderMetrics;
+async function loadLogs(){const d=await json('/api/logs');currentLogs=d.items||[];renderLogs();}
+function renderLogs(){IoTUI.renderGroupedLogs('logs',currentLogs,new Set([...document.querySelectorAll('#logFilters input:checked')].map(i=>i.value)));}
+document.querySelectorAll('#logFilters input').forEach(i=>i.onchange=renderLogs);
+
+let configOriginal='';
+async function loadConfig(){const d=await json('/api/runtime');configOriginal=JSON.stringify(d.config||{},null,2);configEditor.value=configOriginal;configDiff.textContent='';configState.textContent='Loaded current configuration';applyConfigButton.disabled=true;}
+function diffText(a,b){const x=a.split('\n'),y=b.split('\n'),m=Math.max(x.length,y.length),o=[];for(let i=0;i<m;i++){if(x[i]===y[i]&&x[i]!==undefined)o.push('  '+x[i]);else{if(x[i]!==undefined)o.push('- '+x[i]);if(y[i]!==undefined)o.push('+ '+y[i]);}}return o.join('\n')}
+function validateConfigDraft(){try{const normalized=JSON.stringify(JSON.parse(configEditor.value),null,2);configDiff.textContent=diffText(configOriginal,normalized);configState.textContent='Draft is valid JSON';applyConfigButton.disabled=false;}catch(e){configDiff.textContent=e.message;configState.textContent='Validation failed';applyConfigButton.disabled=true;}}
+function resetConfigDraft(){configEditor.value=configOriginal;configDiff.textContent='';configState.textContent='Editor reset';applyConfigButton.disabled=true;}
+applyConfigButton.onclick=()=>{configState.textContent='Configuration apply is prepared, but backend write-back is intentionally guarded for this module.';applyConfigButton.disabled=true;};
+
+function exportData(format){const raw=JSON.stringify(metricsData,null,2);const blob=new Blob([raw],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dispense-metrics.'+format;a.click();}
+setInterval(()=>{if(page()==='dashboard'||page()==='components')loadStatus();},5000);
+route();
+</script>
+</body></html>

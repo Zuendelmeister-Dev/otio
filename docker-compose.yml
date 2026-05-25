@@ -1,0 +1,215 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: iot-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+
+  dispense-broker:
+    image: eclipse-mosquitto:2
+    container_name: iot-dispense-broker
+    restart: unless-stopped
+    ports:
+      - "1884:1883"
+      - "9002:9001"
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  postgres:
+    image: postgres:16
+    container_name: iot-lense-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - iot_lense_pg:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  presense-modbus-01:
+    build: ./apps/presense-modbus
+    container_name: presense-modbus-01
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: modbus-machine-01
+      MODBUS_PORT: 5020
+      TEMP_BASE: 22.0
+      HUMIDITY_BASE: 48.0
+      PRESSURE_BASE: 1.20
+      VIBRATION_BASE: 0.40
+      PRESENSE_UI_PORT: 8300
+      GENERATOR_MODE: sine
+    ports:
+      - "5020:5020"
+      - "8301:8300"
+
+  presense-modbus-02:
+    build: ./apps/presense-modbus
+    container_name: presense-modbus-02
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: modbus-machine-02
+      MODBUS_PORT: 5020
+      TEMP_BASE: 24.0
+      HUMIDITY_BASE: 52.0
+      PRESSURE_BASE: 1.35
+      VIBRATION_BASE: 0.55
+      PRESENSE_UI_PORT: 8300
+      GENERATOR_MODE: sawtooth
+    ports:
+      - "5021:5020"
+      - "8302:8300"
+
+  presense-modbus-03:
+    build: ./apps/presense-modbus
+    container_name: presense-modbus-03
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: modbus-machine-03
+      MODBUS_PORT: 5020
+      TEMP_BASE: 27.0
+      HUMIDITY_BASE: 43.0
+      PRESSURE_BASE: 1.10
+      VIBRATION_BASE: 0.75
+      PRESENSE_UI_PORT: 8300
+      GENERATOR_MODE: triangle
+    ports:
+      - "5022:5020"
+      - "8303:8300"
+
+  presense-opcua-01:
+    build:
+      context: .
+      dockerfile: apps/presense-opcua/Dockerfile
+    container_name: presense-opcua-01
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: opcua-machine-01
+      OPCUA_HTTP_PORT: 4840
+      TEMP_BASE: 31.0
+      SPEED_BASE: 1420.0
+      CURRENT_BASE: 8.2
+      GENERATOR_MODE: sine
+    ports:
+      - "4840:4840"
+
+  presense-opcua-02:
+    build:
+      context: .
+      dockerfile: apps/presense-opcua/Dockerfile
+    container_name: presense-opcua-02
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: opcua-machine-02
+      OPCUA_HTTP_PORT: 4840
+      TEMP_BASE: 35.0
+      SPEED_BASE: 1560.0
+      CURRENT_BASE: 9.1
+      GENERATOR_MODE: square
+    ports:
+      - "4841:4840"
+
+  sense-modbus:
+    build:
+      context: .
+      dockerfile: apps/sense/Dockerfile
+    container_name: iot-sense-modbus
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - presense-modbus-01
+      - presense-modbus-02
+      - presense-modbus-03
+    env_file: .env
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./apps/sense/config-modbus:/app/config
+
+  sense-opcua:
+    build:
+      context: .
+      dockerfile: apps/sense/Dockerfile
+    container_name: iot-sense-opcua
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - presense-opcua-01
+      - presense-opcua-02
+    env_file: .env
+    ports:
+      - "8101:8100"
+    volumes:
+      - ./apps/sense/config-opcua:/app/config
+
+  lense:
+    build:
+      context: .
+      dockerfile: apps/lense/Dockerfile
+    container_name: iot-lense
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - postgres
+    env_file: .env
+    environment:
+      LENSE_TOPOLOGY_PATH: /app/config/topology.json
+    ports:
+      - "8000:8000"
+
+
+  dispense-modbus:
+    build:
+      context: .
+      dockerfile: apps/dispense/Dockerfile
+    container_name: iot-dispense-modbus
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - dispense-broker
+    environment:
+      DISPENSE_INSTANCE_ID: iot-dispense-modbus-01
+      DISPENSE_SOURCE_FILTER: modbus-tcp
+      DISPENSE_SOURCE_PREFIX: iot-lense
+      DISPENSE_TARGET_PREFIX: dispense/modbus
+      DISPENSE_INPUT_BROKER_HOST: mqtt
+      DISPENSE_INPUT_BROKER_PORT: 1883
+      DISPENSE_OUTPUT_BROKER_HOST: dispense-broker
+      DISPENSE_OUTPUT_BROKER_PORT: 1883
+      DISPENSE_UI_PORT: 8200
+    ports:
+      - "8200:8200"
+
+  dispense-opcua:
+    build:
+      context: .
+      dockerfile: apps/dispense/Dockerfile
+    container_name: iot-dispense-opcua
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - dispense-broker
+    environment:
+      DISPENSE_INSTANCE_ID: iot-dispense-opcua-01
+      DISPENSE_SOURCE_FILTER: opcua
+      DISPENSE_SOURCE_PREFIX: iot-lense
+      DISPENSE_TARGET_PREFIX: dispense/opcua
+      DISPENSE_INPUT_BROKER_HOST: mqtt
+      DISPENSE_INPUT_BROKER_PORT: 1883
+      DISPENSE_OUTPUT_BROKER_HOST: dispense-broker
+      DISPENSE_OUTPUT_BROKER_PORT: 1883
+      DISPENSE_UI_PORT: 8201
+    ports:
+      - "8201:8201"
+
+
+volumes:
+  iot_lense_pg:

@@ -1,0 +1,36 @@
+flowchart LR
+    Operator["Operator"]
+    Machine["External machine endpoint<br/>not managed by OT.io"]
+
+    subgraph Stack["OT.io demo stack"]
+        Presense["IoT Presense<br/>simulation only"]
+        Sense["IoT Sense<br/>collection"]
+        Broker["MQTT Broker<br/>transport"]
+        Lense["IoT Lense<br/>health and quick configuration"]
+        Postgres[("Postgres<br/>historian")]
+        Dispense["IoT Dispense<br/>distribution"]
+        Target["Target systems"]
+    end
+
+    Machine -->|protocol read| Sense
+    Presense -.->|simulated protocol endpoint| Sense
+    Sense -->|telemetry and status| Broker
+    Broker -->|subscribed messages| Lense
+    Lense -->|store and query| Postgres
+    Broker -->|subscribed messages| Dispense
+    Dispense -->|forward selected data| Target
+    Operator -->|observe and configure| Lense
+
+    classDef presense fill:#1b1f27,stroke:#8a9099,stroke-dasharray:5 5,color:#e7e9ee;
+    classDef sense fill:#1b1f27,stroke:#14b8a6,color:#e7e9ee;
+    classDef lense fill:#1b1f27,stroke:#ff8a1d,color:#e7e9ee;
+    classDef dispense fill:#1b1f27,stroke:#ef4444,color:#e7e9ee;
+    classDef system fill:#1b1f27,stroke:#ffd21f,color:#e7e9ee;
+    classDef external fill:#1b1f27,stroke:#8a9099,color:#e7e9ee;
+
+    class Presense presense;
+    class Sense sense;
+    class Lense lense;
+    class Dispense dispense;
+    class Broker,Postgres,Target system;
+    class Machine,Operator external;

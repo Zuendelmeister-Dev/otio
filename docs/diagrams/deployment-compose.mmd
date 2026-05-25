@@ -1,0 +1,38 @@
+flowchart LR
+    subgraph Host["Docker host"]
+        subgraph Network["docker-compose network"]
+            PM["presense-modbus-01..03<br/>ports 8301..8303 / 5020"]
+            PO["presense-opcua-01..02<br/>ports 4840..4841"]
+            SM["sense-modbus<br/>port 8100"]
+            SO["sense-opcua<br/>port 8101"]
+            MQTT["mqtt<br/>port 1883"]
+            LENSE["lense<br/>port 8000"]
+            PG[("postgres<br/>port 5432")]
+            DM["dispense-modbus<br/>port 8200"]
+            DO["dispense-opcua<br/>port 8201"]
+            TARGET["dispense-broker<br/>port 1884"]
+        end
+    end
+
+    PM -.-> SM
+    PO -.-> SO
+    SM --> MQTT
+    SO --> MQTT
+    MQTT --> LENSE
+    LENSE --> PG
+    MQTT --> DM
+    MQTT --> DO
+    DM --> TARGET
+    DO --> TARGET
+
+    classDef presense fill:#1b1f27,stroke:#8a9099,stroke-dasharray:5 5,color:#e7e9ee;
+    classDef sense fill:#1b1f27,stroke:#14b8a6,color:#e7e9ee;
+    classDef lense fill:#1b1f27,stroke:#ff8a1d,color:#e7e9ee;
+    classDef dispense fill:#1b1f27,stroke:#ef4444,color:#e7e9ee;
+    classDef system fill:#1b1f27,stroke:#ffd21f,color:#e7e9ee;
+
+    class PM,PO presense;
+    class SM,SO sense;
+    class LENSE lense;
+    class DM,DO dispense;
+    class MQTT,PG,TARGET system;

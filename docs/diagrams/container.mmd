@@ -1,0 +1,36 @@
+flowchart LR
+    subgraph DemoStack["OT.io Docker Compose demo stack"]
+        PM["Presense Modbus<br/>simulated Modbus TCP endpoint"]
+        PO["Presense OPC UA<br/>simulated OPC UA endpoint"]
+        SM["Sense Modbus<br/>polls Modbus sources"]
+        SO["Sense OPC UA<br/>subscribes to OPC UA sources"]
+        MQTT["MQTT Broker<br/>Mosquitto input broker"]
+        LENSE["IoT Lense<br/>health, quick metrics, configuration overview"]
+        PG[("Postgres<br/>historian database")]
+        DM["Dispense Modbus<br/>forwards Modbus-origin messages"]
+        DO["Dispense OPC UA<br/>forwards OPC-UA-origin messages"]
+        TARGET["Target MQTT Broker<br/>outbound demo target"]
+    end
+
+    PM -.->|protocol read| SM
+    PO -.->|subscription stream| SO
+    SM -->|MQTT publish| MQTT
+    SO -->|MQTT publish| MQTT
+    MQTT -->|MQTT subscribe| LENSE
+    LENSE -->|SQL writes and reads| PG
+    MQTT -->|MQTT subscribe| DM
+    MQTT -->|MQTT subscribe| DO
+    DM -->|MQTT forward| TARGET
+    DO -->|MQTT forward| TARGET
+
+    classDef presense fill:#1b1f27,stroke:#8a9099,stroke-dasharray:5 5,color:#e7e9ee;
+    classDef sense fill:#1b1f27,stroke:#14b8a6,color:#e7e9ee;
+    classDef lense fill:#1b1f27,stroke:#ff8a1d,color:#e7e9ee;
+    classDef dispense fill:#1b1f27,stroke:#ef4444,color:#e7e9ee;
+    classDef system fill:#1b1f27,stroke:#ffd21f,color:#e7e9ee;
+
+    class PM,PO presense;
+    class SM,SO sense;
+    class LENSE lense;
+    class DM,DO dispense;
+    class MQTT,PG,TARGET system;

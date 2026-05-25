@@ -1,0 +1,10 @@
+go 1.22
+
+use (
+  ./apps/presense-modbus
+  ./apps/presense-opcua
+  ./apps/sense
+  ./apps/lense
+  ./apps/dispense
+  ./shared/mqttx
+)

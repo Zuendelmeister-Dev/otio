@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Endpoint as Endpoint or Presense
+    participant Sense as IoT Sense
+    participant Broker as MQTT Broker
+    participant Lense as IoT Lense
+    participant Postgres as Postgres
+    participant Dispense as IoT Dispense
+    participant Target as Target system
+
+    Endpoint->>Sense: Read values
+    Sense->>Broker: Publish telemetry, status and errors
+    Broker->>Lense: Deliver subscribed message
+    Lense->>Postgres: Persist telemetry and health
+    Lense->>Lense: Update dashboard and quick metrics
+    Broker->>Dispense: Deliver subscribed message
+    Dispense->>Target: Forward selected payload

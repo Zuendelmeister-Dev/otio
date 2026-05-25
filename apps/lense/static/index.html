@@ -1,0 +1,1711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IoT Lense</title>
+<script src="/static/standard-chart.js"></script>
+<script src="/static/iot-ui.js"></script>
+<style>
+:root{
+  --bg:#14161a;--side:#101216;--panel:#1b1f26;--panel2:#171b21;--border:#2a2f38;--text:#e7e9ee;--muted:#8a9099;--accent:#ff8a1d;--green:#28c76f;--red:#ff4d4f;--yellow:#febe3b;--system:#facc15
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+aside{background:var(--side);border-right:1px solid var(--border);padding:18px}
+.brand{font-size:22px;font-weight:800;margin-bottom:22px}.brand span{color:var(--accent)}
+nav a{display:block;color:var(--text);text-decoration:none;padding:11px 12px;border-radius:10px;margin:6px 0;border:1px solid transparent}
+nav a.active,nav a:hover{background:var(--panel);border-color:var(--border)}
+.subnav{margin:0 0 6px 14px;display:none}.subnav.open{display:block}.subnav a{font-size:13px;color:var(--muted);padding:7px 10px;background:transparent!important;border-top-color:transparent!important;border-right-color:transparent!important;border-bottom-color:transparent!important;border-radius:0 10px 10px 0}.subnav a:hover,.subnav a.active{background:rgba(255,255,255,.045)!important;border-top-color:transparent!important;border-right-color:transparent!important;border-bottom-color:transparent!important}.nav-parent{position:relative}.nav-parent:after{content:'▸';position:absolute;right:12px;color:var(--muted)}.nav-parent.expanded:after{content:'▾'}.subnav a.presense{border-left:3px solid #8a9099}.subnav a.sense{border-left:3px solid #14b8a6}.subnav a.lense{border-left:3px solid var(--accent)}.subnav a.dispense{border-left:3px solid #ef4444}.subnav a.system{border-left:3px solid var(--system)}
+main{padding:22px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.card,.kpi{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px}
+.k{color:var(--muted);font-size:12px}.v{font-size:25px;font-weight:800;margin-top:6px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border-bottom:1px solid var(--border);padding:9px;text-align:left;vertical-align:top}
+th{color:var(--muted)}
+a{color:var(--accent)}
+pre{background:#0e0f12;border:1px solid var(--border);border-radius:12px;padding:12px;overflow:auto}
+.hidden{display:none}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--red)}
+.ok{background:var(--green)}.warn{background:var(--yellow)}
+canvas{width:100%;height:340px;display:block}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+input,select{background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+button{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+.chart-wrap{position:relative}
+.tooltip{position:absolute;pointer-events:none;background:#0e0f12;border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--text);font-size:12px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:5}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip,.legend-item{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:#11151b;border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer;user-select:none}
+.legend-swatch{width:10px;height:10px;border-radius:50%;display:inline-block}
+.legend-item.off{color:var(--muted);text-decoration:line-through;opacity:.6}
+.tree-node{margin-left:16px}
+details{border-left:1px solid rgba(42,47,56,.7);padding-left:10px;margin:5px 0}
+summary{cursor:pointer}
+.leaf{color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer;margin:5px 0}
+.leaf:hover{text-decoration:underline}
+.namespace-grid{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:14px}
+.small{color:var(--muted);font-size:12px}
+.graph-canvas{position:relative;min-height:380px;overflow:hidden;background:#11151b;border:1px solid var(--border);border-radius:16px;min-width:1900px;width:1900px;max-width:none}
+.node{position:absolute;min-width:150px;border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:10px 12px;box-shadow:0 8px 20px rgba(0,0,0,.25)}.node.clickable{cursor:pointer}
+.node:hover{border-color:var(--accent)}
+.node .title{font-weight:700}.node .sub{color:var(--muted);font-size:12px;margin-top:4px}
+.node.center{border-color:var(--accent)}
+.node.dispense{border-color:#ef4444}
+.node.dispense .title{color:#fff}
+.node.presense{border-color:#8a9099}
+.node.presense .title{color:#e7e9ee}
+.config-group{border-left:4px solid var(--accent);margin-bottom:14px}.config-group.sense{border-left-color:#14b8a6}.config-group.dispense{border-left-color:#ef4444}.config-group.presense{border-left-color:#8a9099}.config-group.system{border-left-color:#facc15}.config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.config-card.focused{outline:2px solid var(--accent);box-shadow:0 0 0 4px rgba(255,138,29,.12)}
+.node-menu{position:fixed;z-index:80;min-width:250px;background:#0e0f12;border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 55px rgba(0,0,0,.45);padding:8px}
+.node-menu-title{font-weight:800;margin:4px 8px 8px 8px}
+.node-menu button{width:100%;text-align:left;margin:4px 0;border-radius:10px}
+.node-menu .k{padding:0 8px 6px 8px}
+.edge-svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.health-item{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0;font-size:13px}
+.health-item:last-child{border-bottom:none}.log-info{color:var(--green)}.log-warn{color:var(--yellow)}.log-error{color:var(--red)}.status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;padding:5px 9px;font-size:12px;background:#11151b}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px}.overview-card{background:#11151b;border:1px solid var(--border);border-radius:14px;padding:12px}.overview-value{font-size:20px;font-weight:800;margin-top:6px}.overview-hint{color:var(--muted);font-size:12px;margin-top:5px}
+.loading-overlay{position:fixed;inset:0;background:rgba(10,12,16,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+.loading-overlay.hidden{display:none}
+.loading-box{background:#101216;border:1px solid var(--border);border-radius:16px;padding:18px 22px;box-shadow:0 16px 50px rgba(0,0,0,.45);font-weight:800}
+.loading-dot{display:inline-block;width:9px;height:9px;border-radius:999px;background:var(--accent);margin-right:8px;box-shadow:0 0 18px var(--accent)}
+
+
+/* v30 lense layout fixes */
+
+.graph-canvas{
+  position:relative;
+  min-width:1780px;
+  height:640px;
+  background:#11161d;
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+}
+.graph-scroll{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  border-radius:14px;
+  touch-action:auto;
+  background:#11161d;
+  border:1px solid var(--border);
+  cursor:grab;
+  scrollbar-gutter:stable;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.graph-scroll.dragging{cursor:grabbing}
+.graph-dragging{cursor:grabbing!important;user-select:none!important}
+.graph-scroll .graph-canvas{border:0}
+.edge-svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.node{position:absolute;min-width:150px;border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:10px 12px;box-shadow:0 8px 20px rgba(0,0,0,.25);cursor:pointer;z-index:2}
+.node:hover{border-color:var(--accent);transform:translateY(-1px)}
+.node .title{font-weight:700}.node .sub{color:var(--muted);font-size:12px;margin-top:4px}
+.node.center{border-color:var(--accent)}
+.node.sense{border-color:#14b8a6}
+.node.dispense{border-color:#ef4444}
+.node.presense{border-color:#8a9099}
+.node.target{border-color:#facc15}
+.node.system{border-color:#facc15}
+.config-group{border-left:4px solid var(--accent);margin-bottom:14px}.config-group.sense{border-left-color:#14b8a6}.config-group.dispense{border-left-color:#ef4444}.config-group.presense{border-left-color:#8a9099}.config-group.system{border-left-color:#facc15}.config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.config-card.focused{outline:2px solid var(--accent);box-shadow:0 0 0 4px rgba(255,138,29,.12)}
+.node-menu{position:fixed;z-index:100;min-width:270px;background:#0e0f12;border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 55px rgba(0,0,0,.45);padding:8px}
+.node-menu-title{font-weight:800;margin:4px 8px 8px 8px}
+.node-menu button{width:100%;text-align:left;margin:4px 0;border-radius:10px}
+.node-menu .k{padding:0 8px 6px 8px}
+.group-title{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px}
+
+
+/* v31 configuration action fixes */
+.node-menu button.remote-presense,.config-card .remote-presense{border-color:#8a9099}
+.node-menu button.remote-sense,.config-card .remote-sense{border-color:#14b8a6}
+.node-menu button.remote-dispense,.config-card .remote-dispense{border-color:#ef4444}
+.node-menu button.remote-lense,.config-card .remote-lense{border-color:var(--accent)}
+.node-menu button.local-action,.config-card .local-action{border-color:var(--accent)}
+.node-menu button:disabled{opacity:.45;cursor:not-allowed}
+.config-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.config-editor{margin-top:12px}
+.config-editor textarea{width:100%;min-height:170px;background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+.config-feedback{margin-top:8px;color:var(--muted);font-size:13px}
+.config-feedback.ok-text{color:var(--green)}
+.config-feedback.error-text{color:var(--red)}
+
+.config-workflow-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.config-workflow-grid textarea{width:100%;min-height:440px;background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+.diff-box{min-height:440px;background:#0e0f12;border:1px solid var(--border);border-radius:12px;padding:12px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+.config-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:5px 10px;background:#0e0f12;font-size:12px}
+
+/* Agent cards mirror the Configurations overview: one colored rail per group, neutral cards inside. */
+.agent-group{border-left:4px solid var(--accent);margin-bottom:14px}
+.agent-group.presense{border-left-color:#8a9099}
+.agent-group.sense{border-left-color:#14b8a6}
+.agent-group.dispense{border-left-color:#ef4444}
+.agent-group.lense{border-left-color:var(--accent)}
+.agent-group.system{border-left-color:var(--system)}
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.agent-card{background:#11151b;border:1px solid var(--border);border-radius:14px;padding:12px}
+.agent-card a{font-weight:800;font-size:18px}
+.agent-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.agent-meta .meta-box{background:#0e0f12;border:1px solid var(--border);border-radius:10px;padding:8px}
+.node.presense{border-color:#8a9099!important}.node.sense{border-color:#14b8a6!important}.node.lense{border-color:#ff8a1d!important}.node.dispense{border-color:#ef4444!important}.node.system{border-color:#facc15!important}.node.broker{border-color:#facc15!important}.node.target{border-color:#facc15!important}
+
+.node.presense{border-color:#8a9099!important}
+.node.sense{border-color:#14b8a6!important}
+.node.lense{border-color:#ff8a1d!important}
+.node.dispense{border-color:#ef4444!important}
+.node.system,.node.broker,.node.target{border-color:#facc15!important}
+.edge-presense{stroke:#8a9099!important}
+.edge-sense{stroke:#14b8a6!important}
+.edge-lense{stroke:#ff8a1d!important}
+.edge-dispense{stroke:#ef4444!important}
+.edge-system{stroke:#facc15!important}
+
+
+/* Test compatibility notes:
+line(sourceX+sourceW,sourceY+38,senseX,senseY+38,agent.healthy!==false,CONNECTION_PALETTE.presense)
+line(senseX+senseW,senseY+38,brokerX,brokerY+38,true,CONNECTION_PALETTE.sense)
+const componentColor='#facc15';
+*/
+
+.node.source-external{border-color:#8a9099;cursor:default}
+.node.source-external:hover{border-color:#8a9099}
+.node.presense-simulation{border-color:#8a9099;border-style:dashed}
+.node.presense-simulation:hover{border-color:#8a9099}
+.node.presense-simulation .title,.node.source-external .title{color:#e7e9ee}
+.node.down-node{border-color:var(--red)!important;border-style:dashed!important}
+.node.down-node .title{color:#e7e9ee!important}
+.node.down-node:hover{border-color:var(--red)!important}
+.graph-legend{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.graph-legend .legend-item{cursor:default}
+.legend-line{display:inline-block;width:26px;height:0;border-top:3px solid currentColor}
+.legend-line.dashed{border-top-style:dashed}
+.legend-node{display:inline-block;width:18px;height:12px;border:2px solid currentColor;border-radius:4px;background:transparent}
+.legend-node.dashed{border-style:dashed}
+
+</style>
+</head>
+<body>
+<div class="layout">
+<aside>
+  <div class="brand">IoT <span>Lense</span></div>
+  <nav>
+    <a href="#dashboard" class="active">Dashboard</a>
+    <a href="#agents" class="nav-parent" data-subnav-toggle="agents-subnav">Agents</a>
+    <div class="subnav agents-subnav">
+      <a href="#agents/presense" class="presense">IoT Presense</a>
+      <a href="#agents/sense" class="sense">IoT Sense</a>
+      <a href="#dashboard" class="lense" data-lense-self-target="agents">IoT Lense</a>
+      <a href="#agents/dispense" class="dispense">IoT Dispense</a>
+      <a href="#agents/system" class="system">System Components</a>
+    </div>
+    <a href="#analytics">Quick Metrics</a>
+    <a href="#components">System Components</a>
+    <a href="#configurations" class="nav-parent" data-subnav-toggle="config-subnav">Configurations</a>
+    <div class="subnav config-subnav">
+      <a href="#configurations/presense" class="presense">IoT Presense</a>
+      <a href="#configurations/sense" class="sense">IoT Sense</a>
+      <a href="#configurations/iot-lense" class="lense" data-lense-self-target="configurations">IoT Lense</a>
+      <a href="#configurations/dispense" class="dispense">IoT Dispense</a>
+      <a href="#configurations/system" class="system">System Components</a>
+    </div>
+    <a href="#logs">Logs</a>
+    <a href="#namespace">Unified Namespace</a>
+  </nav>
+</aside>
+<main><div id="uiError" class="hidden" style="background:#2a1414;border:1px solid #ff4d4f;color:#ffdada;border-radius:12px;padding:10px 12px;margin-bottom:12px"></div>
+<section id="page-dashboard">
+  <div class="kpis">
+    <div class="kpi"><div class="k">Health</div><div class="v" id="healthTop">unknown</div></div>
+    <div class="kpi"><div class="k">Broker</div><div class="v" id="broker">unknown</div></div>
+    <div class="kpi"><div class="k">Connected agents</div><div class="v" id="connected">0</div></div>
+    <div class="kpi"><div class="k">Avg msgs/agent 5m</div><div class="v" id="avg">0</div></div>
+  </div>
+  <div class="grid" style="grid-template-columns: 420px 1fr;">
+    <div class="card"><h3>Health distribution</h3><canvas id="pie" width="420" height="260"></canvas></div>
+    <div class="card"><h3>Health details</h3><div id="healthDetails"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Connection graph</h3>
+    <div class="small" style="margin-bottom:8px">Drag horizontally inside the empty graph area or use the scrollbar.</div>
+    <div class="graph-scroll"><div id="connectionGraph" class="graph-canvas"></div></div>
+    <div id="connectionGraphLegend" class="legend graph-legend"></div>
+  </div>
+  <div class="grid">
+    <div class="card"><h3>Agent availability</h3><div class="toolbar"><select id="availabilityAgent"></select><button onclick="loadAvailability()">Refresh</button></div><div class="chart-wrap"><canvas id="availabilityChart" width="1000" height="280"></canvas><div id="availabilityTooltip" class="tooltip"></div></div><div id="availabilityLegend" class="legend"></div></div>
+    <div class="card"><h3>Latest errors</h3><div id="errors"></div></div>
+  </div>
+</section>
+
+<section id="page-components" class="hidden">
+  <div class="card">
+    <h3>Components</h3>
+    <div class="small" style="margin-bottom:14px">Runtime components discovered from this local stack. Configuration editing stays in the owning application, but this view shows identity, endpoints and connection state in one place.</div>
+    <div id="componentsOverview"></div>
+    <div class="grid">
+      <div class="card"><h3>Broker connection</h3><div id="brokerOverview"></div><div class="chart-wrap"><canvas id="brokerChart" width="900" height="260"></canvas><div id="brokerTooltip" class="tooltip"></div></div><div id="brokerLegend" class="legend"></div></div>
+      <div class="card"><h3>Database connection</h3><div id="databaseOverview"></div><div class="chart-wrap"><canvas id="databaseChart" width="900" height="260"></canvas><div id="databaseTooltip" class="tooltip"></div></div><div id="databaseLegend" class="legend"></div></div>
+    </div>
+  </div>
+</section>
+
+
+<section id="page-configurations" class="hidden">
+  <div class="card">
+    <div id="configListBreadcrumbs" class="k" style="margin-bottom:12px"><a href="#configurations">Configurations</a></div>
+    <h2>Configurations</h2>
+    <p class="k">Central overview of the configured demo stack. Direct write-back is intentionally still owned by the individual modules. This view is the navigation and audit starting point.</p>
+    <div id="configurationGroups"></div>
+  </div>
+</section>
+
+
+<section id="page-config-detail" class="hidden">
+  <div class="card">
+    <div id="configBreadcrumbs" class="k" style="margin-bottom:12px">Configurations</div>
+    <div class="toolbar">
+      <button onclick="location.hash='configurations'">Back to configurations</button>
+      <span id="configDetailKind" class="config-chip">Component</span>
+    </div>
+    <h2 id="configDetailTitle">Configuration</h2>
+    <div class="small" id="configDetailSubtitle">Guarded configuration workflow: edit, validate, review diff, then apply.</div>
+    <details open style="margin-top:14px">
+      <summary><strong>Configuration workflow</strong></summary>
+      <div class="toolbar" style="margin-top:12px">
+        <button onclick="validateLenseConfigDraft()">Validate changes</button>
+        <button id="btnApplyConfigDraft" onclick="applyLenseConfigDraft()" disabled>Apply proposal</button>
+        <button onclick="resetLenseConfigEditor()">Reset editor</button>
+        <button id="btnOpenRemoteConfig" class="local-action">Open instance UI</button>
+        <span id="configWorkflowState" class="config-chip">Idle</span>
+        <span id="configWorkflowResult" class="config-chip">No changes applied yet</span>
+      </div>
+      <div class="config-workflow-grid">
+        <div>
+          <div class="k">Editable config</div>
+          <textarea id="lenseConfigEditor" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <div class="k">Validation and diff</div>
+          <div id="lenseConfigDiff" class="diff-box"></div>
+        </div>
+      </div>
+    </details>
+    <h3 style="margin-top:18px">Last 5 configs</h3>
+    <div id="lenseConfigHistory"></div>
+  </div>
+</section>
+
+<section id="page-logs" class="hidden">
+  <div class="card">
+    <h3>Logs</h3>
+    <div class="toolbar" id="lenseLogFilters">
+      <button onclick="loadLenseLogs()">Refresh logs</button>
+      <label class="chip"><input type="checkbox" value="INFO" checked>Info</label>
+      <label class="chip"><input type="checkbox" value="WARN" checked>Warning</label>
+      <label class="chip"><input type="checkbox" value="ERROR" checked>Error</label>
+    </div>
+    <div id="lenseLogs"></div>
+  </div>
+</section>
+
+<section id="page-agents" class="hidden">
+  <div class="card">
+    <div id="agentListBreadcrumbs" class="k" style="margin-bottom:12px"><a href="#agents">Agents</a></div>
+    <h2 id="agentListTitle">Agents</h2>
+    <div class="toolbar">
+      <input id="agentSearch" placeholder="Search agents or sources">
+      <button onclick="loadAgents(currentAgentGroupSlug)">Search</button>
+    </div>
+    <div id="agents"></div>
+  </div>
+</section>
+
+<section id="page-agent-detail" class="hidden">
+  <div class="card">
+    <h3 id="agentTitle">Agent</h3>
+    <div id="agentSummary"></div>
+  </div>
+  <div class="grid">
+    <div class="card"><h3>Endpoint health</h3><div id="agentHealthDetails"></div></div>
+    <div class="card"><h3>Source availability</h3><div class="chart-wrap"><canvas id="agentAvailabilityChart" width="900" height="260"></canvas><div id="agentAvailabilityTooltip" class="tooltip"></div></div><div id="agentAvailabilityLegend" class="legend"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card"><h3>Broker connection status</h3><div class="chart-wrap"><canvas id="agentBrokerChart" width="900" height="260"></canvas><div id="agentBrokerTooltip" class="tooltip"></div></div><div id="agentBrokerLegend" class="legend"></div></div>
+    <div class="card"><h3>Topics</h3><div id="agentTopics"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Last 50 messages</h3><div id="messages"></div></div>
+</section>
+
+<section id="page-analytics" class="hidden">
+  <div class="card">
+    <h3>Quick Metrics</h3>
+    <div class="toolbar">
+      <select id="analyticsAgent"></select>
+      <select id="analyticsMetric"></select>
+      <select id="analyticsRange"><option value="5">Last 5 minutes</option><option value="15">Last 15 minutes</option><option value="60" selected>Last 1 hour</option><option value="1440">Last 24 hours</option></select>
+      <select id="analyticsAggregation"><option value="avg" selected>Average</option><option value="min">Minimum</option><option value="max">Maximum</option><option value="sum">Sum</option></select>
+      <select id="analyticsBucket"><option value="10">10s bucket</option><option value="30">30s bucket</option><option value="60" selected>60s bucket</option><option value="300">5m bucket</option></select>
+      <button onclick="loadAnalytics()">Apply</button>
+      <button onclick="loadAnalytics()">Refresh</button>
+      <button onclick="location.href='/api/export?format=csv'">Export CSV</button>
+      <button onclick="location.href='/api/export?format=json'">Export JSON</button>
+    </div>
+    <div class="chart-wrap"><canvas id="analyticsChart" width="1200" height="380"></canvas><div id="analyticsTooltip" class="tooltip"></div></div>
+    <div id="analyticsLegend" class="legend"></div>
+  </div>
+</section>
+
+<section id="page-namespace" class="hidden">
+  <div class="namespace-grid">
+    <div class="card">
+      <h3>Unified Namespace</h3>
+      <div class="toolbar"><input id="unsSearch" placeholder="Search topic path" oninput="loadUNS(true)"><button onclick="loadUNS(true)">Refresh</button></div>
+      <div id="uns" class="tree-node"></div>
+    </div>
+    <div class="card">
+      <h3 id="unsChartTitle">Endpoint preview</h3>
+      <div class="small" id="unsChartHint">Click a metric endpoint, for example iot-lense / machine-01 / metrics / humidity. Status endpoints show the latest status document.</div>
+      <div id="unsStatusPreview"></div>
+      <div id="unsValueTable"></div>
+      <div class="chart-wrap" id="unsChartWrap"><canvas id="unsChart" width="900" height="340"></canvas><div id="unsTooltip" class="tooltip"></div></div>
+      <div id="unsLegend" class="legend"></div>
+    </div>
+  </div>
+</section>
+<div id="nodeMenu" class="node-menu hidden"></div>
+</main>
+</div>
+
+<script>
+const LENSE_MENU_BUILD_MARKER='v65-presense-simulation-vs-external-source';
+const BUILD_MARKER='v57-test-and-graph-fix-lense';
+function showUiError(message){
+  const el=document.getElementById('uiError');
+  if(!el)return;
+  el.textContent=message;
+  el.classList.remove('hidden');
+}
+function clearUiError(){
+  const el=document.getElementById('uiError');
+  if(!el)return;
+  el.textContent='';
+  el.classList.add('hidden');
+}
+
+function bindDragScroll(element){
+  if(!element || element.dataset.dragScrollBound)return;
+  element.dataset.dragScrollBound='true';
+
+  let active=false;
+  let startX=0;
+  let startLeft=0;
+  let moved=false;
+
+  function begin(event){
+    if(event.button!==0)return;
+    if(event.target.closest('.node') || event.target.closest('.node-menu'))return;
+    active=true;
+    moved=false;
+    startX=event.clientX;
+    startLeft=element.scrollLeft;
+    element.classList.add('dragging');
+    document.body.classList.add('graph-dragging');
+    event.preventDefault();
+  }
+
+  function move(event){
+    if(!active)return;
+    const dx=event.clientX-startX;
+    if(Math.abs(dx)>2)moved=true;
+    element.scrollLeft=startLeft-dx;
+    event.preventDefault();
+  }
+
+  function end(){
+    if(!active)return;
+    active=false;
+    element.classList.remove('dragging');
+    document.body.classList.remove('graph-dragging');
+    setTimeout(()=>{moved=false;},0);
+  }
+
+  element.addEventListener('mousedown',begin);
+  const canvas=element.querySelector('.graph-canvas');
+  if(canvas)canvas.addEventListener('mousedown',begin);
+  window.addEventListener('mousemove',move);
+  window.addEventListener('mouseup',end);
+
+  element.addEventListener('click',event=>{
+    if(moved){
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  },true);
+}
+
+function showLoading(message='Fetching data...'){
+  const overlay=document.getElementById('loadingOverlay');
+  const text=document.getElementById('loadingText');
+  if(text)text.textContent=message;
+  if(overlay)overlay.classList.remove('hidden');
+}
+function hideLoading(){
+  const overlay=document.getElementById('loadingOverlay');
+  if(overlay)overlay.classList.add('hidden');
+}
+async function withLoading(message, fn){
+  showLoading(message);
+  try{
+    return await fn();
+  }finally{
+    hideLoading();
+  }
+}
+function routeLoad(message, fn){
+  withLoading(message, fn).then(clearUiError).catch(err=>showUiError(err.message||String(err)));
+}
+async function safeJson(url, options){
+  const response=await fetch(url, options);
+  if(!response.ok){
+    throw new Error(url+' returned '+response.status+' '+await response.text());
+  }
+  return await response.json();
+}
+
+const pages=['dashboard','agents','agent-detail','analytics','namespace','components','configurations','config-detail','logs'];
+const CONNECTION_PALETTE={presense:'#8a9099',sense:'#14b8a6',lense:'#ff8a1d',dispense:'#ef4444',system:'#facc15',down:'#ff4d4f'};
+let latestSummary=null;
+let latestAgents=[];
+let namespaceLoaded=false;
+let agentsLoaded=false;
+let currentAgentGroupSlug=null;
+const analyticsChart=IoTStandardChart.createChart({canvasId:'analyticsChart',legendId:'analyticsLegend',tooltipId:'analyticsTooltip',height:380,yLabel:'value'});
+const unsChart=IoTStandardChart.createChart({canvasId:'unsChart',legendId:'unsLegend',tooltipId:'unsTooltip',height:340,yLabel:'value'});
+const availabilityChart=IoTStandardChart.createChart({canvasId:'availabilityChart',legendId:'availabilityLegend',tooltipId:'availabilityTooltip',height:260,yLabel:'messages'});
+const brokerChart=IoTStandardChart.createChart({canvasId:'brokerChart',legendId:'brokerLegend',tooltipId:'brokerTooltip',height:260,yLabel:'connected'});
+const databaseChart=IoTStandardChart.createChart({canvasId:'databaseChart',legendId:'databaseLegend',tooltipId:'databaseTooltip',height:260,yLabel:'connected'});
+const agentAvailabilityChart=IoTUI.renderBinaryStatusChart ? null : null;
+const agentBrokerChart=IoTUI.renderBinaryStatusChart ? null : null;
+let runtimeConfig={mqtt:{host:'mqtt',port:'1883'},postgres:{host:'postgres',port:'5432',database:'iotdb',user:'iot'}};
+let currentLenseLogs=[];
+
+
+function toolClass(kind){
+  const k=String(kind||'').toLowerCase();
+  if(k.includes('presense'))return 'remote-presense';
+  if(k.includes('sense'))return 'remote-sense';
+  if(k.includes('dispense'))return 'remote-dispense';
+  if(k.includes('lense'))return 'remote-lense';
+  return 'local-action';
+}
+
+function isLenseSelfItem(item){
+  return String((item&&item.kind)||'').toLowerCase().includes('lense') || String((item&&item.id)||'').toLowerCase()==='iot-lense';
+}
+
+function remoteConfigUrl(item){
+  if(!item.url)return '';
+  const hash=item.remoteConfigHash || (String(item.kind||'').toLowerCase().includes('sense') ? '#config' : '');
+  return item.url + hash;
+}
+
+
+function isPresenseSimulationSource(source){
+  const origin=String(source.origin||source.managedBy||source.kind||source.type||'').toLowerCase();
+  const host=String(source.host||source.sourceHost||'').toLowerCase();
+  const id=String(source.agentId||source.id||'').toLowerCase();
+  const url=String(source.url||'').toLowerCase();
+  return origin.includes('presense') || host.includes('presense-') || id.includes('presense-') || url.includes(':830') || url.includes(':484');
+}
+
+function sourceNodeClass(source){
+  return isPresenseSimulationSource(source) ? 'presense-simulation' : 'source-external';
+}
+
+function sourceNodeMenuItem(source){
+  if(!isPresenseSimulationSource(source)){
+    return null;
+  }
+  return {
+    id: source.agentId || source.id,
+    label: source.agentId || source.id,
+    kind: 'IoT Presense (Simulation)',
+    url: source.url,
+    remoteConfigHash: source.remoteConfigHash || '#dashboard'
+  };
+}
+
+
+function legendNode(color,label,dashed=false){
+  return '<span class="legend-item" style="color:'+color+'">' +
+    '<span class="legend-node'+(dashed?' dashed':'')+'"></span>' +
+    IoTStandardChart.escapeHtml(label) +
+    '</span>';
+}
+
+function legendLine(color,label,dashed=false){
+  return '<span class="legend-item" style="color:'+color+'">' +
+    '<span class="legend-line'+(dashed?' dashed':'')+'"></span>' +
+    IoTStandardChart.escapeHtml(label) +
+    '</span>';
+}
+
+function renderConnectionGraphLegend(){
+  const legend=document.getElementById('connectionGraphLegend');
+  if(!legend)return;
+  legend.innerHTML=[
+    legendNode(CONNECTION_PALETTE.presense,'External machine'),
+    legendNode(CONNECTION_PALETTE.presense,'IoT Presense simulation',true),
+    legendNode(CONNECTION_PALETTE.down,'Unavailable node',true),
+    legendLine(CONNECTION_PALETTE.presense,'Source connection'),
+    legendLine(CONNECTION_PALETTE.sense,'Sense connection'),
+    legendLine(CONNECTION_PALETTE.system,'System / broker / database connection'),
+    legendLine(CONNECTION_PALETTE.dispense,'Dispense / target connection'),
+    legendLine(CONNECTION_PALETTE.down,'Unavailable connection',true)
+  ].join('');
+}
+
+function showNodeMenu(event, item){
+  event.preventDefault();
+  event.stopPropagation();
+  const menu=document.getElementById('nodeMenu');
+  if(!menu)return;
+  const lenseSelf=isLenseSelfItem(item);
+  const canRemote=Boolean(item.url)&&!lenseSelf;
+  const configHash='configurations/'+encodeURIComponent(item.id||item.label||'');
+  const remoteClass=toolClass(item.kind);
+  menu.innerHTML='<div class="node-menu-title">'+IoTStandardChart.escapeHtml(item.label||item.id||'Component')+'</div>'+
+    '<div class="k">'+IoTStandardChart.escapeHtml(item.kind||'component')+'</div>'+
+    (canRemote?'<button class="'+remoteClass+'" id="nodeRemote">Open instance UI</button>':'')+
+    '<button class="local-action" id="nodeConfig">'+(lenseSelf?'Open IoT Lense configuration':'Configure in IoT Lense')+'</button>';
+  menu.style.left=Math.min(event.clientX+8, window.innerWidth-300)+'px';
+  menu.style.top=Math.min(event.clientY+8, window.innerHeight-160)+'px';
+  menu.classList.remove('hidden');
+  const remote=document.getElementById('nodeRemote');
+  if(remote && canRemote)remote.onclick=()=>{menu.classList.add('hidden');window.open(remoteConfigUrl(item),'_blank','noopener');};
+  document.getElementById('nodeConfig').onclick=()=>{menu.classList.add('hidden');location.hash=configHash;};
+}
+document.addEventListener('click',event=>{
+  const menu=document.getElementById('nodeMenu');
+  if(menu && !menu.contains(event.target))menu.classList.add('hidden');
+});
+
+
+let lenseConfigItems={};
+let currentLenseConfigItem=null;
+let currentLenseConfigOriginal='';
+let currentLenseConfigProposal=null;
+let currentLenseConfigIsRemote=false;
+let currentLenseRemoteProposalId=null;
+
+function configObjectForItem(item){
+  if(item && item.configuration){
+    return {
+      id:item.id,
+      label:item.label,
+      kind:item.kind,
+      url:item.url,
+      value:item.value,
+      hint:item.hint,
+      configuration:item.configuration
+    };
+  }
+  if(item && item.raw && item.raw.configuration){
+    return {
+      id:item.id,
+      label:item.label,
+      kind:item.kind,
+      url:item.url,
+      value:item.value,
+      hint:item.hint,
+      configuration:item.raw.configuration
+    };
+  }
+  if(item && item.raw)return item.raw;
+  if(item && item.id==='iot-lense')return {id:'iot-lense',kind:'lense',ui:'http://127.0.0.1:8000',role:'analytics-and-historian'};
+  if(item && item.id==='mqtt')return {id:'mqtt',kind:'broker',host:runtimeConfig.mqtt.host||'mqtt',port:runtimeConfig.mqtt.port||1883,topicPrefix:runtimeConfig.mqtt.topicPrefix||'iot-lense'};
+  if(item && item.id==='postgres')return {id:'postgres',kind:'database',host:runtimeConfig.postgres.host||'postgres',port:runtimeConfig.postgres.port||5432,database:runtimeConfig.postgres.database||'iotdb',user:runtimeConfig.postgres.user||'iot'};
+  return {id:item.id,label:item.label,value:item.value,hint:item.hint};
+}
+
+function storedConfigForItem(item){
+  const canonical=JSON.stringify(configObjectForItem(item),null,2);
+  const key='iot-lense-config-draft-v37:'+item.id;
+  const stored=localStorage.getItem(key);
+  if(!stored)return canonical;
+  // Keep old or accidental short drafts from hiding the full discovered configuration.
+  try{
+    const parsed=JSON.parse(stored);
+    const canonicalParsed=JSON.parse(canonical);
+    const storedLength=JSON.stringify(parsed).length;
+    const canonicalLength=JSON.stringify(canonicalParsed).length;
+    if(canonicalLength > storedLength * 1.6)return canonical;
+    return JSON.stringify(parsed,null,2);
+  }catch(e){
+    return canonical;
+  }
+}
+
+function historyForConfig(id){
+  try{return JSON.parse(localStorage.getItem('iot-lense-config-history-v37:'+id)||'[]');}catch(e){return [];}
+}
+
+function saveHistoryForConfig(id, raw){
+  const items=historyForConfig(id);
+  items.unshift({createdAt:new Date().toISOString(),configRaw:raw});
+  localStorage.setItem('iot-lense-config-history-v37:'+id, JSON.stringify(items.slice(0,5)));
+}
+
+function makeDiff(oldText,newText){
+  const oldLines=oldText.split('\n');
+  const newLines=newText.split('\n');
+  const max=Math.max(oldLines.length,newLines.length);
+  const out=[];
+  for(let i=0;i<max;i++){
+    const a=oldLines[i], b=newLines[i];
+    if(a===b && a!==undefined) out.push('  '+a);
+    else{
+      if(a!==undefined) out.push('- '+a);
+      if(b!==undefined) out.push('+ '+b);
+    }
+  }
+  return out.join('\n');
+}
+
+function collectConfigItems(){
+  const topology=runtimeConfig.topology||{};
+  const senses=topology.senses||[];
+  const dispenses=topology.dispenses||[];
+  const presenses=topology.presenses||topology.agents||[];
+  const targets=topology.targets||[];
+  const lenseItem=topology.lense||{id:'iot-lense',label:'IoT Lense',url:'http://127.0.0.1:8000',configuration:configObjectForItem({id:'iot-lense'})};
+  const system=(topology.systemComponents||[]).concat(targets.map(t=>Object.assign({kind:'System Component'},t)));
+  return {
+    presenses: presenses.map(p=>({id:p.agentId||p.id,label:p.agentId||p.id,value:p.url||p.sourceHost||'configured',hint:(p.sourceType||p.protocol||'source')+' simulator',kind:'IoT Presense',url:p.url,remoteConfigHash:p.remoteConfigHash||'#dashboard',configuration:p.configuration,raw:p})),
+    senses: senses.map(s=>({id:s.id,label:s.label||s.id,value:s.url||s.id,hint:(s.sourceType||'collector')+' collector',kind:'IoT Sense',url:s.url,remoteConfigHash:s.remoteConfigHash||'#config',configuration:s.configuration,raw:s})),
+    lense: [{id:lenseItem.id||'iot-lense',label:lenseItem.label||'IoT Lense',value:lenseItem.url||'http://127.0.0.1:8000',hint:'Analytics, historian and central configuration overview',kind:'IoT Lense',url:lenseItem.url||'http://127.0.0.1:8000',configuration:lenseItem.configuration,raw:lenseItem}],
+    dispenses: dispenses.map(d=>({id:d.id,label:d.label||d.id,value:d.url||d.id,hint:(d.sourceType||'all')+' forwarder',kind:'IoT Dispense',url:d.url,remoteConfigHash:d.remoteConfigHash||'#dashboard',configuration:d.configuration,raw:d})),
+    system: system.map(x=>({id:x.id,label:x.label||x.id,value:x.host?x.host+':'+(x.externalPort||x.port||''):x.id,hint:x.kind||'System Component',kind:'System Component',configuration:x.configuration||x,raw:x}))
+  };
+}
+
+function flattenConfigItems(){
+  const grouped=collectConfigItems();
+  const all=[...grouped.presenses,...grouped.senses,...grouped.lense,...grouped.dispenses,...grouped.system];
+  lenseConfigItems=Object.fromEntries(all.map(item=>[String(item.id),item]));
+  return grouped;
+}
+
+
+function supportsRemoteConfig(item){
+  return item && item.kind==='IoT Sense';
+}
+
+async function loadEffectiveConfigText(item){
+  if(supportsRemoteConfig(item)){
+    try{
+      const remote=await safeJson('/api/remote-config?id='+encodeURIComponent(item.id));
+      if(remote && typeof remote.raw==='string'){
+        currentLenseConfigIsRemote=true;
+        return remote.raw;
+      }
+    }catch(err){
+      console.warn('Remote config fetch failed, falling back to topology config', err);
+    }
+  }
+  currentLenseConfigIsRemote=false;
+  return storedConfigForItem(item);
+}
+
+async function remoteHistoryForConfig(id){
+  try{
+    const h=await safeJson('/api/remote-config/history?id='+encodeURIComponent(id));
+    return (h.items||[]).map(x=>({createdAt:x.createdAt||x.fileName||'',configRaw:x.configRaw||'',fileName:x.fileName||''}));
+  }catch(err){
+    return [];
+  }
+}
+
+async function renderConfigHistory(){
+  const box=document.getElementById('lenseConfigHistory');
+  if(!currentLenseConfigItem || !box)return;
+  let items=[];
+  if(currentLenseConfigIsRemote){
+    items=await remoteHistoryForConfig(currentLenseConfigItem.id);
+  }
+  if(!items.length){
+    items=historyForConfig(currentLenseConfigItem.id);
+  }
+  if(!items.length){
+    box.innerHTML='<div class="k">No saved config snapshots yet. Apply a configuration once to create the first snapshot.</div>';
+    return;
+  }
+  box.innerHTML=items.map((x,index)=>'<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><b>Snapshot '+(index+1)+'</b><div class="k">'+IoTStandardChart.escapeHtml(x.createdAt||x.fileName||'')+'</div></div><button data-restore-config="'+index+'">Restore</button></div><details style="margin-top:8px"><summary>Show config</summary><pre>'+IoTStandardChart.escapeHtml(x.configRaw||'')+'</pre></details></div>').join('');
+  document.querySelectorAll('[data-restore-config]').forEach(button=>{
+    button.onclick=()=>{
+      const item=items[Number(button.dataset.restoreConfig)];
+      document.getElementById('lenseConfigEditor').value=item.configRaw;
+      document.getElementById('configWorkflowResult').textContent='Snapshot loaded into editor';
+    };
+  });
+}
+function loadConfigurationDetail(id){
+  return (async()=>{
+    await loadRuntime();
+    flattenConfigItems();
+    const item=lenseConfigItems[id];
+    currentLenseConfigItem=item;
+    currentLenseConfigProposal=null;
+    document.getElementById('btnApplyConfigDraft').disabled=true;
+    if(!item){
+      document.getElementById('configDetailTitle').textContent='Configuration not found';
+      document.getElementById('configDetailSubtitle').textContent=id;
+      return;
+    }
+    currentLenseConfigOriginal=await loadEffectiveConfigText(item);
+    document.getElementById('configDetailTitle').textContent=(item.label||item.id)+' configuration';
+    const bc=document.getElementById('configBreadcrumbs');
+    if(bc)bc.innerHTML=configurationBreadcrumbHtml(item);
+    document.getElementById('configDetailKind').textContent=item.kind||'Component';
+    document.getElementById('configDetailSubtitle').textContent='Guarded configuration workflow for '+(item.label||item.id)+'. Edit, validate, review diff, then apply.';
+    document.getElementById('lenseConfigEditor').value=currentLenseConfigOriginal;
+    document.getElementById('lenseConfigDiff').textContent='';
+    document.getElementById('configWorkflowState').textContent='Idle';
+    document.getElementById('configWorkflowResult').textContent='No changes applied yet';
+    const remote=document.getElementById('btnOpenRemoteConfig');
+    if(item.url){
+      remote.disabled=false;
+      remote.onclick=()=>window.open(remoteConfigUrl(item),'_blank','noopener');
+      remote.textContent='Open instance UI';
+      remote.className=toolClass(item.kind);
+    }else{
+      remote.disabled=true;
+      remote.textContent='No remote UI available';
+      remote.className='local-action';
+    }
+    await renderConfigHistory();
+  })();
+}
+
+async function validateLenseConfigDraft(){
+  const editor=document.getElementById('lenseConfigEditor');
+  const diff=document.getElementById('lenseConfigDiff');
+  const stateEl=document.getElementById('configWorkflowState');
+  const result=document.getElementById('configWorkflowResult');
+  try{
+    const parsed=JSON.parse(editor.value);
+    const normalized=JSON.stringify(parsed,null,2);
+    currentLenseConfigProposal=normalized;
+    currentLenseRemoteProposalId=null;
+    if(currentLenseConfigIsRemote){
+      const remote=await safeJson('/api/remote-config/validate?id='+encodeURIComponent(currentLenseConfigItem.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({raw:normalized})});
+      if(!remote.valid){
+        diff.textContent=(remote.problems||['Remote validation failed']).join('\n');
+        stateEl.textContent='Invalid';
+        result.textContent='Remote validation failed';
+        document.getElementById('btnApplyConfigDraft').disabled=true;
+        return;
+      }
+      currentLenseRemoteProposalId=remote.proposal && remote.proposal.id;
+      diff.textContent=(remote.proposal && remote.proposal.diff) || makeDiff(currentLenseConfigOriginal, normalized);
+      stateEl.textContent='Validated';
+      result.textContent='Remote draft is valid';
+      document.getElementById('btnApplyConfigDraft').disabled=false;
+      return;
+    }
+    diff.textContent=makeDiff(currentLenseConfigOriginal, normalized);
+    stateEl.textContent='Validated';
+    result.textContent='Draft is valid JSON';
+    document.getElementById('btnApplyConfigDraft').disabled=false;
+  }catch(err){
+    currentLenseConfigProposal=null;
+    currentLenseRemoteProposalId=null;
+    diff.textContent=err.message;
+    stateEl.textContent='Invalid';
+    result.textContent='Validation failed';
+    document.getElementById('btnApplyConfigDraft').disabled=true;
+  }
+}
+async function applyLenseConfigDraft(){
+  if(!currentLenseConfigItem || !currentLenseConfigProposal)return;
+  if(currentLenseConfigIsRemote){
+    if(!currentLenseRemoteProposalId){
+      document.getElementById('configWorkflowResult').textContent='Validate the remote draft before applying it';
+      return;
+    }
+    const result=await safeJson('/api/remote-config/apply?id='+encodeURIComponent(currentLenseConfigItem.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposalId:currentLenseRemoteProposalId})});
+    currentLenseConfigOriginal=currentLenseConfigProposal;
+    currentLenseRemoteProposalId=null;
+    document.getElementById('btnApplyConfigDraft').disabled=true;
+    document.getElementById('configWorkflowState').textContent='Applied remotely';
+    document.getElementById('configWorkflowResult').textContent='Configuration applied on instance. '+((result.historyFile)?('Snapshot: '+result.historyFile):'');
+    document.getElementById('lenseConfigDiff').textContent='';
+    await renderConfigHistory();
+    return;
+  }
+  saveHistoryForConfig(currentLenseConfigItem.id, currentLenseConfigProposal);
+  localStorage.setItem('iot-lense-config-draft-v37:'+currentLenseConfigItem.id,currentLenseConfigProposal);
+  currentLenseConfigOriginal=currentLenseConfigProposal;
+  document.getElementById('btnApplyConfigDraft').disabled=true;
+  document.getElementById('configWorkflowState').textContent='Applied locally';
+  document.getElementById('configWorkflowResult').textContent='Configuration snapshot saved in IoT Lense. Backend write-back is intentionally still guarded.';
+  document.getElementById('lenseConfigDiff').textContent='';
+  await renderConfigHistory();
+}
+async function resetLenseConfigEditor(){
+  if(!currentLenseConfigItem)return;
+  localStorage.removeItem('iot-lense-config-draft-v37:'+currentLenseConfigItem.id);
+  currentLenseConfigOriginal=await loadEffectiveConfigText(currentLenseConfigItem);
+  document.getElementById('lenseConfigEditor').value=currentLenseConfigOriginal;
+  document.getElementById('lenseConfigDiff').textContent='';
+  document.getElementById('btnApplyConfigDraft').disabled=true;
+  document.getElementById('configWorkflowState').textContent='Reset';
+  document.getElementById('configWorkflowResult').textContent='Editor reset to current discovered configuration';
+  await renderConfigHistory();
+}
+
+const configGroupMeta={
+  presense:{title:'IoT Presense',className:'config-group presense'},
+  sense:{title:'IoT Sense',className:'config-group sense'},
+  lense:{title:'IoT Lense',className:'config-group'},
+  dispense:{title:'IoT Dispense',className:'config-group dispense'},
+  system:{title:'System Components',className:'config-group'}
+};
+
+function configGroupSlugForKind(kind){
+  const k=String(kind||'').toLowerCase();
+  if(k.includes('presense'))return 'presense';
+  if(k.includes('sense') && !k.includes('presense'))return 'sense';
+  if(k.includes('dispense'))return 'dispense';
+  if(k.includes('lense'))return 'lense';
+  return 'system';
+}
+
+function configGroupTitle(slug){
+  return (configGroupMeta[slug]&&configGroupMeta[slug].title)||'Configurations';
+}
+
+function isAgentGroupSlug(slug){
+  return ['presense','sense','lense','dispense','system'].includes(slug);
+}
+
+function agentGroupTitle(slug){
+  return {
+    presense:'IoT Presense',
+    sense:'IoT Sense',
+    lense:'IoT Lense',
+    dispense:'IoT Dispense',
+    system:'System Components'
+  }[slug] || 'Agents';
+}
+
+function allVirtualAgents(){
+  const topology=runtimeConfig.topology||{};
+  const summary=latestSummary||{};
+  const mqtt=runtimeConfig.mqtt||{};
+  const postgres=runtimeConfig.postgres||{};
+  const brokerStatus=summary.mqtt||{};
+  const now=new Date().toISOString();
+  const items=[];
+  (topology.senses||[]).forEach(s=>items.push({
+    id:s.id, group:'IoT Sense', className:'sense', type:'sense',
+    connected:componentOnline(s.id,false), healthy:componentOnline(s.id,false),
+    source:(s.sourceType||'collector')+' / '+(s.url||''),
+    sourceType:s.sourceType||'collector', sourceHost:s.url||'', timestamp:componentTimestamp(s.id,'waiting'),
+    hint:'Protocol collector module', url:s.url||'', configuration:s.configuration||s
+  }));
+  items.push({
+    id:'iot-lense', group:'IoT Lense', className:'lense', type:'lense',
+    connected:true, healthy:true,
+    source:'local / http://127.0.0.1:8000',
+    sourceType:'local', sourceHost:'http://127.0.0.1:8000', timestamp:now,
+    hint:'Analytics, historian and central view', url:'http://127.0.0.1:8000',
+    configuration:runtimeConfig.lense||{}
+  });
+  (topology.dispenses||[]).forEach(x=>items.push({
+    id:x.id, group:'IoT Dispense', className:'dispense', type:'dispense',
+    connected:componentOnline(x.id,false), healthy:componentOnline(x.id,false),
+    source:(x.sourceType||'forwarder')+' / '+(x.url||''),
+    sourceType:x.sourceType||'forwarder', sourceHost:x.url||'', timestamp:componentTimestamp(x.id,'waiting'),
+    hint:'Outbound forwarding module', url:x.url||'', configuration:x.configuration||x
+  }));
+  items.push({
+    id:'mqtt', group:'System Components', className:'system', type:'broker',
+    connected:Boolean(brokerStatus.connected), healthy:Boolean(brokerStatus.connected),
+    source:(mqtt.host||'mqtt')+' / '+(mqtt.port||1883),
+    sourceType:'mqtt', sourceHost:mqtt.host||'mqtt', timestamp:brokerStatus.lastMessage||'',
+    hint:'Internal MQTT broker', url:'', configuration:mqtt
+  });
+  items.push({
+    id:'postgres', group:'System Components', className:'system', type:'database',
+    connected:true, healthy:true,
+    source:(postgres.host||'postgres')+' / '+(postgres.port||5432),
+    sourceType:'postgres', sourceHost:postgres.host||'postgres', timestamp:now,
+    hint:'Historian database', url:'', configuration:postgres
+  });
+  (topology.targets||[]).forEach(t=>items.push({
+    id:t.id, group:'System Components', className:'system', type:'target',
+    connected:true, healthy:true,
+    source:(t.host||'target')+' / '+(t.externalPort||t.port||''),
+    sourceType:'mqtt-target', sourceHost:t.host||'', timestamp:'configured',
+    hint:'Outbound target component', url:'', configuration:t
+  }));
+  return items;
+}
+
+function findVirtualAgent(id){
+  return allVirtualAgents().find(item=>item.id===id)||null;
+}
+
+function isConfigurationGroupSlug(value){
+  return Boolean(configGroupMeta[value]);
+}
+
+function configurationBreadcrumbHtml(item){
+  const slug=configGroupSlugForKind(item.kind);
+  return '<a href="#configurations">Configurations</a> / <a href="#configurations/'+slug+'">'+IoTStandardChart.escapeHtml(configGroupTitle(slug))+'</a> / '+IoTStandardChart.escapeHtml(item.label||item.id);
+}
+
+function groupedConfigurationsFromTopology(){
+  const grouped=collectConfigItems();
+  return [
+    {slug:'presense',className:'config-group presense',title:'IoT Presense',items:grouped.presenses},
+    {slug:'sense',className:'config-group sense',title:'IoT Sense',items:grouped.senses},
+    {slug:'lense',className:'config-group',title:'IoT Lense',items:grouped.lense},
+    {slug:'dispense',className:'config-group dispense',title:'IoT Dispense',items:grouped.dispenses},
+    {slug:'system',className:'config-group',title:'System Components',items:grouped.system}
+  ];
+}
+
+async function loadConfigurations(focusId){
+  await loadRuntime();
+  flattenConfigItems();
+  const groupSlug=isConfigurationGroupSlug(focusId)?focusId:null;
+  const focusItemId=groupSlug?null:focusId;
+  const groups=groupedConfigurationsFromTopology().filter(group=>!groupSlug || group.slug===groupSlug);
+  const container=document.getElementById('configurationGroups');
+  if(!container)return;
+  const header=document.querySelector('#page-configurations .card h2');
+  const intro=document.querySelector('#page-configurations .card .k:not(#configListBreadcrumbs)');
+  const breadcrumbs=document.getElementById('configListBreadcrumbs');
+  if(header)header.textContent=groupSlug?configGroupTitle(groupSlug)+' configurations':'Configurations';
+  if(breadcrumbs)breadcrumbs.innerHTML=groupSlug
+    ? '<a href="#configurations">Configurations</a> / '+IoTStandardChart.escapeHtml(configGroupTitle(groupSlug))
+    : '<a href="#configurations">Configurations</a>';
+  if(intro)intro.textContent=groupSlug
+    ? 'Filtered configuration overview for '+configGroupTitle(groupSlug)+'.'
+    : 'Central overview of the configured demo stack. Direct write-back is intentionally still owned by the individual modules. This view is the navigation and audit starting point.';
+  container.innerHTML=groups.map(group=>{
+    const cards='<div class="config-grid">'+(group.items.length?group.items.map(item=>{
+      const safeId=String(item.id||item.label).replace(/[^a-zA-Z0-9_-]/g,'_');
+      const focused=focusItemId && String(item.id)===String(focusItemId);
+      const remoteButton=(item.url&&!isLenseSelfItem(item))?'<button type="button" data-url="'+IoTStandardChart.escapeHtml(remoteConfigUrl(item))+'" class="'+toolClass(item.kind)+' open-remote">Open instance UI</button>':'';
+      const editButton='<button type="button" class="local-action open-lense-config" data-config-id="'+IoTStandardChart.escapeHtml(item.id)+'">Configure in IoT Lense</button>';
+      return '<div id="config-'+safeId+'" class="overview-card config-card '+(focused?'focused':'')+'"><div class="k">'+IoTStandardChart.escapeHtml(item.kind||group.title)+'</div><div class="overview-value" style="font-size:16px">'+IoTStandardChart.escapeHtml(item.label||item.id)+'</div><div class="overview-hint">'+IoTStandardChart.escapeHtml(item.value||'')+'</div><div class="overview-hint">'+IoTStandardChart.escapeHtml(item.hint||'')+'</div><div class="config-actions">'+remoteButton+editButton+'</div></div>';
+    }).join(''):'<div class="k">No entries configured.</div>')+'</div>';
+    return '<div class="card '+group.className+'"><h3>'+IoTStandardChart.escapeHtml(group.title)+'</h3>'+cards+'</div>';
+  }).join('');
+  document.querySelectorAll('.open-remote').forEach(button=>button.onclick=(event)=>{event.stopPropagation();window.open(button.dataset.url,'_blank','noopener');});
+  document.querySelectorAll('.open-lense-config').forEach(button=>button.onclick=(event)=>{event.stopPropagation();location.hash='configurations/'+encodeURIComponent(button.dataset.configId);});
+  if(focusItemId){
+    setTimeout(()=>{
+      const safeId=String(focusItemId).replace(/[^a-zA-Z0-9_-]/g,'_');
+      const el=document.getElementById('config-'+safeId);
+      if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+    },50);
+  }
+}
+
+
+const subnavOpenState={agents:false,configurations:false};
+function subnavKeyFromClassName(className){
+  return className==='agents-subnav'?'agents':'configurations';
+}
+function syncSubnavState(){
+  const agentsNav=document.querySelector('.agents-subnav');
+  const configNav=document.querySelector('.config-subnav');
+  if(agentsNav)agentsNav.classList.toggle('open',Boolean(subnavOpenState.agents));
+  if(configNav)configNav.classList.toggle('open',Boolean(subnavOpenState.configurations));
+  document.querySelectorAll('[data-subnav-toggle]').forEach(link=>{
+    const key=subnavKeyFromClassName(link.dataset.subnavToggle);
+    link.classList.toggle('expanded',Boolean(subnavOpenState[key]));
+    link.setAttribute('aria-expanded',String(Boolean(subnavOpenState[key])));
+  });
+}
+function ensureSubnavOpenForRoute(page){
+  if(page==='agents')subnavOpenState.agents=true;
+  if(page==='configurations')subnavOpenState.configurations=true;
+  syncSubnavState();
+}
+document.querySelectorAll('[data-subnav-toggle]').forEach(link=>{
+  link.setAttribute('role','button');
+  link.setAttribute('aria-expanded','false');
+  link.addEventListener('click',(event)=>{
+    event.preventDefault();
+    const key=subnavKeyFromClassName(link.dataset.subnavToggle);
+    subnavOpenState[key]=!subnavOpenState[key];
+    syncSubnavState();
+  });
+});
+function route(){
+  const hash=location.hash.replace('#','')||'dashboard';
+  const parts=hash.split('/');
+  const page=parts[0],id=parts[1];
+  ensureSubnavOpenForRoute(page);
+  document.querySelectorAll('nav a').forEach(a=>{
+    const href=a.getAttribute('href')||'';
+    const isActive =
+      href==='#'+page ||
+      (page==='agents' && href==='#agents') ||
+      (page==='agents' && id && href==='#agents/'+id) ||
+      (page==='configurations' && href==='#configurations') ||
+      (page==='configurations' && id && href==='#configurations/'+id);
+    a.classList.toggle('active',isActive);
+  });
+  pages.forEach(p=>document.getElementById('page-'+p).classList.add('hidden'));
+
+  if(page==='agents'&&id==='lense'){
+    location.hash='dashboard';
+    return;
+  }
+
+  if(page==='agents'&&id&&!isAgentGroupSlug(id)){
+    document.getElementById('page-agent-detail').classList.remove('hidden');
+    routeLoad('Fetching agent details...', () => loadAgent(id));
+    return;
+  }
+
+  if(page==='configurations'&&id&&!isConfigurationGroupSlug(id)){
+    document.getElementById('page-config-detail').classList.remove('hidden');
+    routeLoad('Fetching configuration...', () => loadConfigurationDetail(id));
+    return;
+  }
+
+  const target=document.getElementById('page-'+page);
+  if(target)target.classList.remove('hidden');
+  if(page==='dashboard')routeLoad('Fetching dashboard data...', () => loadSummary());
+  if(page==='agents')routeLoad('Fetching agents...', () => loadAgents(isAgentGroupSlug(id)?id:null));
+  if(page==='namespace')routeLoad('Fetching Unified Namespace...', () => loadUNS(true));
+  if(page==='analytics')routeLoad('Fetching quick metrics...', () => loadAnalytics());
+  if(page==='components')routeLoad('Fetching components...', async () => { await loadSummary(); renderComponentsOverview(); });
+  if(page==='configurations')routeLoad('Fetching configurations...', () => loadConfigurations(isConfigurationGroupSlug(id)?id:null));
+  if(page==='logs')routeLoad('Fetching logs...', () => loadLenseLogs());
+}
+window.addEventListener('hashchange',route);
+route();
+
+function statusDot(ok,warn=false){return '<span class="dot '+(ok?'ok':warn?'warn':'')+'"></span>'}
+
+function setupCanvas(c,h=300){
+  const ratio=window.devicePixelRatio||1,w=c.clientWidth||c.width;
+  c.width=w*ratio;c.height=h*ratio;
+  const ctx=c.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);
+  return{ctx,w,h};
+}
+
+function drawPie(c,healthy,unhealthy){
+  const {ctx,w}=setupCanvas(c,300);
+  const total=healthy+unhealthy||1;
+  let start=-Math.PI/2;
+  [[healthy,'#28c76f','healthy'],[unhealthy,'#ff4d4f','unhealthy']].forEach(([v,color,label],i)=>{
+    const angle=v/total*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(w/2,145);ctx.arc(w/2,145,95,start,start+angle);ctx.closePath();ctx.fillStyle=color;ctx.fill();start+=angle;
+    ctx.fillStyle='#e7e9ee';ctx.font='13px Inter, sans-serif';ctx.fillText(label+': '+v,40,255+i*18);
+  });
+}
+
+
+function componentStatusMap(){
+  return (latestSummary&&latestSummary.componentStatus) || (runtimeConfig&&runtimeConfig.componentStatus) || {};
+}
+function componentStatus(id){
+  return componentStatusMap()[id] || null;
+}
+function componentOnline(id, fallback=true){
+  const st=componentStatus(id);
+  if(!st)return fallback;
+  return Boolean(st.connected) && Boolean(st.healthy);
+}
+function componentText(id, fallback='configured'){
+  const st=componentStatus(id);
+  if(!st)return fallback;
+  if(st.connected && st.healthy)return 'connected';
+  return 'down';
+}
+function componentTimestamp(id, fallback='configured'){
+  const st=componentStatus(id);
+  return (st && st.lastSeen) || fallback;
+}
+
+function renderHealth(summary,agents){
+  const totalAgents=agents.length;
+  const connected=summary.connectedAgents||0;
+  const brokerConnected=summary.mqtt&&summary.mqtt.connected;
+  const errors=(summary.latestErrors||[]).length;
+  IoTUI.renderStatusDetails('healthDetails', [
+    {label:'Broker', value:brokerConnected?'connected':'disconnected', ok:brokerConnected},
+    {label:'Lense MQTT messages', value:String(summary.mqtt.messageCount||0), ok:true},
+    {label:'Agents connected', value:connected+' / '+totalAgents, ok:connected===totalAgents && totalAgents>0},
+    {label:'Healthy agents', value:(summary.health.healthy||0)+' / '+totalAgents, ok:(summary.health.unhealthy||0)===0},
+    {label:'Recent errors', value:String(errors), ok:errors===0, warning:errors>0}
+  ]);
+}
+
+function renderConnectionGraph(summary,agents){
+  const box=document.getElementById('connectionGraph');
+  bindDragScroll(box.closest('.graph-scroll'));
+  const topology=runtimeConfig.topology||{};
+  const compStatuses=(summary&&summary.componentStatus)||componentStatusMap();
+  const topologyAgents=(topology.presenses||topology.agents||[]);
+  const topoById=Object.fromEntries(topologyAgents.map(a=>[a.agentId||a.id,a]));
+  const sorted=[...agents].map(a=>Object.assign({}, topoById[a.agentId]||{}, a)).sort((a,b)=>a.agentId.localeCompare(b.agentId));
+  const senses=topology.senses||[];
+  const dispenses=topology.dispenses||[];
+  const targets=topology.targets||[];
+  const groups=senses.map(sense=>({
+    id:sense.id,
+    label:sense.label||sense.id,
+    url:sense.url,
+    remoteConfigHash:sense.remoteConfigHash||'#config',
+    sourceType:sense.sourceType,
+    agents:sorted.filter(a=>a.senseId===sense.id || (!a.senseId && a.sourceType===sense.sourceType)),
+    dispense:dispenses.find(d=>d.sourceType===sense.sourceType),
+    accent:CONNECTION_PALETTE.sense,
+    connected: componentOnline(sense.id, false)
+  })).filter(g=>g.agents.length>0);
+
+  const laneGap=92;
+  const firstSourceY=55;
+  const height=Math.max(620, firstSourceY + sorted.length*laneGap + 220);
+  const boxWidth=2300;
+  box.style.height=height+'px';
+  box.style.minWidth=boxWidth+'px';
+  box.style.width=boxWidth+'px';
+  box.style.maxWidth='none';
+  box.innerHTML='<div class="k" style="position:absolute;right:14px;top:10px;font-size:11px">build '+BUILD_MARKER+'</div><svg class="edge-svg" width="'+boxWidth+'" height="'+height+'" viewBox="0 0 '+boxWidth+' '+height+'"></svg>';
+  const svg=box.querySelector('svg');
+
+  const sourceX=35, sourceW=250;
+  const senseX=560, senseW=260;
+  const brokerX=1050, brokerW=210;
+  const lenseX=1360, lenseW=240;
+  const dbX=1360, dbW=240;
+  const dispenseX=1460, dispenseW=255;
+  const targetX=1860, targetW=285;
+  function line(x1,y1,x2,y2,ok,color){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    const dx=Math.max(80, Math.abs(x2-x1)*0.45);
+    path.setAttribute('d','M '+x1+' '+y1+' C '+(x1+dx)+' '+y1+', '+(x2-dx)+' '+y2+', '+x2+' '+y2);
+    path.setAttribute('stroke',ok?(color||CONNECTION_PALETTE.system):CONNECTION_PALETTE.down);
+    path.setAttribute('stroke-width','3');
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke-dasharray',ok?'':'8 6');
+    svg.appendChild(path);
+  }
+  function polyline(points,ok,color){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',points.map((p,i)=>(i?'L ':'M ')+p[0]+' '+p[1]).join(' '));
+    path.setAttribute('stroke',ok?(color||CONNECTION_PALETTE.system):CONNECTION_PALETTE.down);
+    path.setAttribute('stroke-width','3');
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke-dasharray',ok?'':'8 6');
+    svg.appendChild(path);
+  }
+  function node(x,y,w,cls,title,sub,item){
+    const el=document.createElement('div');
+    el.className='node '+(cls||'')+(item?' clickable':'');
+    el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=w+'px';
+    el.innerHTML='<div class="title">'+IoTStandardChart.escapeHtml(title)+'</div><div class="sub">'+IoTStandardChart.escapeHtml(sub||'')+'</div>';
+    if(item){
+      el.onclick=(event)=>showNodeMenu(event,item);
+      el.onmouseenter=(event)=>{ if(event.buttons===0) showNodeMenu(event,item); };
+    }
+    box.appendChild(el);
+  }
+
+  const presenseColor=CONNECTION_PALETTE.presense;
+  const senseColor=CONNECTION_PALETTE.sense;
+  const componentColor=CONNECTION_PALETTE.system;
+  const lenseColor=CONNECTION_PALETTE.lense;
+  const dispenseColor=CONNECTION_PALETTE.dispense;
+
+  let row=0;
+  const sensePositions=[];
+  groups.forEach(group=>{
+    const sourceYs=[];
+    group.agents.forEach(a=>{
+      const y=firstSourceY + row*laneGap;
+      sourceYs.push(y+42);
+      const sourceConnected=Boolean(a.connected) && group.connected;
+      const sourceCls=sourceNodeClass(a)+(sourceConnected?'':' down-node');
+      node(sourceX,y,sourceW,sourceCls,a.agentId,(sourceConnected?'connected':'down')+' | '+a.sourceType,sourceNodeMenuItem(a));
+      row++;
+    });
+    const middleY=sourceYs.length ? (sourceYs[0]+sourceYs[sourceYs.length-1])/2 : firstSourceY;
+    const senseY=middleY-42;
+    sensePositions.push({group,y:senseY+42});
+    const senseCls='sense'+(group.connected?'':' down-node');
+    node(senseX,senseY,senseW,senseCls,group.label,(group.connected?'connected':'down')+' | '+group.agents.length+' source endpoint(s)',{id:group.id,label:group.label,kind:'IoT Sense',url:group.url,remoteConfigHash:group.remoteConfigHash||'#config'});
+    group.agents.forEach((a,i)=>line(sourceX+sourceW,sourceYs[i],senseX,senseY+42,Boolean(a.connected)&&group.connected,presenseColor));
+  });
+
+  const minY=Math.min(...sensePositions.map(x=>x.y), firstSourceY+100);
+  const maxY=Math.max(...sensePositions.map(x=>x.y), firstSourceY+260);
+  const brokerY=((minY+maxY)/2)-42;
+  const lenseY=Math.max(35, brokerY-210);
+  const dbY=lenseY+155;
+  const dispenseGroups=groups.filter(group=>group.dispense);
+  const dispenseStartY=brokerY+95;
+  const targetY=dispenseStartY + Math.max(0, (dispenseGroups.length-1)*58);
+
+  sensePositions.forEach(item=>{
+    const ok=item.group.connected && item.group.agents.some(a=>a.connected) && summary.mqtt.connected;
+    line(senseX+senseW,item.y,brokerX,brokerY+42,ok,senseColor);
+  });
+
+  const brokerOk=Boolean(summary.mqtt.connected);
+  const brokerCls='system'+(brokerOk?'':' down-node');
+  const lenseOk=componentOnline('iot-lense', true);
+  const lenseCls='center lense'+(lenseOk?'':' down-node');
+  const dbOk=componentOnline('postgres', brokerOk);
+  const dbCls='system'+(dbOk?'':' down-node');
+  node(brokerX,brokerY,brokerW,brokerCls,'MQTT Broker',brokerOk?'connected':'down',{id:'mqtt',label:'MQTT Broker',kind:'System Component'});
+  node(lenseX,lenseY,lenseW,lenseCls,'IoT Lense',lenseOk?'analytics and historian':'down | analytics and historian',{id:'iot-lense',label:'IoT Lense',kind:'IoT Lense',url:'http://127.0.0.1:8000',remoteConfigHash:'#configurations/iot-lense'});
+  node(dbX,dbY,dbW,dbCls,'Postgres',dbOk?'historian storage':'down | historian storage',{id:'postgres',label:'Postgres',kind:'System Component'});
+  line(brokerX+brokerW,brokerY+42,lenseX,lenseY+42,brokerOk&&lenseOk,componentColor);
+  line(lenseX+(lenseW/2),lenseY+84,dbX+(dbW/2),dbY,lenseOk&&dbOk,lenseColor);
+
+  dispenseGroups.forEach((group,idx)=>{
+    const y=dispenseStartY+idx*108;
+    const dispenseOk=componentOnline(group.dispense.id,false);
+    const dispenseCls='dispense'+(dispenseOk?'':' down-node');
+    node(dispenseX,y,dispenseW,dispenseCls,group.dispense.label||group.dispense.id,(dispenseOk?'connected':'down')+' | '+group.sourceType+' forwarder',{id:group.dispense.id,label:group.dispense.label||group.dispense.id,kind:'IoT Dispense',url:group.dispense.url,remoteConfigHash:group.dispense.remoteConfigHash||'#dashboard'});
+    const dispenseCenterY=y+42;
+    line(brokerX+brokerW,brokerY+42,dispenseX,dispenseCenterY,summary.mqtt.connected&&dispenseOk,componentColor);
+    const target=targets.find(t=>t.id===group.dispense.target)||targets[0]||{};
+    line(dispenseX+dispenseW,dispenseCenterY,targetX,targetY+42,dispenseOk,dispenseColor);
+  });
+  const target=targets[0]||{};
+  const targetId=target.id||'dispense-target-mqtt';
+  const targetOk=componentOnline(targetId, true);
+  const targetCls='target'+(targetOk?'':' down-node');
+  node(targetX,targetY,targetW,targetCls,'Dispense Target MQTT',(targetOk?'':'down | ')+(target.host||'dispense-broker')+':'+(target.externalPort||1884),{id:targetId,label:target.label||'Dispense Target MQTT',kind:'Target Broker'});
+  renderConnectionGraphLegend();
+}
+
+async function loadSummary(){
+  const s=await safeJson('/api/summary');
+  latestSummary=s;
+  broker.textContent=s.mqtt.connected?'connected':'disconnected';
+  connected.textContent=s.connectedAgents;
+  avg.textContent=Number(s.messagesPerAgent5m.avg||0).toFixed(1);
+  healthTop.textContent=(s.mqtt.connected && (s.health.unhealthy||0)===0)?'OK':'Degraded';
+  drawPie(document.getElementById('pie'),s.health.healthy,s.health.unhealthy);
+  const logData=await safeJson('/api/logs');
+  IoTUI.renderGroupedLogs('errors', logData.items||[], new Set(['ERROR','WARN']));
+  const a=await safeJson('/api/agents');
+  latestAgents=a.items||[];
+  renderConnectionGraph(s,latestAgents);
+  renderHealth(s,latestAgents);
+  updateAvailabilityAgentOptions(latestAgents);
+  loadAvailability();
+}
+
+async function loadAgents(groupSlug=null){
+  currentAgentGroupSlug=groupSlug;
+  const title=agentGroupTitle(groupSlug);
+  const titleEl=document.getElementById('agentListTitle');
+  const crumbs=document.getElementById('agentListBreadcrumbs');
+  if(titleEl)titleEl.textContent=title;
+  if(crumbs){
+    crumbs.innerHTML=groupSlug
+      ? '<a href="#agents">Agents</a> / '+IoTStandardChart.escapeHtml(title)
+      : '<a href="#agents">Agents</a>';
+  }
+  const q=(document.getElementById('agentSearch').value||'').toLowerCase();
+  await loadRuntime();
+  if(!latestSummary || !latestSummary.mqtt) {
+    try { await loadSummary(); } catch(e) {}
+  }
+  const d=await safeJson('/api/agents?search='+encodeURIComponent(q));
+  const machineAgents=d.items||[];
+  latestAgents=machineAgents;
+  agentsLoaded=true;
+  const topology=runtimeConfig.topology||{};
+  const groups=[
+    {className:'presense',title:'IoT Presense', rows:machineAgents.map(a=>({id:a.agentId,type:'presense',connected:a.connected,healthy:a.healthy,source:a.sourceType+' / '+a.sourceHost,ts:a.timestamp,link:'#agents/'+a.agentId,hint:'Protocol simulator endpoint'}))},
+    {className:'sense',title:'IoT Sense', rows:(topology.senses||[]).map(s=>({id:s.id,type:'sense',connected:componentOnline(s.id,false),healthy:componentOnline(s.id,false),source:(s.sourceType||'collector')+' / '+(s.url||''),ts:componentTimestamp(s.id,'waiting'),link:'#agents/'+s.id,hint:'Protocol collector module'}))},
+    {className:'lense',title:'IoT Lense', rows:[{id:'iot-lense',type:'lense',connected:true,healthy:true,source:'local / http://127.0.0.1:8000',ts:new Date().toISOString(),link:'#dashboard',hint:'Analytics, historian and central view'}]},
+    {className:'dispense',title:'IoT Dispense', rows:(topology.dispenses||[]).map(x=>({id:x.id,type:'dispense',connected:componentOnline(x.id,false),healthy:componentOnline(x.id,false),source:(x.sourceType||'forwarder')+' / '+(x.url||''),ts:componentTimestamp(x.id,'waiting'),link:'#agents/'+x.id,hint:'Outbound forwarding module'}))},
+    {className:'system',title:'System Components', rows:[
+      {id:'mqtt',type:'broker',connected:latestSummary&&latestSummary.mqtt?latestSummary.mqtt.connected:false,healthy:latestSummary&&latestSummary.mqtt?latestSummary.mqtt.connected:false,source:(runtimeConfig.mqtt.host||'mqtt')+' / '+(runtimeConfig.mqtt.port||1883),ts:(latestSummary&&latestSummary.mqtt&&latestSummary.mqtt.lastMessage)||'',link:'#agents/mqtt',hint:'Internal MQTT broker'},
+      {id:'postgres',type:'database',connected:true,healthy:true,source:(runtimeConfig.postgres.host||'postgres')+' / '+(runtimeConfig.postgres.port||5432),ts:new Date().toISOString(),link:'#agents/postgres',hint:'Historian database'}
+    ].concat((topology.targets||[]).map(t=>({id:t.id,type:'target',connected:true,healthy:true,source:(t.host||'target')+' / '+(t.externalPort||t.port||''),ts:'configured',link:'#agents/'+t.id,hint:'Outbound target component'})))}
+  ];
+
+  const visibleGroups=groupSlug?groups.filter(group=>group.className===groupSlug):groups;
+  agents.innerHTML=visibleGroups.map(group=>{
+    const rows=group.rows
+      .filter(row=>!q || row.id.toLowerCase().includes(q) || row.type.toLowerCase().includes(q) || String(row.source).toLowerCase().includes(q))
+      .sort((a,b)=>a.id.localeCompare(b.id));
+    if(!rows.length)return '';
+    const cards=rows.map(row=>'<div class="agent-card">'+
+      '<div class="k">'+IoTStandardChart.escapeHtml(row.type)+'</div>'+
+      '<a href="'+row.link+'">'+IoTStandardChart.escapeHtml(row.id)+'</a>'+
+      '<div class="overview-hint">'+IoTStandardChart.escapeHtml(row.hint||'')+'</div>'+
+      '<div class="agent-meta">'+
+        '<div class="meta-box"><div class="k">Connected</div><div>'+statusDot(row.connected)+row.connected+'</div></div>'+
+        '<div class="meta-box"><div class="k">Healthy</div><div>'+statusDot(row.healthy)+row.healthy+'</div></div>'+
+      '</div>'+
+      '<div class="overview-hint" style="margin-top:10px">'+IoTStandardChart.escapeHtml(row.source)+'</div>'+
+      '<div class="overview-hint">'+IoTStandardChart.escapeHtml(row.ts||'')+'</div>'+
+    '</div>').join('');
+    return '<div class="card agent-group '+group.className+'"><h3>'+IoTStandardChart.escapeHtml(group.title)+'</h3><div class="agent-grid">'+cards+'</div></div>';
+  }).join('');
+}
+
+async function loadAgent(id){
+  await loadRuntime();
+  if(!latestSummary || !latestSummary.mqtt) {
+    try { await loadSummary(); } catch(e) {}
+  }
+
+  let d=null;
+  let virtualAgent=null;
+  try{
+    d=await safeJson('/api/agents/'+id);
+  }catch(e){
+    virtualAgent=findVirtualAgent(id);
+    if(!virtualAgent)throw e;
+  }
+
+  const agent=(d&&d.agent)||virtualAgent||{};
+  const topics=(d&&d.topics)||[];
+  const messages=(d&&d.messages)||[];
+  const groupName=agent.group || agentGroupTitle(agent.className) || 'Agents';
+  const groupSlug=agent.className || String(agent.type||'').toLowerCase() || '';
+
+  agentTitle.textContent=(agent.group?agent.group+' / ':'Agent ')+id;
+  const detailCard=document.querySelector('#page-agent-detail .card');
+  let detailCrumbs=document.getElementById('agentDetailBreadcrumbs');
+  if(detailCard&&!detailCrumbs){
+    detailCrumbs=document.createElement('div');
+    detailCrumbs.id='agentDetailBreadcrumbs';
+    detailCrumbs.className='k';
+    detailCrumbs.style.marginBottom='12px';
+    detailCard.insertBefore(detailCrumbs,detailCard.firstChild);
+  }
+  if(detailCrumbs){
+    const groupLink=groupSlug?'<a href="#agents/'+IoTUI.escapeHtml(groupSlug)+'">'+IoTUI.escapeHtml(groupName)+'</a>':IoTUI.escapeHtml(groupName);
+    detailCrumbs.innerHTML='<a href="#agents">Agents</a> / '+groupLink+' / '+IoTUI.escapeHtml(id);
+  }
+
+  IoTUI.renderOverviewCards('agentSummary', [
+    {label:'Agent ID', value:agent.agentId||agent.id||id, hint:'Logical source identity'},
+    {label:'Group', value:groupName, hint:'Tool family'},
+    {label:'Connected', value:String(agent.connected), hint:'Latest source status'},
+    {label:'Healthy', value:String(agent.healthy), hint:'Latest health status'},
+    {label:'Source type', value:agent.sourceType||agent.type||'n/a', hint:'Protocol connector'},
+    {label:'Source host', value:agent.sourceHost||agent.url||'n/a', hint:'Endpoint or component URL'},
+    {label:'Topics', value:String(topics.length), hint:'Observed MQTT metric/status topics'}
+  ]);
+
+  IoTUI.renderStatusDetails('agentHealthDetails', [
+    {label:'Connected', value:String(agent.connected), ok:Boolean(agent.connected)},
+    {label:'Healthy', value:String(agent.healthy), ok:Boolean(agent.healthy)},
+    {label:'Topics observed', value:String(topics.length), ok:virtualAgent?true:topics.length>0},
+    {label:'Messages cached', value:String(messages.length), ok:virtualAgent?true:messages.length>0}
+  ]);
+
+  agentTopics.innerHTML=topics.length
+    ? topics.map(t=>'<div class="leaf">'+IoTUI.escapeHtml(t)+'</div>').join('')
+    : '<div class="k">No topics observed for this entry yet.</div>';
+
+  messages.innerHTML=messages.length
+    ? messages.map(m=>'<pre>['+m.timestamp+'] '+m.topic+'\n'+JSON.stringify(m.payload,null,2)+'</pre>').join('')
+    : '<div class="k">No messages observed yet. For virtual stack components, use System Components or Configurations for more details.</div>';
+
+  let availabilityItems=[];
+  if(!virtualAgent){
+    const sourceAvailability=await safeJson('/api/availability?agent_id='+encodeURIComponent(id)+'&range_minutes=60&bucket_seconds=60');
+    availabilityItems=(sourceAvailability.items||[]).map(i=>({timestamp:i.timestamp,value:Number(i.value)>0}));
+  }else{
+    availabilityItems=IoTUI.rememberBinaryStatus('lense:agent:'+id+':virtual', Boolean(agent.connected), new Date().toISOString(), 1440);
+  }
+
+  IoTUI.renderBinaryStatusChart({
+    canvasId:'agentAvailabilityChart',
+    legendId:'agentAvailabilityLegend',
+    tooltipId:'agentAvailabilityTooltip',
+    height:260,
+    label:id+' availability',
+    points:availabilityItems,
+    color:virtualAgent ? '#facc15' : '#28c76f',
+    domainStart:new Date(Date.now()-1440*60*1000).toISOString(),
+    domainEnd:new Date().toISOString()
+  });
+
+  const brokerCurrent=Boolean(latestSummary&&latestSummary.mqtt&&latestSummary.mqtt.connected);
+  const brokerPoints=IoTUI.rememberBinaryStatus('lense:agent:'+id+':broker-path', brokerCurrent, new Date().toISOString(), 1440);
+  IoTUI.renderBinaryStatusChart({
+    canvasId:'agentBrokerChart',
+    legendId:'agentBrokerLegend',
+    tooltipId:'agentBrokerTooltip',
+    height:260,
+    label:'Broker connection available',
+    points:brokerPoints,
+    color:'#ff8a1d',
+    domainStart:new Date(Date.now()-1440*60*1000).toISOString(),
+    domainEnd:new Date().toISOString()
+  });
+}
+
+
+function updateAvailabilityAgentOptions(agents){
+  const select=document.getElementById('availabilityAgent');
+  if(!select)return;
+  const current=select.value;
+  const options=(agents||[]).map(a=>'<option value="'+a.agentId+'">'+a.agentId+'</option>').join('');
+  IoTStandardChart.fillSelect(select,(agents||[]).map(a=>({value:a.agentId,label:a.agentId})));
+  if(current && [...select.options].some(o=>o.value===current))select.value=current;
+}
+
+async function loadAvailability(){
+  const select=document.getElementById('availabilityAgent');
+  if(!select || !select.value){
+    availabilityChart.draw([], 'messages');
+    return;
+  }
+  const data=await safeJson('/api/availability?agent_id='+encodeURIComponent(select.value)+'&range_minutes=60&bucket_seconds=60');
+  const points=(data.items||[]).map(i=>({timestamp:i.timestamp,value:i.value}));
+  availabilityChart.draw([{key:select.value+':availability',label:select.value+' messages/min',points}], 'messages/min');
+}
+
+function renderBrokerOverview(){
+  const s=latestSummary||{mqtt:{}};
+  IoTUI.renderConnectionOverview({
+    cardsElementId:'brokerOverview',
+    canvasId:'brokerChart',
+    legendId:'brokerLegend',
+    tooltipId:'brokerTooltip',
+    name:'MQTT Broker',
+    nameHint:'Local broker used by this stack',
+    host:runtimeConfig.mqtt.host || 'mqtt',
+    hostHint:'Docker DNS name inside the stack',
+    port:String(runtimeConfig.mqtt.port || '1883'),
+    portHint:'MQTT TCP listener',
+    connected:Boolean(s.mqtt.connected),
+    timestamp:new Date().toISOString(),
+    historyKey:'lense:mqtt-broker',
+    windowMinutes:1440,
+    color:'#ff8a1d',
+    extraCards:[
+      {label:'Topic prefix',value:runtimeConfig.mqtt.topicPrefix || 'iot-lense',hint:'Subscribed namespace'},
+      {label:'Messages received',value:String(s.mqtt.messageCount||0),hint:'MQTT messages consumed by Lense'},
+      {label:'Last message',value:s.mqtt.lastMessage || 'n/a',hint:'Latest MQTT message timestamp'}
+    ]
+  });
+}
+
+function renderComponentsOverview(){
+  if(!latestSummary) {
+    loadSummary().then(renderComponentsOverview);
+    return;
+  }
+  const agents=latestAgents||[];
+  const topology=runtimeConfig.topology||{};
+  const senses=topology.senses||[];
+  const dispenses=topology.dispenses||[];
+  const targets=topology.targets||[];
+  const senseCount=senses.length || new Set(agents.map(a=>a.senseId||a.sourceType)).size || 0;
+  const senseCards=senses.map(s=>({label:s.label||s.id,value:componentText(s.id,'waiting'),hint:s.url||s.id,ok:componentOnline(s.id,false)}));
+  const dispenseCards=dispenses.map(d=>({label:d.label||d.id,value:componentText(d.id,'waiting'),hint:(d.url||d.id)+' | '+(d.sourceType||'all'),ok:componentOnline(d.id,false)}));
+  const targetCards=targets.map(t=>({label:t.label||t.id,value:(t.host||'target')+':'+(t.externalPort||t.port||''),hint:'Outbound destination for IoT Dispense'}));
+  const componentCards=[
+    {label:'IoT Lense',value:'running',hint:'Analytics UI and historian writer'},
+    {label:'IoT Sense instances',value:String(senseCount),hint:'Configured collector instances in this demo stack'}
+  ].concat(senseCards).concat([
+    {label:'IoT Dispense modules',value:String(dispenses.length),hint:'Forwarding modules downstream of the internal broker'}
+  ]).concat(dispenseCards).concat(targetCards).concat([
+    {label:'MQTT Broker',value:latestSummary.mqtt.connected?'connected':'disconnected',hint:(runtimeConfig.mqtt.host||'mqtt')+':'+(runtimeConfig.mqtt.port||'1883')},
+    {label:'Postgres',value:'connected',hint:(runtimeConfig.postgres.host||'postgres')+':'+(runtimeConfig.postgres.port||'5432')+' / '+(runtimeConfig.postgres.database||'iotdb')},
+    {label:'Agents',value:String(agents.length),hint:'Configured machine sources'},
+    {label:'Metric topics',value:String((latestSummary.mqtt&&latestSummary.mqtt.messageCount)||0),hint:'Messages received by Lense'}
+  ]);
+  IoTUI.renderOverviewCards('componentsOverview', componentCards);
+  renderBrokerOverview();
+  renderDatabaseOverview();
+}
+
+function renderDatabaseOverview(){
+  IoTUI.renderConnectionOverview({
+    cardsElementId:'databaseOverview',
+    canvasId:'databaseChart',
+    legendId:'databaseLegend',
+    tooltipId:'databaseTooltip',
+    name:'Postgres',
+    nameHint:'Historian storage',
+    host:runtimeConfig.postgres.host || 'postgres',
+    hostHint:'Docker DNS name inside the stack',
+    port:String(runtimeConfig.postgres.port || '5432'),
+    portHint:'Postgres listener',
+    connected:true,
+    timestamp:new Date().toISOString(),
+    historyKey:'lense:postgres',
+    windowMinutes:1440,
+    color:'#28c76f',
+    extraCards:[
+      {label:'Database',value:runtimeConfig.postgres.database || 'iotdb',hint:'Historian database'},
+      {label:'User',value:runtimeConfig.postgres.user || 'iot',hint:'Application user'},
+      {label:'Status source',value:'API DB connection',hint:'If this page loads, Lense can query Postgres'}
+    ]
+  });
+}
+
+async function loadLenseLogs(){
+  const data=await safeJson('/api/logs');
+  currentLenseLogs=data.items||[];
+  renderLenseLogs();
+}
+
+function activeLenseLogLevels(){
+  return new Set([...document.querySelectorAll('#lenseLogFilters input:checked')].map(i=>i.value));
+}
+
+function renderLenseLogs(){
+  IoTUI.renderGroupedLogs('lenseLogs', currentLenseLogs, activeLenseLogLevels());
+}
+
+document.querySelectorAll('#lenseLogFilters input').forEach(i=>i.onchange=renderLenseLogs);
+
+async function loadRuntime(){
+  runtimeConfig=await safeJson('/api/runtime');
+}
+
+async function loadCatalog(){
+  const c=await safeJson('/api/catalog');
+  IoTStandardChart.fillSelect(analyticsAgent,[{value:'all',label:'All agents'}].concat((c.agents||[]).map(x=>({value:x,label:x}))));
+  IoTStandardChart.fillSelect(analyticsMetric,[{value:'all',label:'All metrics'}].concat((c.metrics||[]).map(x=>({value:x,label:x}))));
+}
+
+async function loadAnalytics(){
+  const url='/api/query?agent_id='+encodeURIComponent(analyticsAgent.value||'all')+'&metric_name='+encodeURIComponent(analyticsMetric.value||'all')+'&range_minutes='+analyticsRange.value+'&bucket_seconds='+analyticsBucket.value+'&aggregation='+analyticsAggregation.value;
+  const d=await safeJson(url);
+  const map={};
+  (d.items||[]).forEach(i=>{
+    const key=i.agentId+':'+i.metricName;
+    if(!map[key])map[key]={key:key,label:i.agentId+' '+i.metricName,points:[]};
+    map[key].points.push({timestamp:i.timestamp,value:i.value});
+  });
+  analyticsChart.draw(Object.values(map),analyticsAggregation.value);
+}
+
+function topicToMetric(topic){
+  const parts=topic.split('/');
+  const idx=parts.indexOf('metrics');
+  if(idx>0&&parts.length>idx+1)return{agentId:parts[idx-1],metricName:parts[idx+1]};
+  return null;
+}
+
+function topicToStatus(topic){
+  const parts=topic.split('/');
+  if(parts.length>=3&&parts[parts.length-1]==='status'&&parts[1] !== '_sense')return{agentId:parts[parts.length-2]};
+  return null;
+}
+
+function renderValueTable(items,metric){
+  if(!items.length){
+    unsValueTable.innerHTML='<div class="small">No values available for this endpoint yet.</div>';
+    return;
+  }
+  const rows=items.slice(0,20).map(item=>{
+    const value=item.value===null||item.value===undefined?'':String(item.value);
+    return '<tr><td>'+IoTStandardChart.escapeHtml(item.timestamp||'')+'</td><td><code>'+IoTStandardChart.escapeHtml(value)+'</code></td><td>'+IoTStandardChart.escapeHtml(item.metricType||metric.metricName||'')+'</td></tr>';
+  }).join('');
+  unsValueTable.innerHTML='<table class="value-table"><thead><tr><th>Timestamp</th><th>Value</th><th>Type</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+async function openTopicPreview(topic){
+  const metric=topicToMetric(topic);
+  unsStatusPreview.innerHTML='';
+  unsValueTable.innerHTML='';
+  unsChartWrap.classList.remove('hidden');
+  unsLegend.classList.remove('hidden');
+  if(metric){
+    unsChartTitle.textContent=metric.agentId+' / '+metric.metricName;
+    unsChartHint.textContent=topic;
+    const values=await safeJson('/api/metric-values?agent_id='+encodeURIComponent(metric.agentId)+'&metric_name='+encodeURIComponent(metric.metricName)+'&limit=20');
+    const items=values.items||[];
+    const hasNonNumeric=items.some(i=>i.valueKind!=='number');
+    if(hasNonNumeric){
+      unsChart.draw([], metric.metricName);
+      unsChartWrap.classList.add('hidden');
+      unsLegend.classList.add('hidden');
+      renderValueTable(items,metric);
+      return;
+    }
+    const url='/api/query?agent_id='+encodeURIComponent(metric.agentId)+'&metric_name='+encodeURIComponent(metric.metricName)+'&range_minutes=60&bucket_seconds=30&aggregation=avg';
+    const d=await safeJson(url);
+    unsChart.draw([{key:metric.agentId+':'+metric.metricName,label:metric.agentId+' '+metric.metricName,points:(d.items||[]).map(i=>({timestamp:i.timestamp,value:i.value}))}],metric.metricName);
+    return;
+  }
+  const status=topicToStatus(topic);
+  if(status){
+    unsChartTitle.textContent=status.agentId+' / status';
+    unsChartHint.textContent=topic;
+    const d=await safeJson('/api/agents/'+encodeURIComponent(status.agentId));
+    unsStatusPreview.innerHTML='<pre>'+JSON.stringify(d.agent,null,2)+'</pre>';
+    unsValueTable.innerHTML='';
+    unsChartWrap.classList.add('hidden');
+    unsLegend.classList.add('hidden');
+    unsChart.draw([], 'status');
+  }
+}
+
+function renderTree(node,el,path=[]){
+  Object.entries(node||{}).sort(([a],[b])=>a.localeCompare(b)).forEach(([k,v])=>{
+    const next=path.concat(k);
+    const childKeys=Object.keys(v||{});
+    if(childKeys.length){
+      const d=document.createElement('details');
+      const topic=next.join('/');
+      d.open=topic==='iot-lense'||openedNamespacePaths.has(topic);
+      d.ontoggle=()=>{if(d.open)openedNamespacePaths.add(topic);else openedNamespacePaths.delete(topic)};
+      const s=document.createElement('summary');s.textContent=k;d.appendChild(s);
+      const child=document.createElement('div');child.className='tree-node';renderTree(v,child,next);d.appendChild(child);el.appendChild(d);
+    }else{
+      const div=document.createElement('div');div.className='leaf';div.textContent=k;
+      const topic=next.join('/');
+      if(topicToMetric(topic)||topicToStatus(topic)){div.title='Open endpoint preview';div.onclick=()=>openTopicPreview(topic);}
+      el.appendChild(div);
+    }
+  });
+}
+const openedNamespacePaths=new Set(['iot-lense']);
+
+async function loadUNS(force){
+  if(namespaceLoaded&&!force)return;
+  const d=await safeJson('/api/uns?search='+encodeURIComponent(unsSearch.value||''));
+  uns.innerHTML='';
+  renderTree(d.tree||{},uns,[]);
+  namespaceLoaded=true;
+}
+
+async function tick(){
+  try{
+    const page=location.hash.replace('#','')||'dashboard';
+    if(page.startsWith('dashboard'))await loadSummary();
+    if(page.startsWith('analytics'))await loadAnalytics();
+  if(page==='logs')await loadLenseLogs();
+    if(page==='components')renderComponentsOverview();
+    clearUiError();
+  }catch(err){showUiError(err.message||String(err));}
+}
+setInterval(tick,5000);
+loadRuntime().then(()=>{loadCatalog().then(loadAnalytics);tick();});
+</script>
+</body>
+</html>

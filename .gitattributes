@@ -1,0 +1,22 @@
+@"
+* text=auto
+
+*.sh text eol=lf
+*.go text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+Makefile text eol=lf
+
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+"@ | Set-Content -Encoding UTF8 .gitattributes

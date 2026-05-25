@@ -1,0 +1,104 @@
+{
+  "broker": {
+    "host": "mqtt",
+    "port": 1883,
+    "clientId": "iot-sense-opcua-01",
+    "topicPrefix": "iot-lense"
+  },
+  "pollIntervalMs": 1000,
+  "healthTimeoutSeconds": 300,
+  "sources": [
+    {
+      "agentId": "opcua-machine-01",
+      "type": "opcua",
+      "host": "presense-opcua-01",
+      "port": 4840,
+      "unitId": 0,
+      "metrics": [
+        {
+          "name": "temperature",
+          "nodeId": "ns=2;s=Machine.Temperature",
+          "scale": 1,
+          "unit": "°C",
+          "type": "gauge"
+        },
+        {
+          "name": "speed",
+          "nodeId": "ns=2;s=Machine.Speed",
+          "scale": 1,
+          "unit": "rpm",
+          "type": "gauge"
+        },
+        {
+          "name": "current",
+          "nodeId": "ns=2;s=Machine.Current",
+          "scale": 1,
+          "unit": "A",
+          "type": "gauge"
+        },
+        {
+          "name": "load",
+          "nodeId": "ns=2;s=Machine.Load",
+          "scale": 1,
+          "unit": "%",
+          "type": "gauge"
+        },
+        {
+          "name": "state",
+          "nodeId": "ns=2;s=Machine.State",
+          "scale": 1,
+          "unit": "",
+          "type": "string"
+        }
+      ],
+      "readMode": "subscription",
+      "subscriptionIntervalMs": 1000
+    },
+    {
+      "agentId": "opcua-machine-02",
+      "type": "opcua",
+      "host": "presense-opcua-02",
+      "port": 4840,
+      "unitId": 0,
+      "metrics": [
+        {
+          "name": "temperature",
+          "nodeId": "ns=2;s=Machine.Temperature",
+          "scale": 1,
+          "unit": "°C",
+          "type": "gauge"
+        },
+        {
+          "name": "speed",
+          "nodeId": "ns=2;s=Machine.Speed",
+          "scale": 1,
+          "unit": "rpm",
+          "type": "gauge"
+        },
+        {
+          "name": "current",
+          "nodeId": "ns=2;s=Machine.Current",
+          "scale": 1,
+          "unit": "A",
+          "type": "gauge"
+        },
+        {
+          "name": "load",
+          "nodeId": "ns=2;s=Machine.Load",
+          "scale": 1,
+          "unit": "%",
+          "type": "gauge"
+        },
+        {
+          "name": "state",
+          "nodeId": "ns=2;s=Machine.State",
+          "scale": 1,
+          "unit": "",
+          "type": "string"
+        }
+      ],
+      "readMode": "subscription",
+      "subscriptionIntervalMs": 1000
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "broker": {
+    "host": "mqtt",
+    "port": 1883,
+    "clientId": "iot-sense-modbus-01",
+    "topicPrefix": "iot-lense"
+  },
+  "pollIntervalMs": 1000,
+  "healthTimeoutSeconds": 300,
+  "sources": [
+    {
+      "agentId": "modbus-machine-01",
+      "type": "modbus-tcp",
+      "host": "presense-modbus-01",
+      "port": 5020,
+      "unitId": 1,
+      "metrics": [
+        {
+          "name": "temperature",
+          "register": 0,
+          "scale": 0.1,
+          "unit": "°C",
+          "type": "gauge"
+        },
+        {
+          "name": "humidity",
+          "register": 1,
+          "scale": 0.1,
+          "unit": "%",
+          "type": "gauge"
+        },
+        {
+          "name": "pressure",
+          "register": 2,
+          "scale": 0.01,
+          "unit": "bar",
+          "type": "gauge"
+        },
+        {
+          "name": "vibration",
+          "register": 3,
+          "scale": 0.01,
+          "unit": "mm/s",
+          "type": "gauge"
+        }
+      ]
+    },
+    {
+      "agentId": "modbus-machine-02",
+      "type": "modbus-tcp",
+      "host": "presense-modbus-02",
+      "port": 5020,
+      "unitId": 1,
+      "metrics": [
+        {
+          "name": "temperature",
+          "register": 0,
+          "scale": 0.1,
+          "unit": "°C",
+          "type": "gauge"
+        },
+        {
+          "name": "humidity",
+          "register": 1,
+          "scale": 0.1,
+          "unit": "%",
+          "type": "gauge"
+        },
+        {
+          "name": "pressure",
+          "register": 2,
+          "scale": 0.01,
+          "unit": "bar",
+          "type": "gauge"
+        },
+        {
+          "name": "vibration",
+          "register": 3,
+          "scale": 0.01,
+          "unit": "mm/s",
+          "type": "gauge"
+        }
+      ]
+    },
+    {
+      "agentId": "modbus-machine-03",
+      "type": "modbus-tcp",
+      "host": "presense-modbus-03",
+      "port": 5020,
+      "unitId": 1,
+      "metrics": [
+        {
+          "name": "temperature",
+          "register": 0,
+          "scale": 0.1,
+          "unit": "°C",
+          "type": "gauge"
+        },
+        {
+          "name": "humidity",
+          "register": 1,
+          "scale": 0.1,
+          "unit": "%",
+          "type": "gauge"
+        },
+        {
+          "name": "pressure",
+          "register": 2,
+          "scale": 0.01,
+          "unit": "bar",
+          "type": "gauge"
+        },
+        {
+          "name": "vibration",
+          "register": 3,
+          "scale": 0.01,
+          "unit": "mm/s",
+          "type": "gauge"
+        }
+      ]
+    }
+  ]
+}

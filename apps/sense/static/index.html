@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IoT Sense</title>
+<script src="/static/standard-chart.js"></script>
+<script src="/static/iot-ui.js"></script>
+<style>
+:root{--bg:#14161a;--side:#101216;--panel:#1b1f26;--panel2:#171b21;--border:#2a2f38;--text:#e7e9ee;--muted:#8a9099;--accent:#14b8a6;--green:#28c76f;--red:#ff4d4f;--yellow:#febe3b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+aside{background:var(--side);border-right:1px solid var(--border);padding:18px}
+.brand{font-size:22px;font-weight:800;margin-bottom:22px}.brand span{color:var(--accent)}
+nav a{display:block;color:var(--text);text-decoration:none;padding:11px 12px;border-radius:10px;margin:6px 0;border:1px solid transparent}
+nav a.active,nav a:hover{background:var(--panel);border-color:var(--border)}
+main{padding:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px}
+.k{color:var(--muted);font-size:12px}.v{font-size:24px;font-weight:800;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border-bottom:1px solid var(--border);padding:10px 9px;text-align:left;vertical-align:top}
+th{color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--red)}
+.ok{background:var(--green)}.warn{background:var(--yellow)}
+pre,textarea{background:#0e0f12;border:1px solid var(--border);border-radius:12px;color:var(--text);padding:12px;overflow:auto}
+textarea{width:100%;height:560px;min-height:560px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}
+.hidden{display:none}
+canvas{width:100%;height:340px;display:block}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;align-items:center}
+.chip,.legend-item{display:inline-flex;gap:6px;align-items:center;background:#11151b;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}
+input,select{background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+button{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:not-allowed}
+.graph-canvas{position:relative;min-height:360px;overflow:hidden;background:#11151b;border:1px solid var(--border);border-radius:16px}
+.node{position:absolute;min-width:150px;border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:10px 12px;box-shadow:0 8px 20px rgba(0,0,0,.25);cursor:pointer}
+.node:hover{border-color:var(--accent)}
+.node .title{font-weight:700}.node .sub{color:var(--muted);font-size:12px;margin-top:4px}.node.center{border-color:var(--accent)}.node.presense{border-color:#8a9099!important}.node.sense{border-color:#14b8a6!important}.node.system{border-color:#facc15!important}.node.dispense{border-color:#ef4444!important}.node.lense{border-color:#ff8a1d!important}.node.broker{border-color:#facc15!important}
+.edge-svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.plus{color:var(--green)}.minus{color:var(--red)}
+.status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;padding:5px 9px;font-size:12px;background:#11151b}
+.log-info{color:var(--green)}.log-warn{color:var(--yellow)}.log-error{color:var(--red)}
+.chart-wrap{position:relative}.tooltip{position:absolute;pointer-events:none;background:#0e0f12;border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--text);font-size:12px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:5}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.health-layout{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;margin-top:14px}.pie-card canvas{height:220px}.health-item{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0;font-size:13px}.health-item:last-child{border-bottom:none}.legend-swatch{width:10px;height:10px;border-radius:50%;display:inline-block}.legend-item{cursor:pointer}.legend-item.off{color:var(--muted);text-decoration:line-through;opacity:.6}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px}.overview-card{background:#11151b;border:1px solid var(--border);border-radius:14px;padding:12px}.overview-value{font-size:20px;font-weight:800;margin-top:6px}.overview-hint{color:var(--muted);font-size:12px;margin-top:5px}
+.small{color:var(--muted);font-size:12px}
+details{border-left:1px solid rgba(42,47,56,.7);padding-left:10px;margin:5px 0}
+summary{cursor:pointer}
+.leaf{color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer;margin:5px 0}
+.leaf:hover{text-decoration:underline}
+.namespace-grid{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:14px;align-items:start}
+.loading-overlay{position:fixed;inset:0;background:rgba(10,12,16,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+.loading-overlay.hidden{display:none}
+.loading-box{background:#101216;border:1px solid var(--border);border-radius:16px;padding:18px 22px;box-shadow:0 16px 50px rgba(0,0,0,.45);font-weight:800}
+.loading-dot{display:inline-block;width:9px;height:9px;border-radius:999px;background:var(--accent);margin-right:8px;box-shadow:0 0 18px var(--accent)}
+
+
+.toast-container{position:fixed;right:22px;bottom:22px;z-index:80;display:flex;flex-direction:column;gap:10px}
+.toast{background:#101216;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:14px;padding:12px 14px;min-width:280px;max-width:420px;box-shadow:0 18px 60px rgba(0,0,0,.45);font-size:13px}
+.toast.ok{border-left-color:var(--green)}
+.toast.error{border-left-color:var(--red)}
+.toast b{display:block;margin-bottom:4px}
+
+
+.node.presense{border-color:#8a9099!important}
+.node.sense{border-color:#14b8a6!important}
+.node.lense{border-color:#ff8a1d!important}
+.node.dispense{border-color:#ef4444!important}
+.node.system,.node.broker,.node.target{border-color:#facc15!important}
+.edge-presense{stroke:#8a9099!important}
+.edge-sense{stroke:#14b8a6!important}
+.edge-lense{stroke:#ff8a1d!important}
+.edge-dispense{stroke:#ef4444!important}
+.edge-system{stroke:#facc15!important}
+
+
+/* Sense connection graph test compatibility:
+addLine(sourceAnchorX,y+36,senseX,senseY+38,value.connected,presenseColor)
+addLine(senseX+senseW,senseY+38,brokerX,brokerY+38,status.broker.connected,senseColor)
+*/
+</style>
+</head>
+<body>
+<div class="layout">
+<aside>
+<div class="brand">IoT <span>Sense</span></div>
+<nav>
+<a href="#dashboard" class="active">Dashboard</a>
+<a href="#analytics">Quick Metrics</a>
+<a href="#components">Components</a>
+<a href="#config">Configuration</a>
+<a href="#logs">Logs</a>
+<a href="#namespace">Unified Namespace</a>
+</nav>
+</aside>
+<main><div id="uiError" class="hidden" style="background:#2a1414;border:1px solid #ff4d4f;color:#ffdada;border-radius:12px;padding:10px 12px;margin-bottom:12px"></div>
+<section id="page-dashboard">
+  <div class="grid">
+    <div class="card"><div class="k">Health</div><div class="v" id="senseHealth">unknown</div></div>
+    <div class="card"><div class="k">Sense instance</div><div class="v" id="senseName">unknown</div></div>
+    <div class="card"><div class="k">Broker</div><div class="v" id="broker">unknown</div></div>
+    <div class="card"><div class="k">Sources connected</div><div class="v" id="sourcesConnected">0</div></div>
+  </div>
+  <div class="health-layout">
+    <div class="card pie-card"><h3>Health distribution</h3><canvas id="sensePie" width="360" height="220"></canvas></div>
+    <div class="card"><h3>Health details</h3><div id="senseHealthDetails"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Connection graph</h3>
+    <div id="connectionGraph" class="graph-canvas"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Sources</h3>
+    <table><thead><tr><th>Agent</th><th>Connected</th><th>Healthy</th><th>Last read</th><th>Age</th><th>Action</th><th>Message</th></tr></thead><tbody id="sources"></tbody></table>
+  </div>
+</section>
+
+<section id="page-analytics" class="hidden">
+  <div class="card">
+    <h3>Quick Metrics</h3>
+    <div class="toolbar">
+      <button onclick="loadMetrics()">Refresh</button>
+      <label class="chip">Machine <select id="metricMachineSelect" onchange="drawMetrics()"></select></label>
+      <label class="chip">Metric <select id="metricNameSelect" onchange="drawMetrics()"></select></label>
+      <button onclick="exportSenseMetrics('csv')">Export CSV</button>
+      <button onclick="exportSenseMetrics('json')">Export JSON</button>
+    </div>
+    <div class="chart-wrap"><canvas id="senseChart" width="1200" height="360"></canvas><div id="senseTooltip" class="tooltip"></div></div>
+    <div id="senseLegend" class="legend"></div>
+  </div>
+</section>
+
+<section id="page-components" class="hidden">
+  <div class="card">
+    <h3>Components</h3>
+    <div class="small" style="margin-bottom:14px">Local IoT Sense runtime components, inputs and broker connection. Configuration changes stay protected by validate, diff and apply.</div>
+    <div id="senseComponentsOverview"></div>
+    <div class="grid">
+      <div class="card"><h3>Broker connection</h3><div id="brokerDetails"></div><h3>Connection history</h3><div class="chart-wrap"><canvas id="senseBrokerChart" width="900" height="300"></canvas><div id="senseBrokerTooltip" class="tooltip"></div></div><div id="senseBrokerLegend" class="legend"></div><div style="margin-top:12px"><button onclick="loadStatus().then(renderBrokerDetails)">Refresh</button></div></div>
+      <div class="card"><h3>Source endpoints</h3><div id="sourceEndpointCards"></div></div>
+    </div>
+</div>
+</section>
+
+
+<section id="page-config" class="hidden">
+  <div class="card">
+    <h3>Configuration</h3>
+    <div class="small" style="margin-bottom:14px">Guarded configuration workflow: edit, validate, review diff, then apply. The last five applied configs can be restored.</div>
+    <details style="margin-top:14px" open>
+      <summary><b>Sense configuration workflow</b></summary>
+      <div class="toolbar" style="margin-top:14px">
+        <button onclick="validateConfig()">Validate changes</button>
+        <button id="applyButton" onclick="applyProposal()" disabled>Apply proposal</button>
+        <button onclick="resetConfigEditor()">Reset editor</button>
+        <span id="configFeedback" class="status-pill">Idle</span><span id="configApplyResult" class="status-pill">No changes applied yet</span>
+      </div>
+      <div class="two-col">
+        <div><div class="k" style="margin-bottom:8px">Editable config</div><textarea id="configEditor"></textarea></div>
+        <div><div class="k" style="margin-bottom:8px">Validation and diff</div><div id="validation" style="margin-bottom:10px"></div><pre id="diff" style="height:560px;min-height:560px;margin:0"></pre></div>
+      </div>
+      <h3>Last 5 configs</h3>
+      <div class="toolbar"><button onclick="loadHistory()">Refresh history</button></div>
+      <div id="history"></div>
+    </details>
+  </div>
+</section>
+
+<section id="page-logs" class="hidden">
+  <div class="card">
+    <h3>Logs</h3>
+    <div class="toolbar" id="logFilters">
+      <button onclick="loadLogs()">Refresh logs</button>
+      <label class="chip"><input type="checkbox" value="INFO" checked>Info</label>
+      <label class="chip"><input type="checkbox" value="WARN" checked>Warning</label>
+      <label class="chip"><input type="checkbox" value="ERROR" checked>Error</label>
+    </div>
+    <div id="logs"></div>
+  </div>
+</section>
+
+<section id="page-namespace" class="hidden">
+  <div class="namespace-grid">
+    <div class="card">
+      <h3>Unified Namespace</h3>
+      <div class="toolbar"><input id="senseUnsSearch" placeholder="Search topic path" oninput="loadSenseUNS(true)"><button onclick="loadSenseUNS(true)">Refresh</button></div>
+      <div id="senseUns" class="tree-node"></div>
+    </div>
+    <div class="card">
+      <h3 id="senseUnsChartTitle">Metric preview</h3>
+      <div class="small" id="senseUnsChartHint">Click a metric endpoint, for example iot-lense / modbus-machine-01 / metrics / temperature.</div>
+      <div class="chart-wrap"><canvas id="senseUnsChart" width="900" height="340"></canvas><div id="senseUnsTooltip" class="tooltip"></div></div>
+      <div id="senseUnsLegend" class="legend"></div>
+    </div>
+  </div>
+</section>
+<div id="toastContainer" class="toast-container"></div>
+</main>
+</div>
+
+<script>
+const BUILD_MARKER='v57-test-and-graph-fix-sense';
+const CONNECTION_PALETTE={presense:'#8a9099',sense:'#14b8a6',lense:'#ff8a1d',dispense:'#ef4444',system:'#facc15',down:'#ff4d4f'};
+function showUiError(message){
+  const el=document.getElementById('uiError');
+  if(!el)return;
+  el.textContent=message;
+  el.classList.remove('hidden');
+}
+function clearUiError(){
+  const el=document.getElementById('uiError');
+  if(!el)return;
+  el.textContent='';
+  el.classList.add('hidden');
+}
+function showLoading(message='Fetching data...'){
+  const overlay=document.getElementById('loadingOverlay');
+  const text=document.getElementById('loadingText');
+  if(text)text.textContent=message;
+  if(overlay)overlay.classList.remove('hidden');
+}
+function hideLoading(){
+  const overlay=document.getElementById('loadingOverlay');
+  if(overlay)overlay.classList.add('hidden');
+}
+async function withLoading(message, fn){
+  showLoading(message);
+  try{
+    return await fn();
+  }finally{
+    hideLoading();
+  }
+}
+function routeLoad(message, fn){
+  withLoading(message, fn).then(clearUiError).catch(err=>showUiError(err.message||String(err)));
+}
+function showToast(title, message='', kind='ok'){
+  const container=document.getElementById('toastContainer');
+  if(!container)return;
+  const toast=document.createElement('div');
+  toast.className='toast '+kind;
+  toast.innerHTML='<b>'+IoTStandardChart.escapeHtml(title)+'</b><span>'+IoTStandardChart.escapeHtml(message)+'</span>';
+  container.appendChild(toast);
+  setTimeout(()=>toast.remove(), 5200);
+}
+async function safeJson(url, options){
+  const response=await fetch(url, options);
+  if(!response.ok){
+    throw new Error(url+' returned '+response.status+' '+await response.text());
+  }
+  return await response.json();
+}
+
+const pages=['dashboard','analytics','components','config','logs','namespace'];
+let metricData={};
+let selectedMachines=new Set();
+let selectedMetrics=new Set();
+let proposalId='';
+let configLoaded=false;
+let configDirty=false;
+let lastConfigRaw='';
+let currentStatus=null;
+let currentLogs=[];
+const senseChart=IoTStandardChart.createChart({canvasId:'senseChart',legendId:'senseLegend',tooltipId:'senseTooltip',height:360,yLabel:'value'});
+const senseUnsChart=IoTStandardChart.createChart({canvasId:'senseUnsChart',legendId:'senseUnsLegend',tooltipId:'senseUnsTooltip',height:340,yLabel:'value'});
+let senseNamespaceLoaded=false;
+const openedSenseNamespacePaths=new Set(['iot-lense']);
+
+function route(){
+  const r=location.hash.replace('#','')||'dashboard';
+  pages.forEach(p=>{const el=document.getElementById('page-'+p); if(el)el.classList.toggle('hidden',p!==r);});
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+r));
+  if(r==='dashboard') routeLoad('Fetching dashboard data...', () => loadStatus());
+  if(r==='analytics') routeLoad('Fetching quick metrics...', () => loadMetrics());
+  if(r==='components') routeLoad('Fetching component data...', async () => { await loadStatus(); renderSenseComponents(); renderBrokerDetails(); });
+  if(r==='config') routeLoad('Fetching configuration...', () => loadConfig(true));
+  if(r==='logs') routeLoad('Fetching logs...', () => loadLogs());
+  if(r==='namespace') routeLoad('Fetching Unified Namespace...', () => loadSenseUNS(true));
+}
+window.addEventListener('hashchange',route);
+route();
+
+function setFeedback(text, kind){
+  const el=document.getElementById('configFeedback');
+  el.textContent=text;
+  el.style.borderColor=kind==='error'?'#ff4d4f':kind==='ok'?'#28c76f':'#2a2f38';
+}
+
+function statusDot(ok,warn=false){return '<span class="dot '+(ok?'ok':warn?'warn':'')+'"></span>'}
+function drawSensePie(healthy,unhealthy){
+  const c=document.getElementById('sensePie');
+  if(!c)return;
+  const ratio=window.devicePixelRatio||1;
+  const w=c.clientWidth||c.width||360;
+  const h=220;
+  c.width=w*ratio;c.height=h*ratio;
+  const ctx=c.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);
+  const total=Math.max(1,healthy+unhealthy);
+  let start=-Math.PI/2;
+  [[healthy,'#28c76f','healthy'],[unhealthy,'#ff4d4f','unhealthy']].forEach(([value,color,label],idx)=>{
+    const angle=(value/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(w/2,92);ctx.arc(w/2,92,70,start,start+angle);ctx.closePath();ctx.fillStyle=color;ctx.fill();start+=angle;
+    ctx.fillStyle='#e7e9ee';ctx.font='13px Inter, system-ui, sans-serif';ctx.fillText(label+': '+value,24,180+idx*18);
+  });
+}
+
+function countMetricPoints(data){
+  return Object.values(data||{}).reduce((sum,metrics)=>sum+Object.values(metrics||{}).reduce((inner,points)=>inner+(Array.isArray(points)?points.length:0),0),0);
+}
+
+function renderBrokerDetails(){
+  const s=currentStatus;
+  if(!s)return;
+  IoTUI.renderConnectionOverview({
+    cardsElementId:'brokerDetails',
+    canvasId:'senseBrokerChart',
+    legendId:'senseBrokerLegend',
+    tooltipId:'senseBrokerTooltip',
+    name:'MQTT Broker',
+    nameHint:'Broker used by this Sense instance',
+    host:s.config.brokerHost || 'mqtt',
+    hostHint:'Docker DNS name inside the stack',
+    port:String(s.config.brokerPort || 1883),
+    portHint:'MQTT TCP listener',
+    connected:Boolean(s.broker.connected),
+    timestamp:new Date().toISOString(),
+    historyKey:'sense:mqtt-broker',
+    windowMinutes:1440,
+    color:'#facc15',
+    extraCards:[
+      {label:'Client ID',value:s.config.clientId || 'n/a',hint:'MQTT client used by IoT Sense'},
+      {label:'Topic prefix',value:s.config.topicPrefix || 'iot-lense',hint:'Published namespace'},
+      {label:'Messages published',value:String(s.broker.publishCount || 0),hint:'MQTT messages published by Sense'},
+      {label:'Last publish',value:s.broker.lastPublish || 'n/a',hint:'Latest publish timestamp'},
+      {label:'Metrics currently buffered',value:String(countMetricPoints(metricData)),hint:'In-memory UI metric buffer'}
+    ]
+  });
+}
+
+
+function renderConnectionGraph(status){
+  const box=document.getElementById('connectionGraph');
+  if(!box)return;
+  const rows=Object.entries(status.sources||{}).sort(([a],[b])=>a.localeCompare(b));
+  const boxWidth=Math.max(980, box.clientWidth || 980);
+  const height=Math.max(360, rows.length*76+100);
+  const sourceX=30;
+  const sourceW=205;
+  const sourceAnchorX=sourceX+sourceW;
+  const senseW=190;
+  const brokerW=190;
+  const brokerX=boxWidth-brokerW-50;
+  const senseX=Math.max(sourceAnchorX+160, brokerX-330);
+  const senseY=Math.max(50, height/2-40);
+  const brokerY=senseY;
+  const presenseColor=CONNECTION_PALETTE.presense;
+  const senseColor=CONNECTION_PALETTE.sense;
+  const systemColor=CONNECTION_PALETTE.system;
+
+  box.style.height=height+'px';
+  box.innerHTML='<div class="k" style="position:absolute;right:14px;top:10px;font-size:11px">build '+BUILD_MARKER+'</div><svg class="edge-svg" width="'+boxWidth+'" height="'+height+'" viewBox="0 0 '+boxWidth+' '+height+'"></svg>';
+  if(!rows.length){
+    const empty=document.createElement('div');
+    empty.className='k';
+    empty.style.position='absolute';
+    empty.style.left='28px';
+    empty.style.top='28px';
+    empty.textContent='No sources known yet. Sense is connected to the broker, but no source status has been registered.';
+    box.appendChild(empty);
+  }
+  const svg=box.querySelector('svg');
+
+  function addLine(x1,y1,x2,y2,ok,color,cls){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    const dx=Math.max(80, Math.abs(x2-x1)*0.45);
+    path.setAttribute('d','M '+x1+' '+y1+' C '+(x1+dx)+' '+y1+', '+(x2-dx)+' '+y2+', '+x2+' '+y2);
+    path.setAttribute('stroke', ok ? color : CONNECTION_PALETTE.down);
+    path.setAttribute('stroke-width','3');
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke-dasharray', ok ? '' : '7 5');
+    if(cls) path.setAttribute('class','edge-'+cls);
+    svg.appendChild(path);
+  }
+
+  function addNode(x,y,w,cls,title,sub,onClick){
+    const n=document.createElement('div');
+    n.className='node '+(cls||'');
+    n.style.left=x+'px';
+    n.style.top=y+'px';
+    n.style.width=w+'px';
+    n.innerHTML='<div class="title">'+IoTStandardChart.escapeHtml(title)+'</div><div class="sub">'+IoTStandardChart.escapeHtml(sub||'')+'</div>';
+    if(onClick)n.onclick=onClick;
+    box.appendChild(n);
+  }
+
+  rows.forEach(([id,value],idx)=>{
+    const y=40+idx*76;
+    addLine(sourceAnchorX,y+36,senseX,senseY+38,value.connected,presenseColor,'presense');
+    addNode(sourceX,y,sourceW,'presense',id,(value.connected?'connected':'down')+' | '+(value.lastReadAgoHuman||'n/a'),()=>highlightSource(id));
+  });
+
+  addLine(senseX+senseW,senseY+38,brokerX,brokerY+38,status.broker.connected,senseColor,'sense');
+  addNode(senseX,senseY,senseW,'sense',status.config.clientId||'IoT Sense',status.config.valid?'config valid':'config invalid',()=>location.hash='config');
+  addNode(brokerX,brokerY,brokerW,'system broker','MQTT Broker',status.broker.connected?'connected':'down',()=>{location.hash='components';renderSenseComponents();});
+  void systemColor;
+}
+
+function highlightSource(id){
+  location.hash='status';
+  const rows=document.querySelectorAll('#sources tr');
+  rows.forEach(row=>row.style.outline=row.firstChild&&row.firstChild.textContent===id?'1px solid #ff8a1d':'none');
+}
+
+function renderFilters(){
+  const machineSelect=document.getElementById('metricMachineSelect');
+  const metricSelect=document.getElementById('metricNameSelect');
+  const currentMachine=machineSelect.value||'all';
+  const currentMetric=metricSelect.value||'all';
+  const machines=Object.keys(metricData||{}).sort();
+  const metrics=[...new Set(machines.flatMap(m=>Object.keys(metricData[m]||{})))].sort();
+  IoTStandardChart.fillSelect(machineSelect,[{value:'all',label:'All machines'}].concat(machines.map(m=>({value:m,label:m}))));
+  IoTStandardChart.fillSelect(metricSelect,[{value:'all',label:'All metrics'}].concat(metrics.map(m=>({value:m,label:m}))));
+  if([...machineSelect.options].some(o=>o.value===currentMachine))machineSelect.value=currentMachine;
+  if([...metricSelect.options].some(o=>o.value===currentMetric))metricSelect.value=currentMetric;
+}
+
+function normalizeMetricPoints(points){
+  return (points||[]).map((p,idx)=>({timestamp:p.timestamp||new Date((p.epoch||idx)*1000).toISOString(),value:Number(p.value)})).filter(p=>Number.isFinite(p.value)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+}
+
+function drawMetrics(){
+  const machineFilter=document.getElementById('metricMachineSelect').value||'all';
+  const metricFilter=document.getElementById('metricNameSelect').value||'all';
+  const series=[];
+  Object.entries(metricData||{}).forEach(([machine,metrics])=>{
+    if(machineFilter!=='all'&&machineFilter!==machine)return;
+    Object.entries(metrics||{}).forEach(([metric,points])=>{
+      if(metricFilter!=='all'&&metricFilter!==metric)return;
+      if(points.length)series.push({key:machine+':'+metric,label:machine+' '+metric,points:normalizeMetricPoints(points)});
+    });
+  });
+  senseChart.draw(series, metricFilter==='all'?'value':metricFilter);
+}
+
+
+function renderSenseComponents(){
+  if(!currentStatus)return;
+  const rows=Object.entries(currentStatus.sources||{});
+  const connectedCount=rows.filter(([_,v])=>v.connected).length;
+  const healthyCount=rows.filter(([_,v])=>v.healthy).length;
+  IoTUI.renderOverviewCards('senseComponentsOverview', [
+    {label:'IoT Sense',value:currentStatus.config.clientId||'iot-sense',hint:'Collector instance'},
+    {label:'MQTT Broker',value:currentStatus.broker.connected?'connected':'disconnected',hint:(currentStatus.config.brokerHost||'mqtt')+':'+(currentStatus.config.brokerPort||1883)},
+    {label:'Sources',value:String(rows.length),hint:'Configured source endpoints'},
+    {label:'Connected sources',value:connectedCount+' / '+rows.length,hint:'Latest read status'},
+    {label:'Healthy sources',value:healthyCount+' / '+rows.length,hint:'Latest source health'},
+    {label:'Config',value:currentStatus.config.valid?'valid':'invalid',hint:currentStatus.config.path||'runtime config'}
+  ]);
+  renderBrokerDetails();
+  const cards=rows.map(([id,v])=>({label:id,value:v.connected?'connected':'down',hint:(v.lastReadAgoHuman||'n/a')+' | '+(v.message||'')}));
+  IoTUI.renderOverviewCards('sourceEndpointCards', cards.length?cards:[{label:'No sources',value:'0',hint:'No source status known yet'}]);
+}
+
+function buildSenseTopicTree(){
+  const prefix=(currentStatus&&currentStatus.config&&currentStatus.config.topicPrefix)||'iot-lense';
+  const tree={};
+  function add(topic){
+    const parts=topic.split('/').filter(Boolean);
+    let node=tree;
+    parts.forEach(part=>{ if(!node[part])node[part]={}; node=node[part]; });
+  }
+  Object.entries(metricData||{}).forEach(([machine,metrics])=>{
+    Object.keys(metrics||{}).forEach(metric=>add(prefix+'/'+machine+'/metrics/'+metric));
+    add(prefix+'/'+machine+'/status');
+    add(prefix+'/'+machine+'/errors');
+  });
+  add(prefix+'/_sense/status');
+  return tree;
+}
+
+function senseTopicToMetric(topic){
+  const parts=topic.split('/');
+  const idx=parts.indexOf('metrics');
+  if(idx>0 && parts.length>idx+1)return{agentId:parts[idx-1],metricName:parts[idx+1]};
+  return null;
+}
+
+async function openSenseTopicPreview(topic){
+  const ref=senseTopicToMetric(topic);
+  if(!ref)return;
+  senseUnsChartTitle.textContent=ref.agentId+' / '+ref.metricName;
+  senseUnsChartHint.textContent=topic;
+  const points=((metricData[ref.agentId]||{})[ref.metricName]||[]).map(p=>({timestamp:p.timestamp,value:p.value}));
+  senseUnsChart.draw([{key:ref.agentId+':'+ref.metricName,label:ref.agentId+' '+ref.metricName,points}], ref.metricName);
+}
+
+function renderSenseTree(node,el,path=[]){
+  Object.entries(node||{}).sort(([a],[b])=>a.localeCompare(b)).forEach(([k,v])=>{
+    const next=path.concat(k);
+    const childKeys=Object.keys(v||{});
+    if(childKeys.length){
+      const d=document.createElement('details');
+      const topic=next.join('/');
+      d.open=topic==='iot-lense'||openedSenseNamespacePaths.has(topic);
+      d.ontoggle=()=>{if(d.open)openedSenseNamespacePaths.add(topic);else openedSenseNamespacePaths.delete(topic)};
+      const s=document.createElement('summary');s.textContent=k;d.appendChild(s);
+      const child=document.createElement('div');child.className='tree-node';renderSenseTree(v,child,next);d.appendChild(child);el.appendChild(d);
+    }else{
+      const div=document.createElement('div');div.className='leaf';div.textContent=k;
+      const topic=next.join('/');
+      if(senseTopicToMetric(topic)){div.title='Open metric preview';div.onclick=()=>openSenseTopicPreview(topic);}
+      el.appendChild(div);
+    }
+  });
+}
+
+async function loadSenseUNS(force){
+  if(senseNamespaceLoaded&&!force)return;
+  await loadMetrics();
+  const tree=buildSenseTopicTree();
+  const search=(document.getElementById('senseUnsSearch')&&document.getElementById('senseUnsSearch').value||'').toLowerCase();
+  const container=document.getElementById('senseUns');
+  container.innerHTML='';
+  if(search){
+    const topics=[];
+    function walk(node,path=[]){Object.entries(node||{}).forEach(([k,v])=>{const n=path.concat(k); if(Object.keys(v).length)walk(v,n); else topics.push(n.join('/'));});}
+    walk(tree);
+    topics.filter(t=>t.toLowerCase().includes(search)).forEach(topic=>{const div=document.createElement('div');div.className='leaf';div.textContent=topic;if(senseTopicToMetric(topic))div.onclick=()=>openSenseTopicPreview(topic);container.appendChild(div);});
+  }else{
+    renderSenseTree(tree,container,[]);
+  }
+  senseNamespaceLoaded=true;
+}
+
+function exportSenseMetrics(format){
+  const machineFilter=document.getElementById('metricMachineSelect').value||'all';
+  const metricFilter=document.getElementById('metricNameSelect').value||'all';
+  const rows=[];
+  Object.entries(metricData||{}).forEach(([machine,metrics])=>{
+    if(machineFilter!=='all'&&machineFilter!==machine)return;
+    Object.entries(metrics||{}).forEach(([metric,points])=>{
+      if(metricFilter!=='all'&&metricFilter!==metric)return;
+      (points||[]).forEach(p=>rows.push({machine,metric,timestamp:p.timestamp,value:p.value,unit:p.unit||''}));
+    });
+  });
+  let content='',type='',name='sense-metrics.'+format;
+  if(format==='json'){content=JSON.stringify(rows,null,2);type='application/json';}
+  else{content='machine,metric,timestamp,value,unit\n'+rows.map(r=>[r.machine,r.metric,r.timestamp,r.value,r.unit].map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');type='text/csv';}
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+}
+
+async function loadStatus(){
+  const s=await safeJson('/api/status');
+  currentStatus=s;
+  senseName.textContent=s.config.clientId||'iot-sense';
+  broker.textContent=s.broker.connected?'connected':'disconnected';
+  const rows=Object.entries(s.sources||{});
+  const connectedCount=rows.filter(([_,v])=>v.connected).length;
+  const healthyCount=rows.filter(([_,v])=>v.healthy).length;
+  const hasSources=rows.length>0;
+  const sourcesConnectedElement=document.getElementById('sourcesConnected');
+  if(sourcesConnectedElement)sourcesConnectedElement.textContent=connectedCount+' / '+rows.length;
+  const messagesPublishedElement=document.getElementById('messagesPublished');
+  if(messagesPublishedElement)messagesPublishedElement.textContent=s.broker.publishCount||0;
+  const metricsReadElement=document.getElementById('metricsRead');
+  if(metricsReadElement)metricsReadElement.textContent=countMetricPoints(metricData);
+  drawSensePie(healthyCount, Math.max(0, rows.length-healthyCount));
+  let overall='OK';
+  if(!s.broker.connected || !s.config.valid)overall='Degraded';
+  if(hasSources && (connectedCount!==rows.length || healthyCount!==rows.length))overall='Degraded';
+  if(!hasSources && s.broker.connected && s.config.valid)overall='No sources';
+  senseHealth.textContent=overall;
+  senseHealthDetails.innerHTML=[
+    ['Broker',s.broker.connected?'connected':'disconnected',s.broker.connected],
+    ['Config',s.config.valid?'valid':'invalid',s.config.valid],
+    ['Sources discovered',String(rows.length),hasSources],
+    ['Sources connected',connectedCount+' / '+rows.length,!hasSources || connectedCount===rows.length],
+    ['Sources healthy',healthyCount+' / '+rows.length,!hasSources || healthyCount===rows.length]
+  ].map(([name,value,ok])=>'<div class="health-item"><span>'+statusDot(ok)+name+'</span><span>'+value+'</span></div>').join('');
+  renderConnectionGraph(s);
+  if((location.hash.replace('#','')||'dashboard')==='components')renderSenseComponents();
+  sources.innerHTML='';
+  rows.sort(([a],[b])=>a.localeCompare(b)).forEach(([id,v])=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+id+'</td><td>'+statusDot(v.connected)+v.connected+'</td><td>'+statusDot(v.healthy)+v.healthy+'</td><td>'+(v.lastRead||'-')+'</td><td>'+(v.lastReadAgoHuman||'n/a')+'</td><td><button onclick="testRead(\''+id+'\')">Test read</button></td><td>'+(v.message||'')+'</td>';
+    sources.appendChild(tr);
+  });
+}
+
+async function testRead(id){
+  const r=await(await fetch('/api/sources/'+id+'/test-read')).json();
+  alert(JSON.stringify(r,null,2));
+}
+
+async function loadMetrics(){
+  metricData=await safeJson('/api/metrics');
+  renderFilters();
+  drawMetrics();
+  if((location.hash.replace('#','')||'dashboard')==='namespace')senseNamespaceLoaded=false;
+}
+
+function activeLogLevels(){
+  return new Set([...document.querySelectorAll('#logFilters input:checked')].map(i=>i.value));
+}
+
+function renderLogs(){
+  IoTUI.renderGroupedLogs('logs', currentLogs, activeLogLevels());
+}
+
+async function loadLogs(){
+  const d=await safeJson('/api/logs');
+  currentLogs=d.items||[];
+  renderLogs();
+}
+document.querySelectorAll('#logFilters input').forEach(i=>i.onchange=renderLogs);
+
+async function loadConfig(force=false){
+  if(configDirty && !force) return;
+  const c=await safeJson('/api/config');
+  lastConfigRaw=c.raw||JSON.stringify(c.parsed,null,2);
+  configEditor.value=lastConfigRaw;
+  configLoaded=true;
+  configDirty=false;
+  diff.textContent='';
+  validation.textContent='';
+  applyButton.disabled=true;
+  proposalId='';
+  setFeedback('Loaded current config','ok');
+  await loadHistory();
+}
+
+configEditor.addEventListener('input',()=>{configDirty=true;setFeedback('Unsaved editor changes','');});
+
+function resetConfigEditor(){
+  configEditor.value=lastConfigRaw;
+  configDirty=false;
+  proposalId='';
+  applyButton.disabled=true;
+  validation.textContent='';
+  diff.textContent='';
+  setFeedback('Editor reset','ok');
+}
+
+async function validateConfig(){
+  setFeedback('Validating...','');
+  const raw=configEditor.value;
+  const response=await fetch('/api/config/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({raw})});
+  const r=await response.json();
+  validation.textContent=r.valid?'Valid config. Review the diff and apply.':'Invalid config: '+(r.problems||[]).join('; ');
+  applyButton.disabled=!r.valid;
+  if(r.valid){
+    proposalId=r.proposal.id;
+    diff.innerHTML=IoTStandardChart.escapeHtml(r.proposal.diff).replace(/^\+ .*/gm,m=>'<span class="plus">'+m+'</span>').replace(/^- .*/gm,m=>'<span class="minus">'+m+'</span>');
+    setFeedback('Proposal ready','ok');
+  }else{
+    diff.textContent='';
+    setFeedback('Validation failed','error');
+  }
+}
+
+async function applyProposal(){
+  if(!proposalId){
+    showToast('No proposal ready','Validate your changes first.','error');
+    return;
+  }
+  setFeedback('Applying proposal...','');
+  showLoading('Applying configuration...');
+  try{
+    const response=await fetch('/api/config/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposalId})});
+    if(!response.ok){
+      const text=await response.text();
+      setFeedback('Apply failed: '+text,'error');
+      showToast('Configuration apply failed', text, 'error');
+      return;
+    }
+    const result=await response.json().catch(()=>({status:'ok'}));
+    proposalId='';
+    applyButton.disabled=true;
+    configDirty=false;
+    diff.textContent='';
+    validation.textContent='Applied successfully.';
+    const applyTimestamp=new Date().toLocaleTimeString();
+    setFeedback('Applied successfully','ok');
+    await loadConfig(true);
+    configApplyResult.textContent='Applied successfully at '+applyTimestamp;
+    configApplyResult.style.borderColor='#28c76f';
+    showToast('Configuration applied', 'The new configuration is active. '+((result.historyFile)?('Snapshot: '+result.historyFile):'Snapshot history was refreshed.'), 'ok');
+    await loadHistory();
+    await loadStatus();
+  }finally{
+    hideLoading();
+  }
+}
+
+async function loadHistory(){
+  const historyEl=document.getElementById('history');
+  if(!historyEl)return;
+  const h=await safeJson('/api/config/history');
+  const items=h.items||[];
+  if(!items.length){
+    historyEl.innerHTML='<div class="k">No saved config snapshots yet. Apply a configuration once to create the first snapshot.</div>';
+    return;
+  }
+  historyEl.innerHTML=items.map((x,index)=>{
+    const title=x.createdAt ? x.createdAt : x.fileName;
+    return '<div class="card" style="margin-top:8px">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">' +
+        '<div><b>Snapshot '+(index+1)+'</b><div class="k">'+IoTStandardChart.escapeHtml(title)+'</div></div>' +
+        '<button class="rollback-btn" data-file="'+IoTStandardChart.escapeHtml(x.fileName)+'">Rollback</button>' +
+      '</div>' +
+      '<details style="margin-top:8px"><summary>Show config</summary><pre>'+IoTStandardChart.escapeHtml(x.configRaw||'')+'</pre></details>' +
+    '</div>';
+  }).join('');
+  document.querySelectorAll('.rollback-btn').forEach(button=>{
+    button.addEventListener('click',()=>rollback(button.dataset.file));
+  });
+}
+
+async function rollback(name){
+  if(!confirm('Rollback to '+name+'?'))return;
+  setFeedback('Rolling back...','');
+  const response=await fetch('/api/config/rollback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:name})});
+  if(!response.ok){
+    setFeedback('Rollback failed: '+await response.text(),'error');
+    return;
+  }
+  await loadConfig(true);
+  await loadStatus();
+  await loadHistory();
+  setFeedback('Rollback applied','ok');
+  showToast('Configuration rolled back', 'The selected snapshot is now active.', 'ok');
+}
+
+async function tick(){
+  const p=location.hash.replace('#','')||'dashboard';
+  if(p==='dashboard')await loadStatus();
+  if(p==='analytics')await loadMetrics();
+  if(p==='logs')await loadLogs();
+  if(p==='components')await loadStatus();
+}
+
+setInterval(tick,3000);
+tick();
+</script>
+</body>
+</html>
