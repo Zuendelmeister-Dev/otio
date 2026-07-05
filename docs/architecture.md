@@ -2,7 +2,7 @@
 
 OT.io is a lightweight connectivity and diagnostics platform. It connects machine data to target systems and helps me find broken links quickly.
 
-The documentation uses Mermaid diagrams directly in Markdown so GitHub can render the diagrams without a separate build step.
+The documentation uses Mermaid diagrams directly in Markdown so common Markdown renderers can show them without a separate build step.
 
 ## Introduction and goals
 

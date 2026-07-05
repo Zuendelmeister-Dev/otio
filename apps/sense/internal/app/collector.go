@@ -120,12 +120,18 @@ func metricConfigByName(source SourceConfig) map[string]MetricConfig {
 }
 
 func publishSourceFailure(prefix string, source SourceConfig, message string) {
+	now := nowISO()
 	state.Lock()
-	state.Sources[source.AgentID] = SourceStatus{Connected: false, Healthy: false, LastRead: nowISO(), Message: message}
+	previous, hadPrevious := state.Sources[source.AgentID]
+	changed := !hadPrevious || previous.Connected || previous.Healthy || previous.Message != message
+	state.Sources[source.AgentID] = SourceStatus{Connected: false, Healthy: false, LastRead: now, Message: message}
 	state.Unlock()
-	addLog("ERROR", source.AgentID, message)
+
+	if changed {
+		addLog("ERROR", source.AgentID, message)
+		publishJSON(mqttx.ErrorTopic(prefix, source.AgentID), errorPayload(source, message))
+	}
 	publishJSON(mqttx.StatusTopic(prefix, source.AgentID), statusPayload(source, false, false, message))
-	publishJSON(mqttx.ErrorTopic(prefix, source.AgentID), errorPayload(source, message))
 }
 
 func rememberMetric(agentID string, metric MetricConfig, value float64) {
@@ -167,9 +173,16 @@ func publishMetric(prefix string, source SourceConfig, metric MetricConfig, raw 
 }
 
 func markSourceHealthy(prefix string, source SourceConfig, message string) {
+	now := nowISO()
 	state.Lock()
-	state.Sources[source.AgentID] = SourceStatus{Connected: true, Healthy: true, LastRead: nowISO(), Message: message}
+	previous, hadPrevious := state.Sources[source.AgentID]
+	recovered := !hadPrevious || !previous.Connected || !previous.Healthy
+	state.Sources[source.AgentID] = SourceStatus{Connected: true, Healthy: true, LastRead: now, Message: message}
 	state.Unlock()
+
+	if recovered {
+		addLog("INFO", source.AgentID, "Source recovered: "+message)
+	}
 	publishJSON(mqttx.StatusTopic(prefix, source.AgentID), statusPayload(source, true, true, "Connected"))
 }
 
@@ -249,6 +262,12 @@ func subscribeSource(ctx context.Context, config Config, source SourceConfig) {
 			}
 			received = append(received, metric.Name)
 			publishMetric(prefix, source, metric, value.Raw, value.Value)
+
+			// A subscription can be a long-running stream. In that case Subscribe
+			// does not return after the first successful value, so the source must be
+			// marked healthy while values are received. Without this, Lense can show
+			// a red source/edge although metrics are already flowing through MQTT.
+			markSourceHealthy(prefix, source, "Subscription update received for "+metric.Name)
 		})
 		if len(received) > 0 {
 			markSourceHealthy(prefix, source, "Subscription update received for "+strings.Join(received, ", "))
@@ -296,6 +315,8 @@ func restartWorkers() {
 	}
 	go publishSenseStatus(ctx, config)
 }
+
+var restartWorkersAfterConfigApply = restartWorkers
 
 func publishSenseStatus(ctx context.Context, config Config) {
 	ticker := time.NewTicker(5 * time.Second)

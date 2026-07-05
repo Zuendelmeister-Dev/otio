@@ -39,7 +39,7 @@ func findRemoteBaseURL(id string) string {
 	return ""
 }
 
-func proxyJSON(w http.ResponseWriter, method string, url string, body []byte) {
+func proxyJSON(w http.ResponseWriter, r *http.Request, method string, url string, body []byte) {
 	request, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -47,6 +47,9 @@ func proxyJSON(w http.ResponseWriter, method string, url string, body []byte) {
 	}
 	if len(body) > 0 {
 		request.Header.Set("Content-Type", "application/json")
+	}
+	if token := r.Header.Get("X-OTIO-Config-Token"); token != "" {
+		request.Header.Set("X-OTIO-Config-Token", token)
 	}
 	client := http.Client{Timeout: 3 * time.Second}
 	response, err := client.Do(request)
@@ -68,7 +71,7 @@ func apiRemoteConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "remote component not found", http.StatusNotFound)
 		return
 	}
-	proxyJSON(w, http.MethodGet, base+"/api/config", nil)
+	proxyJSON(w, r, http.MethodGet, base+"/api/config", nil)
 }
 
 func apiRemoteConfigHistory(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +81,7 @@ func apiRemoteConfigHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "remote component not found", http.StatusNotFound)
 		return
 	}
-	proxyJSON(w, http.MethodGet, base+"/api/config/history", nil)
+	proxyJSON(w, r, http.MethodGet, base+"/api/config/history", nil)
 }
 
 func apiRemoteValidateConfig(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +92,7 @@ func apiRemoteValidateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body, _ := io.ReadAll(r.Body)
-	proxyJSON(w, http.MethodPost, base+"/api/config/validate", body)
+	proxyJSON(w, r, http.MethodPost, base+"/api/config/validate", body)
 }
 
 func apiRemoteApplyConfig(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +103,7 @@ func apiRemoteApplyConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body, _ := io.ReadAll(r.Body)
-	proxyJSON(w, http.MethodPost, base+"/api/config/apply", body)
+	proxyJSON(w, r, http.MethodPost, base+"/api/config/apply", body)
 }
 
 func writeJSON(w http.ResponseWriter, value any) {
@@ -145,6 +148,80 @@ func normalizeAggregation(input string) string {
 	default:
 		return "avg"
 	}
+}
+
+func messageFromPayload(raw string, fallback string) string {
+	if raw == "" {
+		return fallback
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return fallback
+	}
+	if message, ok := payload["message"].(string); ok && message != "" {
+		return message
+	}
+	return fallback
+}
+
+func activeIssueItems(componentStatuses map[string]ComponentStatus) []map[string]any {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	var items []map[string]any
+
+	ids := configuredAgentIDs()
+	if len(ids) > 0 {
+		rows, _ := db.Query(
+			`SELECT agent_id, ts, connected, healthy, payload FROM agent_status WHERE agent_id IN (`+sqlInPlaceholders(len(ids), 1)+`) AND (connected = false OR healthy = false) ORDER BY ts DESC`,
+			stringArgs(ids)...,
+		)
+		if rows != nil {
+			defer rows.Close()
+			for rows.Next() {
+				var agentID string
+				var ts time.Time
+				var connected, healthy bool
+				var payload string
+				_ = rows.Scan(&agentID, &ts, &connected, &healthy, &payload)
+				message := messageFromPayload(payload, "Agent is not healthy")
+				if !connected {
+					message = "Agent is disconnected: " + message
+				} else if !healthy {
+					message = "Agent is unhealthy: " + message
+				}
+				items = append(items, map[string]any{
+					"timestamp": ts.UTC().Format(time.RFC3339Nano),
+					"firstSeen": now,
+					"lastSeen":  ts.UTC().Format(time.RFC3339Nano),
+					"level":     "ERROR",
+					"component": agentID,
+					"message":   message,
+					"count":     1,
+					"active":    true,
+				})
+			}
+		}
+	}
+
+	for _, status := range componentStatuses {
+		if status.Connected && status.Healthy {
+			continue
+		}
+		message := status.Message
+		if message == "" {
+			message = "Component is not healthy"
+		}
+		items = append(items, map[string]any{
+			"timestamp": status.LastSeen,
+			"firstSeen": status.LastSeen,
+			"lastSeen":  status.LastSeen,
+			"level":     "ERROR",
+			"component": status.ID,
+			"message":   message,
+			"count":     1,
+			"active":    true,
+		})
+	}
+	return items
 }
 
 func apiSummary(w http.ResponseWriter, r *http.Request) {
@@ -194,20 +271,7 @@ func apiSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	avg, min, max := calcStats(counts)
 
-	var errors []map[string]any
-	if agentCount > 0 {
-		errRows, _ := db.Query(`SELECT agent_id, ts, severity, message FROM error_events WHERE agent_id IS NULL OR agent_id IN (`+sqlInPlaceholders(agentCount, 1)+`) ORDER BY ts DESC LIMIT 20`, stringArgs(configured)...)
-		if errRows != nil {
-			defer errRows.Close()
-			for errRows.Next() {
-				var agent sql.NullString
-				var ts time.Time
-				var severity, msg string
-				_ = errRows.Scan(&agent, &ts, &severity, &msg)
-				errors = append(errors, map[string]any{"agentId": nullStringValue(agent), "timestamp": scanTimeString(ts), "severity": severity, "message": msg})
-			}
-		}
-	}
+	errors := activeIssueItems(componentStatuses)
 
 	state.Lock()
 	mqtt := map[string]any{"connected": state.BrokerConnected, "lastMessage": state.LastMessage, "messageCount": state.MessageCount}
@@ -608,6 +672,7 @@ func apiRuntime(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiLogs(w http.ResponseWriter, r *http.Request) {
+	items := activeIssueItems(componentStatusSnapshot())
 	rows, _ := db.Query(`
 		SELECT
 			COALESCE(agent_id,'') AS component,
@@ -622,7 +687,6 @@ func apiLogs(w http.ResponseWriter, r *http.Request) {
 		ORDER BY MAX(ts) DESC
 		LIMIT 500
 	`)
-	var items []map[string]any
 	if rows != nil {
 		defer rows.Close()
 		for rows.Next() {

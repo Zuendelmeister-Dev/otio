@@ -25,9 +25,9 @@ services:
     container_name: iot-lense-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-iot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iotpass}
+      POSTGRES_DB: ${POSTGRES_DB:-iotdb}
     ports:
       - "5432:5432"
     volumes:
@@ -128,7 +128,6 @@ services:
       - presense-modbus-01
       - presense-modbus-02
       - presense-modbus-03
-    env_file: .env.example
     ports:
       - "8100:8100"
     volumes:
@@ -144,7 +143,6 @@ services:
       - mqtt
       - presense-opcua-01
       - presense-opcua-02
-    env_file: .env.example
     ports:
       - "8101:8100"
     volumes:
@@ -159,7 +157,6 @@ services:
     depends_on:
       - mqtt
       - postgres
-    env_file: .env.example
     environment:
       LENSE_TOPOLOGY_PATH: /app/config/topology.json
     ports:

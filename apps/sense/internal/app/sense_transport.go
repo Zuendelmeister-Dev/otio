@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"time"
 
 	"iot-lense-sense/shared/mqttx"
@@ -24,7 +25,8 @@ func (publisher mqttEventPublisher) Connected() bool {
 }
 
 func (publisher mqttEventPublisher) PublishJSON(topic string, payload any) error {
-	return mqttx.PublishJSON(publisher.client, topic, 0, false, payload, 2*time.Second)
+	retained := strings.HasSuffix(topic, "/status")
+	return mqttx.PublishJSON(publisher.client, topic, 0, retained, payload, 2*time.Second)
 }
 
 func (publisher mqttEventPublisher) Disconnect(quiesce uint) {

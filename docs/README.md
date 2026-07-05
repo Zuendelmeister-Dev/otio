@@ -13,13 +13,14 @@ Recommended reading order:
 5. [IoT Lense](lense.md)
 6. [IoT Dispense](dispense.md)
 7. [Deployment](deployment.md)
-8. [Extension guide](extension-guide.md)
-9. [Testing](testing.md)
-10. [Quality review](quality/code-review.md)
+8. [ARM and Raspberry Pi deployment](arm-raspberry-pi.md)
+9. [Extension guide](extension-guide.md)
+10. [Testing](testing.md)
+11. [Quality review](quality/code-review.md)
 
 ## Diagrams
 
-The GitHub-facing diagrams are written in Mermaid and embedded in `docs/architecture.md`.
+The documentation diagrams are written in Mermaid and embedded in `docs/architecture.md`.
 
 Standalone Mermaid files are stored in `docs/diagrams`.
 

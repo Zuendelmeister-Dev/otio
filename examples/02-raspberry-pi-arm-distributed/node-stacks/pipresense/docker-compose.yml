@@ -1,0 +1,35 @@
+services:
+  presense-modbus-01:
+    build: ./repo/apps/presense-modbus
+    image: otio-presense-modbus-01
+    container_name: presense-modbus-01
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: presense-modbus-01
+      MODBUS_PORT: 5020
+      TEMP_BASE: 22.0
+      HUMIDITY_BASE: 48.0
+      PRESSURE_BASE: 1.20
+      VIBRATION_BASE: 0.40
+      PRESENSE_UI_PORT: 8300
+      GENERATOR_MODE: sine
+    ports:
+      - "5020:5020"
+      - "8301:8300"
+
+  presense-opcua-01:
+    build:
+      context: ./repo
+      dockerfile: apps/presense-opcua/Dockerfile
+    image: otio-presense-opcua-01
+    container_name: presense-opcua-01
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: presense-opcua-01
+      OPCUA_HTTP_PORT: 4840
+      TEMP_BASE: 31.0
+      SPEED_BASE: 1420.0
+      CURRENT_BASE: 8.2
+      GENERATOR_MODE: sine
+    ports:
+      - "4840:4840"

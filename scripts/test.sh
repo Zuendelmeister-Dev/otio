@@ -3,7 +3,7 @@ set -eu
 
 printf '%s\n' 'Running Go tests for OT.io monorepo...'
 
-for module in apps/presense-modbus apps/presense-opcua apps/sense apps/lense apps/dispense shared/mqttx; do
+for module in apps/presense-modbus apps/presense-opcua apps/sense apps/lense apps/dispense apps/plc4go-modbus shared/mqttx; do
   printf '\n==> %s\n' "$module"
   (cd "$module" && go test ./...)
 done

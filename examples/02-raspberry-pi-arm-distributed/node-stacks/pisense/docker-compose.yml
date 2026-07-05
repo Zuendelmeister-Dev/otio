@@ -1,0 +1,40 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: iot-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./repo/deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  sense-modbus:
+    build:
+      context: ./repo
+      dockerfile: apps/sense/Dockerfile
+    image: otio-sense-modbus
+    container_name: iot-sense-modbus
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+    env_file: .env
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./config/sense-modbus:/app/config
+
+  sense-opcua:
+    build:
+      context: ./repo
+      dockerfile: apps/sense/Dockerfile
+    image: otio-sense-opcua
+    container_name: iot-sense-opcua
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+    env_file: .env
+    ports:
+      - "8101:8100"
+    volumes:
+      - ./config/sense-opcua:/app/config

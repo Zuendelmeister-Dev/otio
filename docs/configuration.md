@@ -18,7 +18,7 @@ Example Modbus source:
 {
   "agentId": "press-line-01",
   "type": "modbus-tcp",
-  "host": "192.168.10.42",
+  "host": "real-press-01.local",
   "port": 502,
   "unitId": 1,
   "origin": "external",

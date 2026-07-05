@@ -13,6 +13,15 @@ func writeJSON(w http.ResponseWriter, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
+func requireConfigWriteToken(w http.ResponseWriter, r *http.Request) bool {
+	token := strings.TrimSpace(os.Getenv("OTIO_CONFIG_WRITE_TOKEN"))
+	if token == "" || r.Header.Get("X-OTIO-Config-Token") == token {
+		return true
+	}
+	http.Error(w, "configuration write token required", http.StatusUnauthorized)
+	return false
+}
+
 func apiStatus(w http.ResponseWriter, r *http.Request) {
 	state.Lock()
 	broker := map[string]any{"connected": state.BrokerConnected, "lastPublish": state.LastPublish, "publishCount": state.PublishCount}
@@ -44,6 +53,9 @@ func apiHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiValidateConfig(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigWriteToken(w, r) {
+		return
+	}
 	var request struct {
 		Raw string `json:"raw"`
 	}
@@ -72,6 +84,9 @@ func apiValidateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func apiApplyConfig(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigWriteToken(w, r) {
+		return
+	}
 	var request struct {
 		ProposalID string `json:"proposalId"`
 	}
@@ -82,12 +97,13 @@ func apiApplyConfig(w http.ResponseWriter, r *http.Request) {
 	state.Lock()
 	proposal, ok := state.Proposals[request.ProposalID]
 	configPath := state.ConfigPath
+	oldRaw := state.ConfigRaw
 	state.Unlock()
 	if !ok {
 		http.Error(w, "proposal not found", http.StatusNotFound)
 		return
 	}
-	historyFile, err := saveHistorySnapshot(proposal.ConfigRaw)
+	historyFile, err := saveHistorySnapshot(oldRaw)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,12 +113,15 @@ func apiApplyConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	loadConfigFromDisk()
-	restartWorkers()
+	restartWorkersAfterConfigApply()
 	addLog("INFO", "config", "Applied config proposal "+request.ProposalID)
 	writeJSON(w, map[string]any{"status": "ok", "historyFile": historyFile})
 }
 
 func apiRollbackConfig(w http.ResponseWriter, r *http.Request) {
+	if !requireConfigWriteToken(w, r) {
+		return
+	}
 	var request struct {
 		FileName string `json:"fileName"`
 	}
@@ -139,7 +158,7 @@ func apiRollbackConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	loadConfigFromDisk()
-	restartWorkers()
+	restartWorkersAfterConfigApply()
 	addLog("WARN", "config", "Rolled back to "+request.FileName)
 	writeJSON(w, map[string]any{"status": "ok", "historyFile": historyFile})
 }

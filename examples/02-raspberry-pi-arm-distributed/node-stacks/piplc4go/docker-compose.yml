@@ -1,0 +1,20 @@
+services:
+  plc4go-modbus-01:
+    build:
+      context: ./repo
+      dockerfile: apps/plc4go-modbus/Dockerfile
+    image: otio-plc4go-modbus
+    container_name: plc4go-modbus-01
+    restart: unless-stopped
+    environment:
+      DEVICE_ID: plc4go-modbus-01
+      MODBUS_PORT: 5020
+      PLC4GO_UI_PORT: 8400
+      CURRENT_BASE: 8.0
+      RPM_BASE: 1400.0
+      TEMP_BASE: 25.0
+      VIBRATION_BASE: 0.7
+      GENERATOR_MODE: triangle
+    ports:
+      - "5020:5020"
+      - "8400:8400"

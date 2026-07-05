@@ -1,0 +1,95 @@
+---
+- name: Check that the node stack folder exists on the control container
+  ansible.builtin.stat:
+    path: "/workspace/examples/02-raspberry-pi-arm-distributed/node-stacks/{{ inventory_hostname }}"
+  register: otio_node_stack_folder
+  delegate_to: localhost
+  become: false
+
+- name: Fail when the node stack folder is missing
+  ansible.builtin.fail:
+    msg: "No node stack folder found for {{ inventory_hostname }}."
+  when: not otio_node_stack_folder.stat.exists
+
+- name: Create remote OT.io root directory owned by the SSH user
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  when: otio_enable_deploy_files | bool
+
+- name: Remove stale remote source directory
+  ansible.builtin.file:
+    path: "{{ otio_remote_repo }}"
+    state: absent
+  when: otio_enable_deploy_files | bool
+
+- name: Create remote source directory owned by the SSH user
+  ansible.builtin.file:
+    path: "{{ otio_remote_repo }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  when: otio_enable_deploy_files | bool
+
+- name: Remove stale node-specific runtime files
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}/{{ item }}"
+    state: absent
+  loop:
+    - docker-compose.yml
+    - .env
+    - config
+  when: otio_enable_deploy_files | bool
+
+- name: Create OT.io source bundle on the control container
+  ansible.builtin.command:
+    cmd: tar -czf /tmp/otio-source-bundle.tar.gz apps shared db deploy/mosquitto go.work
+    chdir: /workspace
+  delegate_to: localhost
+  become: false
+  run_once: true
+  changed_when: true
+  when: otio_enable_deploy_files | bool
+
+- name: Copy OT.io source bundle to the remote host
+  ansible.builtin.copy:
+    src: /tmp/otio-source-bundle.tar.gz
+    dest: "{{ otio_remote_root }}/otio-source-bundle.tar.gz"
+    mode: "0644"
+  become: false
+  when: otio_enable_deploy_files | bool
+
+- name: Extract OT.io source bundle on the remote host
+  ansible.builtin.unarchive:
+    src: "{{ otio_remote_root }}/otio-source-bundle.tar.gz"
+    dest: "{{ otio_remote_repo }}"
+    remote_src: true
+  become: false
+  when: otio_enable_deploy_files | bool
+
+- name: Remove OT.io source bundle from the remote host
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}/otio-source-bundle.tar.gz"
+    state: absent
+  become: false
+  when: otio_enable_deploy_files | bool
+
+- name: Copy node-specific Docker Compose stack
+  ansible.builtin.copy:
+    src: "/workspace/examples/02-raspberry-pi-arm-distributed/node-stacks/{{ inventory_hostname }}/docker-compose.yml"
+    dest: "{{ otio_remote_root }}/docker-compose.yml"
+    mode: "0644"
+  become: false
+  when: otio_enable_deploy_files | bool
+
+- name: Render node environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ otio_remote_root }}/.env"
+    mode: "0600"
+  become: false
+  when: otio_enable_deploy_files | bool
