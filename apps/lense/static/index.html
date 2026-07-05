@@ -474,6 +474,26 @@ async function safeJson(url, options){
   }
   return await response.json();
 }
+function configWriteHeaders(){
+  const headers={'Content-Type':'application/json'};
+  const token=localStorage.getItem('otio-config-write-token')||'';
+  if(token)headers['X-OTIO-Config-Token']=token;
+  return headers;
+}
+async function configWriteJson(url, payload){
+  let response=await fetch(url,{method:'POST',headers:configWriteHeaders(),body:JSON.stringify(payload)});
+  if(response.status===401){
+    const token=prompt('Configuration token');
+    if(token!==null){
+      localStorage.setItem('otio-config-write-token', token);
+      response=await fetch(url,{method:'POST',headers:configWriteHeaders(),body:JSON.stringify(payload)});
+    }
+  }
+  if(!response.ok){
+    throw new Error(await response.text());
+  }
+  return await response.json();
+}
 
 const pages=['dashboard','agents','agent-detail','analytics','namespace','components','configurations','config-detail','logs'];
 const CONNECTION_PALETTE={presense:'#8a9099',sense:'#14b8a6',lense:'#ff8a1d',dispense:'#ef4444',system:'#facc15',down:'#ff4d4f'};
@@ -801,7 +821,7 @@ async function validateLenseConfigDraft(){
     currentLenseConfigProposal=normalized;
     currentLenseRemoteProposalId=null;
     if(currentLenseConfigIsRemote){
-      const remote=await safeJson('/api/remote-config/validate?id='+encodeURIComponent(currentLenseConfigItem.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({raw:normalized})});
+      const remote=await configWriteJson('/api/remote-config/validate?id='+encodeURIComponent(currentLenseConfigItem.id),{raw:normalized});
       if(!remote.valid){
         diff.textContent=(remote.problems||['Remote validation failed']).join('\n');
         stateEl.textContent='Invalid';
@@ -836,7 +856,7 @@ async function applyLenseConfigDraft(){
       document.getElementById('configWorkflowResult').textContent='Validate the remote draft before applying it';
       return;
     }
-    const result=await safeJson('/api/remote-config/apply?id='+encodeURIComponent(currentLenseConfigItem.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposalId:currentLenseRemoteProposalId})});
+    const result=await configWriteJson('/api/remote-config/apply?id='+encodeURIComponent(currentLenseConfigItem.id),{proposalId:currentLenseRemoteProposalId});
     currentLenseConfigOriginal=currentLenseConfigProposal;
     currentLenseRemoteProposalId=null;
     document.getElementById('btnApplyConfigDraft').disabled=true;

@@ -251,6 +251,26 @@ async function safeJson(url, options){
   }
   return await response.json();
 }
+function configWriteHeaders(){
+  const headers={'Content-Type':'application/json'};
+  const token=localStorage.getItem('otio-config-write-token')||'';
+  if(token)headers['X-OTIO-Config-Token']=token;
+  return headers;
+}
+async function configWriteFetch(url, options){
+  const request=Object.assign({}, options||{});
+  request.headers=Object.assign(configWriteHeaders(), request.headers||{});
+  let response=await fetch(url, request);
+  if(response.status===401){
+    const token=prompt('Configuration token');
+    if(token!==null){
+      localStorage.setItem('otio-config-write-token', token);
+      request.headers=Object.assign(configWriteHeaders(), options&&options.headers||{});
+      response=await fetch(url, request);
+    }
+  }
+  return response;
+}
 
 const pages=['dashboard','analytics','components','config','logs','namespace'];
 let metricData={};
@@ -647,7 +667,13 @@ function resetConfigEditor(){
 async function validateConfig(){
   setFeedback('Validating...','');
   const raw=configEditor.value;
-  const response=await fetch('/api/config/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({raw})});
+  const response=await configWriteFetch('/api/config/validate',{method:'POST',body:JSON.stringify({raw})});
+  if(!response.ok){
+    const text=await response.text();
+    validation.textContent='Validation failed: '+text;
+    setFeedback('Validation failed','error');
+    return;
+  }
   const r=await response.json();
   validation.textContent=r.valid?'Valid config. Review the diff and apply.':'Invalid config: '+(r.problems||[]).join('; ');
   applyButton.disabled=!r.valid;
@@ -669,7 +695,7 @@ async function applyProposal(){
   setFeedback('Applying proposal...','');
   showLoading('Applying configuration...');
   try{
-    const response=await fetch('/api/config/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposalId})});
+    const response=await configWriteFetch('/api/config/apply',{method:'POST',body:JSON.stringify({proposalId})});
     if(!response.ok){
       const text=await response.text();
       setFeedback('Apply failed: '+text,'error');
@@ -722,7 +748,7 @@ async function loadHistory(){
 async function rollback(name){
   if(!confirm('Rollback to '+name+'?'))return;
   setFeedback('Rolling back...','');
-  const response=await fetch('/api/config/rollback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:name})});
+  const response=await configWriteFetch('/api/config/rollback',{method:'POST',body:JSON.stringify({fileName:name})});
   if(!response.ok){
     setFeedback('Rollback failed: '+await response.text(),'error');
     return;

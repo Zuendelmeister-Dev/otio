@@ -1,0 +1,47 @@
+---
+- name: Stop OT.io systemd service if it exists
+  ansible.builtin.systemd:
+    name: otio-compose.service
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Stop Docker Compose stack if it exists
+  ansible.builtin.command:
+    cmd: docker compose down -v --remove-orphans
+    chdir: "{{ otio_remote_root }}"
+  failed_when: false
+  changed_when: false
+
+- name: Remove known OT.io containers
+  ansible.builtin.command: "docker rm -f {{ item }}"
+  loop: "{{ otio_known_containers }}"
+  failed_when: false
+  changed_when: false
+
+- name: Remove known OT.io images
+  ansible.builtin.command: "docker image rm -f {{ item }}"
+  loop: "{{ otio_known_images }}"
+  failed_when: false
+  changed_when: false
+
+- name: Remove known OT.io volumes
+  ansible.builtin.command: "docker volume rm {{ item }}"
+  loop: "{{ otio_known_volumes }}"
+  failed_when: false
+  changed_when: false
+
+- name: Remove OT.io remote deployment directory
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}"
+    state: absent
+
+- name: Remove OT.io systemd service file
+  ansible.builtin.file:
+    path: /etc/systemd/system/otio-compose.service
+    state: absent
+
+- name: Reload systemd after removing OT.io service
+  ansible.builtin.systemd:
+    daemon_reload: true
+  failed_when: false

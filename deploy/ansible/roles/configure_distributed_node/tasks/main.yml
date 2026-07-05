@@ -1,0 +1,72 @@
+---
+- name: Create Sense Modbus configuration directory
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}/config/sense-modbus"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  become: false
+  when:
+    - otio_enable_configure_distributed_node | bool
+    - inventory_hostname in groups['sense']
+
+- name: Create Sense OPC UA configuration directory
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}/config/sense-opcua"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  become: false
+  when:
+    - otio_enable_configure_distributed_node | bool
+    - inventory_hostname in groups['sense']
+
+- name: Render Sense Modbus distributed configuration
+  ansible.builtin.template:
+    src: sense-modbus-config.json.j2
+    dest: "{{ otio_remote_root }}/config/sense-modbus/config.json"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  become: false
+  when:
+    - otio_enable_configure_distributed_node | bool
+    - inventory_hostname in groups['sense']
+
+- name: Render Sense OPC UA distributed configuration
+  ansible.builtin.template:
+    src: sense-opcua-config.json.j2
+    dest: "{{ otio_remote_root }}/config/sense-opcua/config.json"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  become: false
+  when:
+    - otio_enable_configure_distributed_node | bool
+    - inventory_hostname in groups['sense']
+
+- name: Create Lense configuration directory
+  ansible.builtin.file:
+    path: "{{ otio_remote_root }}/config/lense"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  become: false
+  when:
+    - otio_enable_configure_distributed_node | bool
+    - inventory_hostname in groups['lense']
+
+- name: Render Lense distributed topology
+  ansible.builtin.template:
+    src: lense-topology.json.j2
+    dest: "{{ otio_remote_root }}/config/lense/topology.json"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  become: false
+  when:
+    - otio_enable_configure_distributed_node | bool
+    - inventory_hostname in groups['lense']

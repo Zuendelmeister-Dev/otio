@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,6 +94,96 @@ func TestPruneHistoryDoesNotPanicWithFewFiles(t *testing.T) {
 	}
 	if err := pruneHistory(dir, 5); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestApplyConfigSavesPreviousConfigSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.json")
+	historyDir := filepath.Join(dir, "history")
+	t.Setenv("SENSE_CONFIG_PATH", configPath)
+	t.Setenv("SENSE_HISTORY_DIR", historyDir)
+
+	oldRaw, err := normalizeJSON(`{
+		"broker": {"host": "mqtt", "port": 1883, "clientId": "old-sense", "topicPrefix": "iot-lense"},
+		"pollIntervalMs": 1000,
+		"healthTimeoutSeconds": 300,
+		"sources": [{
+			"agentId": "machine-01",
+			"type": "modbus-tcp",
+			"host": "machine",
+			"port": 5020,
+			"unitId": 1,
+			"metrics": [{"name": "temperature", "register": 0, "scale": 0.1, "unit": "°C", "type": "gauge"}]
+		}]
+	}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newRaw, err := normalizeJSON(`{
+		"broker": {"host": "mqtt", "port": 1883, "clientId": "new-sense", "topicPrefix": "iot-lense"},
+		"pollIntervalMs": 1000,
+		"healthTimeoutSeconds": 300,
+		"sources": [{
+			"agentId": "machine-01",
+			"type": "modbus-tcp",
+			"host": "machine",
+			"port": 5020,
+			"unitId": 1,
+			"metrics": [{"name": "temperature", "register": 0, "scale": 0.1, "unit": "°C", "type": "gauge"}]
+		}]
+	}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte(oldRaw), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	previousRestart := restartWorkersAfterConfigApply
+	restartWorkersAfterConfigApply = func() {}
+	t.Cleanup(func() { restartWorkersAfterConfigApply = previousRestart })
+
+	state.Lock()
+	previousConfigPath := state.ConfigPath
+	previousHistoryDir := state.HistoryDir
+	previousConfigRaw := state.ConfigRaw
+	previousProposals := state.Proposals
+	state.ConfigPath = configPath
+	state.HistoryDir = historyDir
+	state.ConfigRaw = oldRaw
+	state.Proposals = map[string]Proposal{"proposal-1": {ID: "proposal-1", ConfigRaw: newRaw}}
+	state.Unlock()
+	t.Cleanup(func() {
+		state.Lock()
+		state.ConfigPath = previousConfigPath
+		state.HistoryDir = previousHistoryDir
+		state.ConfigRaw = previousConfigRaw
+		state.Proposals = previousProposals
+		state.Unlock()
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/config/apply", strings.NewReader(`{"proposalId":"proposal-1"}`))
+	response := httptest.NewRecorder()
+	apiApplyConfig(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	items := listHistory()
+	if len(items) != 1 {
+		t.Fatalf("history length = %d, want 1", len(items))
+	}
+	if items[0].ConfigRaw != oldRaw {
+		t.Fatalf("snapshot should contain old config\nwant: %s\ngot:  %s", oldRaw, items[0].ConfigRaw)
+	}
+
+	written, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(written) != newRaw {
+		t.Fatalf("active config should contain new config\nwant: %s\ngot:  %s", newRaw, string(written))
 	}
 }
 

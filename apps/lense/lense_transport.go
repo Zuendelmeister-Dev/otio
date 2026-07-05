@@ -99,19 +99,25 @@ func storeMetric(topic string, raw string) {
 	default:
 		textValue = fmt.Sprintf("%v", value)
 	}
-	_, _ = db.Exec(`INSERT INTO metric_events (ts,agent_id,topic,metric_name,metric_value,metric_text,metric_unit,metric_type,source_type,source_host,source_address,quality_status,payload) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)`, m.Timestamp, m.AgentID, topic, m.Metric.Name, numericValue, textValue, m.Metric.Unit, m.Metric.Type, m.Source.Type, m.Source.Host, m.Source.Address, m.Quality.Status, raw)
+	if _, err := db.Exec(`INSERT INTO metric_events (ts,agent_id,topic,metric_name,metric_value,metric_text,metric_unit,metric_type,source_type,source_host,source_address,quality_status,payload) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)`, m.Timestamp, m.AgentID, topic, m.Metric.Name, numericValue, textValue, m.Metric.Unit, m.Metric.Type, m.Source.Type, m.Source.Host, m.Source.Address, m.Quality.Status, raw); err != nil {
+		log.Printf("store metric failed for %s: %v", topic, err)
+	}
 }
 func storeStatus(raw string) {
 	var s StatusMessage
 	if err := json.Unmarshal([]byte(raw), &s); err != nil {
 		return
 	}
-	_, _ = db.Exec(`INSERT INTO agent_status (agent_id,ts,connected,healthy,source_type,source_host,payload) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb) ON CONFLICT (agent_id) DO UPDATE SET ts=EXCLUDED.ts, connected=EXCLUDED.connected, healthy=EXCLUDED.healthy, source_type=EXCLUDED.source_type, source_host=EXCLUDED.source_host, payload=EXCLUDED.payload`, s.AgentID, s.Timestamp, s.Connected, s.Healthy, s.Source.Type, s.Source.Host, raw)
+	if _, err := db.Exec(`INSERT INTO agent_status (agent_id,ts,connected,healthy,source_type,source_host,payload) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb) ON CONFLICT (agent_id) DO UPDATE SET ts=EXCLUDED.ts, connected=EXCLUDED.connected, healthy=EXCLUDED.healthy, source_type=EXCLUDED.source_type, source_host=EXCLUDED.source_host, payload=EXCLUDED.payload`, s.AgentID, s.Timestamp, s.Connected, s.Healthy, s.Source.Type, s.Source.Host, raw); err != nil {
+		log.Printf("store status failed for %s: %v", s.AgentID, err)
+	}
 }
 func storeError(raw string) {
 	var e ErrorMessage
 	if err := json.Unmarshal([]byte(raw), &e); err != nil {
 		return
 	}
-	_, _ = db.Exec(`INSERT INTO error_events (ts,agent_id,severity,message,payload) VALUES ($1,$2,$3,$4,$5::jsonb)`, e.Timestamp, e.AgentID, e.Severity, e.Message, raw)
+	if _, err := db.Exec(`INSERT INTO error_events (ts,agent_id,severity,message,payload) VALUES ($1,$2,$3,$4,$5::jsonb)`, e.Timestamp, e.AgentID, e.Severity, e.Message, raw); err != nil {
+		log.Printf("store error event failed for %s: %v", e.AgentID, err)
+	}
 }

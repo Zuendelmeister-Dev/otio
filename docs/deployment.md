@@ -68,7 +68,7 @@ docker run -d --name postgres --network otio-net   -e POSTGRES_USER=otio   -e PO
 Start Lense:
 
 ```bash
-docker run -d --name lense --network otio-net -p 8000:8000   -e POSTGRES_HOST=postgres   -e POSTGRES_PORT=5432   -e POSTGRES_DB=otio   -e POSTGRES_USER=otio   -e POSTGRES_PASSWORD=otio   -e MQTT_HOST=mqtt   -e MQTT_PORT=1883   -e LENSE_TOPOLOGY_PATH=/app/config/topology.json   -v "$PWD/apps/lense/config:/app/config:ro"   otio/lense:beta
+docker run -d --name lense --network otio-net -p 8000:8000   -e POSTGRES_HOST=postgres   -e POSTGRES_PORT=5432   -e POSTGRES_DB=otio   -e POSTGRES_USER=otio   -e POSTGRES_PASSWORD=otio   -e MQTT_BROKER=mqtt   -e MQTT_PORT=1883   -e LENSE_TOPOLOGY_PATH=/app/config/topology.json   -v "$PWD/apps/lense/config:/app/config:ro"   otio/lense:beta
 ```
 
 Start Sense OPC UA:

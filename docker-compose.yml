@@ -9,7 +9,6 @@ services:
     volumes:
       - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
-
   dispense-broker:
     image: eclipse-mosquitto:2
     container_name: iot-dispense-broker
@@ -25,9 +24,9 @@ services:
     container_name: iot-lense-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-iot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iotpass}
+      POSTGRES_DB: ${POSTGRES_DB:-iotdb}
     ports:
       - "5432:5432"
     volumes:
@@ -128,7 +127,6 @@ services:
       - presense-modbus-01
       - presense-modbus-02
       - presense-modbus-03
-    env_file: .env
     ports:
       - "8100:8100"
     volumes:
@@ -144,7 +142,6 @@ services:
       - mqtt
       - presense-opcua-01
       - presense-opcua-02
-    env_file: .env
     ports:
       - "8101:8100"
     volumes:
@@ -159,12 +156,10 @@ services:
     depends_on:
       - mqtt
       - postgres
-    env_file: .env
     environment:
       LENSE_TOPOLOGY_PATH: /app/config/topology.json
     ports:
       - "8000:8000"
-
 
   dispense-modbus:
     build:
@@ -209,7 +204,6 @@ services:
       DISPENSE_UI_PORT: 8201
     ports:
       - "8201:8201"
-
 
 volumes:
   iot_lense_pg:

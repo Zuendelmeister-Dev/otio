@@ -36,6 +36,7 @@ mosquitto-config-local/
 *.backup
 
 # Local environment overrides
+.env
 .env.local
 .env.*.local
 

@@ -1,12 +1,22 @@
 # Testing
 
-Run all tests from the repository root.
+Run all tests from the repository root with the wrapper scripts.
 
 ## Go tests
 
-```bash
-go test ./...
+Windows:
+
+```powershell
+.\test.cmd
 ```
+
+Linux and macOS:
+
+```bash
+bash scripts/test.sh
+```
+
+The repository is a multi-module Go workspace. A plain `go test ./...` from the root is not the canonical command; the scripts run each module, including `apps/plc4go-modbus`.
 
 ## JavaScript tests
 

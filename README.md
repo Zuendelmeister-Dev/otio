@@ -22,6 +22,8 @@ If something breaks, IoT Lense should make it obvious where the flow stopped.
 ## Current beta capabilities
 
 - local Docker Compose demo stack
+- Raspberry Pi ARM deployment example
+- Ansible control container for distributed rollout labs
 - Modbus TCP source simulation
 - OPC UA style source simulation
 - OPC UA style subscription flow in Presense and Sense
@@ -33,36 +35,16 @@ If something breaks, IoT Lense should make it obvious where the flow stopped.
 - JSON-based configuration workflow
 - configuration snapshots where write-back is enabled
 - Dispense forwarding to a target MQTT broker
-- Mermaid documentation diagrams for GitHub rendering
+- Mermaid documentation diagrams for Markdown rendering
 
 ## Quick start
 
-The local demo requires Docker and Docker Compose. The first build needs access to Docker Hub because the demo uses official base images.
-
-Linux and macOS:
+The fastest demo is the local Docker Compose example.
 
 ```bash
-chmod +x scripts/*.sh
-./scripts/start-demo.sh
-```
-
-Windows PowerShell:
-
-```powershell
-scripts/start-demo.ps1
-```
-
-The start script checks Docker, pulls the required base images and then starts the demo stack.
-
-Manual start:
-
-```bash
+cd examples/01-local-docker-compose
 docker compose up --build
 ```
-
-If Docker cannot resolve or reach Docker Hub, see:
-
-- [Troubleshooting](docs/troubleshooting.md)
 
 Open IoT Lense first:
 
@@ -70,25 +52,30 @@ Open IoT Lense first:
 http://127.0.0.1:8000
 ```
 
-Useful module URLs:
+You can also use the helper scripts from the repository root.
 
-| Component | URL |
+Linux and macOS:
+
+```bash
+bash scripts/start-local-docker-compose-demo.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\start-local-docker-compose-demo.cmd
+```
+
+## Examples
+
+| Example | Purpose |
 |---|---|
-| IoT Lense | http://127.0.0.1:8000 |
-| IoT Sense Modbus | http://127.0.0.1:8100 |
-| IoT Sense OPC UA | http://127.0.0.1:8101 |
-| IoT Dispense Modbus | http://127.0.0.1:8200 |
-| IoT Dispense OPC UA | http://127.0.0.1:8201 |
-| Presense Modbus 01 | http://127.0.0.1:8301 |
-| Presense Modbus 02 | http://127.0.0.1:8302 |
-| Presense Modbus 03 | http://127.0.0.1:8303 |
-| Presense OPC UA 01 | http://127.0.0.1:4840 |
-| Presense OPC UA 02 | http://127.0.0.1:4841 |
-
+| [01 Local Docker Compose](examples/01-local-docker-compose/README.md) | Starts the full OT.io demo stack on one machine. |
+| [02 Raspberry Pi ARM distributed](examples/02-raspberry-pi-arm-distributed/README.md) | Deploys the stack across several Raspberry Pis with an Ansible control container. |
 
 ## Try a failure scenario
 
-Stop one Sense instance:
+Start the local example and stop one Sense instance:
 
 ```bash
 docker stop iot-sense-opcua
@@ -113,6 +100,7 @@ Start here:
 - [Documentation overview](docs/README.md)
 - [Architecture](docs/architecture.md)
 - [Configuration and rollout guide](docs/configuration-rollout.md)
+- [ARM and Raspberry Pi deployment](docs/arm-raspberry-pi.md)
 - [IoT Presense](docs/presense.md)
 - [IoT Sense](docs/sense.md)
 - [IoT Lense](docs/lense.md)
@@ -141,6 +129,7 @@ Potential next steps:
 - better configuration approval workflows
 - improved UI navigation and dashboards
 - more source protocols, for example S7, EtherNet/IP, BACnet, HTTP polling and file-based ingestion
+- PLC4Go based device and PLC simulations
 - more target protocols, for example Kafka, NATS, HTTP APIs, databases and cloud endpoints
 - stronger analytics, trend comparison and aggregations
 - anomaly detection and AI-assisted diagnostics
@@ -158,3 +147,12 @@ Potential next steps:
 ## Production warning
 
 This is currently a private beta project. The stack is built for local evaluation, demos and development. Production use requires additional work around authentication, authorization, certificates, encryption, secrets, backup, monitoring and hardening.
+
+
+## Raspberry Pi ARM deployment notes
+
+The distributed Raspberry Pi deployment copies source files as the configured SSH user and only uses sudo for privileged operations such as creating `/opt/otio`, resetting the stack and running Docker Compose. This avoids sudo prompt timeouts during large recursive source copies. The deployment runs with `serial: 1` to avoid overloading small Raspberry Pi nodes during file transfer and image builds. Runtime behavior is still independent of service start order: Sense and Lense recover when sources or the broker disappear and come back.
+
+## Deployment stability note
+
+The distributed deployment transfers the project sources as a single compressed bundle and deploys one Raspberry Pi at a time. This avoids long recursive privileged copy operations over SSH and keeps small Raspberry Pis from being overloaded during rollout.

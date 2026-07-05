@@ -1,0 +1,77 @@
+{
+  "senses": [
+    {
+      "id": "iot-sense-modbus-01",
+      "label": "IoT Sense Modbus",
+      "url": "http://{{ hostvars['pisense'].ansible_host }}:8100",
+      "internalUrl": "http://{{ hostvars['pisense'].ansible_host }}:8100",
+      "sourceType": "modbus-tcp",
+      "remoteConfigHash": "#config",
+      "configuration": {
+        "broker": {"host": "mqtt", "port": 1883, "clientId": "iot-sense-modbus-01", "topicPrefix": "iot-lense"},
+        "pollIntervalMs": 1000,
+        "healthTimeoutSeconds": 300,
+        "sources": [
+          {"agentId": "presense-modbus-01", "type": "modbus-tcp", "origin": "presense", "displayName": "Presense Modbus Simulation 01", "host": "{{ hostvars['pipresense'].ansible_host }}", "port": 5020, "unitId": 1, "metrics": [
+              {"name": "temperature", "register": 0, "scale": 0.1, "unit": "°C", "type": "gauge"},
+              {"name": "humidity", "register": 1, "scale": 0.1, "unit": "%", "type": "gauge"},
+              {"name": "pressure", "register": 2, "scale": 0.01, "unit": "bar", "type": "gauge"},
+              {"name": "vibration", "register": 3, "scale": 0.01, "unit": "mm/s", "type": "gauge"}
+            ]},
+          {"agentId": "plc4go-modbus-01", "type": "modbus-tcp", "origin": "machine", "displayName": "PLC4Go Modbus Machine 01", "host": "{{ hostvars['piplc4go'].ansible_host }}", "port": 5020, "unitId": 1, "metrics": [
+              {"name": "current", "register": 0, "scale": 0.01, "unit": "A", "type": "gauge"},
+              {"name": "speed", "register": 1, "scale": 1, "unit": "rpm", "type": "gauge"},
+              {"name": "temperature", "register": 2, "scale": 0.1, "unit": "°C", "type": "gauge"},
+              {"name": "vibration", "register": 3, "scale": 0.001, "unit": "mm/s", "type": "gauge"}
+            ]}
+        ]
+      }
+    },
+    {
+      "id": "iot-sense-opcua-01",
+      "label": "IoT Sense OPC UA",
+      "url": "http://{{ hostvars['pisense'].ansible_host }}:8101",
+      "internalUrl": "http://{{ hostvars['pisense'].ansible_host }}:8101",
+      "sourceType": "opcua",
+      "remoteConfigHash": "#config",
+      "configuration": {
+        "broker": {"host": "mqtt", "port": 1883, "clientId": "iot-sense-opcua-01", "topicPrefix": "iot-lense"},
+        "pollIntervalMs": 1000,
+        "healthTimeoutSeconds": 300,
+        "sources": [
+          {"agentId": "presense-opcua-01", "type": "opcua", "origin": "presense", "displayName": "Presense OPC UA Simulation 01", "host": "{{ hostvars['pipresense'].ansible_host }}", "port": 4840, "unitId": 0, "metrics": [
+              {"name": "temperature", "nodeId": "ns=2;s=Machine.Temperature", "scale": 1, "unit": "°C", "type": "gauge"},
+              {"name": "speed", "nodeId": "ns=2;s=Machine.Speed", "scale": 1, "unit": "rpm", "type": "gauge"},
+              {"name": "current", "nodeId": "ns=2;s=Machine.Current", "scale": 1, "unit": "A", "type": "gauge"},
+              {"name": "load", "nodeId": "ns=2;s=Machine.Load", "scale": 1, "unit": "%", "type": "gauge"},
+              {"name": "state", "nodeId": "ns=2;s=Machine.State", "scale": 1, "unit": "", "type": "string"}
+            ], "readMode": "subscription", "subscriptionIntervalMs": 1000}
+        ]
+      }
+    }
+  ],
+  "agents": [
+    {"agentId": "presense-modbus-01", "sourceType": "modbus-tcp", "origin": "presense", "displayName": "Presense Modbus Simulation 01", "sourceHost": "{{ hostvars['pipresense'].ansible_host }}", "senseId": "iot-sense-modbus-01", "url": "http://{{ hostvars['pipresense'].ansible_host }}:8301", "internalUrl": "http://{{ hostvars['pipresense'].ansible_host }}:8301", "remoteConfigHash": "#dashboard"},
+    {"agentId": "plc4go-modbus-01", "sourceType": "modbus-tcp", "origin": "machine", "displayName": "PLC4Go Modbus Machine 01", "sourceHost": "{{ hostvars['piplc4go'].ansible_host }}", "senseId": "iot-sense-modbus-01", "url": "http://{{ hostvars['piplc4go'].ansible_host }}:8400", "internalUrl": "http://{{ hostvars['piplc4go'].ansible_host }}:8400", "remoteConfigHash": "#dashboard"},
+    {"agentId": "presense-opcua-01", "sourceType": "opcua", "origin": "presense", "displayName": "Presense OPC UA Simulation 01", "sourceHost": "{{ hostvars['pipresense'].ansible_host }}", "senseId": "iot-sense-opcua-01", "url": "http://{{ hostvars['pipresense'].ansible_host }}:4840", "internalUrl": "http://{{ hostvars['pipresense'].ansible_host }}:4840", "remoteConfigHash": "#dashboard"}
+  ],
+  "presenses": [
+    {"agentId": "presense-modbus-01", "sourceType": "modbus-tcp", "origin": "presense", "displayName": "Presense Modbus Simulation 01", "sourceHost": "{{ hostvars['pipresense'].ansible_host }}", "senseId": "iot-sense-modbus-01", "url": "http://{{ hostvars['pipresense'].ansible_host }}:8301", "internalUrl": "http://{{ hostvars['pipresense'].ansible_host }}:8301", "remoteConfigHash": "#dashboard"},
+    {"agentId": "presense-opcua-01", "sourceType": "opcua", "origin": "presense", "displayName": "Presense OPC UA Simulation 01", "sourceHost": "{{ hostvars['pipresense'].ansible_host }}", "senseId": "iot-sense-opcua-01", "url": "http://{{ hostvars['pipresense'].ansible_host }}:4840", "internalUrl": "http://{{ hostvars['pipresense'].ansible_host }}:4840", "remoteConfigHash": "#dashboard"}
+  ],
+  "dispenses": [],
+  "targets": [],
+  "lense": {
+    "id": "iot-lense",
+    "label": "IoT Lense",
+    "url": "http://{{ hostvars['pilense'].ansible_host }}:8000",
+    "configuration": {
+      "mqtt": {"host": "{{ hostvars['pisense'].ansible_host }}", "port": 1883, "topicPrefix": "iot-lense"},
+      "postgres": {"host": "postgres", "port": 5432, "database": "iotdb", "user": "iot"}
+    }
+  },
+  "systemComponents": [
+    {"id": "mqtt", "label": "MQTT Broker", "kind": "System Component", "host": "{{ hostvars['pisense'].ansible_host }}", "port": 1883, "externalPort": 1883},
+    {"id": "postgres", "label": "Postgres", "kind": "System Component", "host": "postgres", "port": 5432, "externalPort": 5432}
+  ]
+}

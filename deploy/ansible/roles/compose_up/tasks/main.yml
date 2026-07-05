@@ -1,0 +1,15 @@
+---
+- name: Build and start the node stack
+  ansible.builtin.command:
+    cmd: docker compose up -d --build
+    chdir: "{{ otio_remote_root }}"
+  register: otio_compose_up
+  changed_when: "'Started' in otio_compose_up.stdout or 'Created' in otio_compose_up.stdout or 'Recreated' in otio_compose_up.stdout or 'Building' in otio_compose_up.stdout"
+  when: otio_enable_compose_up | bool
+
+- name: Show Compose result
+  ansible.builtin.debug:
+    var: otio_compose_up.stdout_lines
+  when:
+    - otio_enable_compose_up | bool
+    - otio_compose_up is defined

@@ -12,6 +12,7 @@ $modules = @(
   "apps/sense",
   "apps/lense",
   "apps/dispense",
+  "apps/plc4go-modbus",
   "shared/mqttx"
 )
 $totalProfiles = @()

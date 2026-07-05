@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: iot-lense-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-iot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iotpass}
+      POSTGRES_DB: ${POSTGRES_DB:-iotdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - iot_lense_pg:/var/lib/postgresql/data
+      - ./repo/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  lense:
+    build:
+      context: ./repo
+      dockerfile: apps/lense/Dockerfile
+    image: otio-lense
+    container_name: iot-lense
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      LENSE_TOPOLOGY_PATH: /app/config/topology.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config/lense:/app/config
+
+volumes:
+  iot_lense_pg:

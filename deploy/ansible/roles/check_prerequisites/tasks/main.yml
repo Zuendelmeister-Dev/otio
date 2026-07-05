@@ -1,0 +1,23 @@
+---
+- name: Check that the host architecture is ARM compatible
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["architecture"] in otio_required_architectures
+    fail_msg: "Host {{ inventory_hostname }} has architecture {{ ansible_facts['architecture'] }}. This example is intended for Raspberry Pi ARM nodes."
+    success_msg: "Host {{ inventory_hostname }} architecture is {{ ansible_facts['architecture'] }}."
+
+- name: Check Python 3 on the remote host
+  ansible.builtin.command: python3 --version
+  changed_when: false
+
+- name: Check Docker CLI
+  ansible.builtin.command: docker --version
+  changed_when: false
+
+- name: Check Docker Compose plugin
+  ansible.builtin.command: docker compose version
+  changed_when: false
+
+- name: Show remote SSH user
+  ansible.builtin.debug:
+    msg: "Deploying as {{ ansible_user }} on {{ inventory_hostname }}."

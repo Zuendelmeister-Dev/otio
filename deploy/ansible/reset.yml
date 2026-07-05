@@ -1,0 +1,7 @@
+---
+- name: Reset OT.io distributed Raspberry Pi deployment
+  hosts: otio_cluster
+  gather_facts: false
+  become: true
+  roles:
+    - reset_deployment

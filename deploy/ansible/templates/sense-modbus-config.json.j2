@@ -1,0 +1,42 @@
+{
+  "broker": {
+    "host": "mqtt",
+    "port": 1883,
+    "clientId": "iot-sense-modbus-01",
+    "topicPrefix": "iot-lense"
+  },
+  "pollIntervalMs": 1000,
+  "healthTimeoutSeconds": 300,
+  "sources": [
+    {
+      "agentId": "presense-modbus-01",
+      "type": "modbus-tcp",
+      "origin": "presense",
+      "displayName": "Presense Modbus Simulation 01",
+      "host": "{{ hostvars['pipresense'].ansible_host }}",
+      "port": 5020,
+      "unitId": 1,
+      "metrics": [
+        {"name": "temperature", "register": 0, "scale": 0.1, "unit": "°C", "type": "gauge"},
+        {"name": "humidity", "register": 1, "scale": 0.1, "unit": "%", "type": "gauge"},
+        {"name": "pressure", "register": 2, "scale": 0.01, "unit": "bar", "type": "gauge"},
+        {"name": "vibration", "register": 3, "scale": 0.01, "unit": "mm/s", "type": "gauge"}
+      ]
+    },
+    {
+      "agentId": "plc4go-modbus-01",
+      "type": "modbus-tcp",
+      "origin": "machine",
+      "displayName": "PLC4Go Modbus Machine 01",
+      "host": "{{ hostvars['piplc4go'].ansible_host }}",
+      "port": 5020,
+      "unitId": 1,
+      "metrics": [
+        {"name": "current", "register": 0, "scale": 0.01, "unit": "A", "type": "gauge"},
+        {"name": "speed", "register": 1, "scale": 1, "unit": "rpm", "type": "gauge"},
+        {"name": "temperature", "register": 2, "scale": 0.1, "unit": "°C", "type": "gauge"},
+        {"name": "vibration", "register": 3, "scale": 0.001, "unit": "mm/s", "type": "gauge"}
+      ]
+    }
+  ]
+}

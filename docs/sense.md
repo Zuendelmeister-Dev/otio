@@ -167,7 +167,7 @@ Example Modbus source:
 {
   "agentId": "real-press-01",
   "type": "modbus-tcp",
-  "host": "192.168.10.42",
+  "host": "real-press-01.local",
   "port": 502,
   "unitId": 1,
   "readMode": "poll",
@@ -254,7 +254,7 @@ Polling-only protocols can implement `Read`. Subscription-capable protocols can 
   "displayName": "My Machine 01",
   "type": "myprotocol",
   "origin": "external",
-  "host": "192.168.10.50",
+      "host": "custom-sensor-01.local",
   "port": 1234,
   "readMode": "poll",
   "pollIntervalMs": 1000,
@@ -437,7 +437,7 @@ For unusual protocols, use `options` on the source or metric instead of changing
   "agentId": "machine-01",
   "type": "myprotocol",
   "origin": "external",
-  "host": "192.168.10.40",
+  "host": "s7-adapter-01.local",
   "port": 1234,
   "options": {
     "rack": 0,

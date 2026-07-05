@@ -1,0 +1,48 @@
+---
+otio_remote_root: /opt/otio
+otio_remote_repo: /opt/otio/repo
+
+otio_enable_deploy_files: true
+otio_enable_configure_distributed_node: true
+otio_enable_compose_up: true
+otio_enable_systemd_service: false
+
+otio_required_architectures:
+  - aarch64
+  - arm64
+  - armv7l
+
+otio_known_containers:
+  - iot-broker
+  - iot-lense
+  - iot-lense-db
+  - iot-sense-modbus
+  - iot-sense-opcua
+  - presense-modbus-01
+  - presense-opcua-01
+  - plc4go-modbus-01
+  - iot-dispense-modbus
+  - iot-dispense-opcua
+  - iot-dispense-broker
+
+otio_known_images:
+  - otio-presense-modbus-01
+  - otio-presense-opcua-01
+  - otio-plc4go-modbus
+  - otio-sense-modbus
+  - otio-sense-opcua
+  - otio-lense
+
+otio_known_volumes:
+  - otio_iot_lense_pg
+  - iot_lense_pg
+  - otio_iot_lense_pg_data
+
+otio_source_directories:
+  - apps
+  - shared
+  - db
+  - deploy/mosquitto
+
+otio_source_files:
+  - go.work
