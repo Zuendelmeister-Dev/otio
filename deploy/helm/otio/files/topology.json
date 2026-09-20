@@ -1,0 +1,74 @@
+{
+  "senses": [
+    {
+      "id": "sense-protocol-lab",
+      "label": "Sense · Protocol Lab",
+      "url": "http://127.0.0.1:8100",
+      "internalUrl": "http://sense:8100",
+      "sourceType": "multi-protocol"
+    }
+  ],
+  "presenses": [
+    {
+      "id": "presense-protocol-lab",
+      "label": "Presense · Native Protocol Lab",
+      "url": "http://127.0.0.1:8500/static/",
+      "internalUrl": "http://protocol-lab:8500",
+      "sourceType": "multi-protocol",
+      "agentId": "presense-protocol-lab"
+    }
+  ],
+  "dispenses": [],
+  "agents": [
+    {
+      "id": "lab-modbus",
+      "label": "Lab · Modbus TCP",
+      "sourceType": "lab-modbus-tcp",
+      "host": "protocol-lab",
+      "port": 1502,
+      "agentId": "lab-modbus",
+      "sourceHost": "protocol-lab",
+      "senseId": "sense-protocol-lab"
+    },
+    {
+      "id": "lab-rtu",
+      "label": "Lab · RTU tunnel",
+      "sourceType": "lab-modbus-rtu-tcp",
+      "host": "protocol-lab",
+      "port": 1503,
+      "agentId": "lab-rtu",
+      "sourceHost": "protocol-lab",
+      "senseId": "sense-protocol-lab"
+    },
+    {
+      "id": "lab-opcua",
+      "label": "Lab · OPC UA Binary",
+      "sourceType": "lab-opcua-tcp",
+      "host": "protocol-lab",
+      "port": 4842,
+      "agentId": "lab-opcua",
+      "sourceHost": "protocol-lab",
+      "senseId": "sense-protocol-lab"
+    },
+    {
+      "id": "lab-mqtt",
+      "label": "Lab · MQTT",
+      "sourceType": "lab-mqtt",
+      "host": "mqtt",
+      "port": 1883,
+      "agentId": "lab-mqtt",
+      "sourceHost": "mqtt",
+      "senseId": "sense-protocol-lab"
+    },
+    {
+      "id": "lab-amqp",
+      "label": "Lab · AMQP",
+      "sourceType": "lab-amqp",
+      "host": "rabbitmq",
+      "port": 5672,
+      "agentId": "lab-amqp",
+      "sourceHost": "rabbitmq",
+      "senseId": "sense-protocol-lab"
+    }
+  ]
+}

@@ -1,15 +1,20 @@
 # IoT Presense
 
+For the live simulator form, persistent settings, protocol selection and copyable Sense sources, see [UI workflows](ui-workflows.md).
+
 IoT Presense is the simulator part of OT.io. I use it to create predictable source endpoints while developing and testing Sense, Lense and Dispense.
 
 Presense is optional. In a real deployment, Sense can point directly to real machines or external endpoints.
 
 ## Supported simulator types
 
+The optional [Protocol Lab](protocols.md) adds native Modbus TCP, RTU-over-TCP and OPC UA Binary simulators, plus MQTT/AMQP demo publishers and a shared control UI. Start [Example 03](../examples/03-protocol-lab/README.md) to test these together with Sense and Lense. The protocol matrix distinguishes these simulators from experimental readers and hardware-dependent fieldbuses.
+
 | Module | Simulated protocol | Current behavior |
 |---|---|---|
 | `apps/presense-modbus` | Modbus TCP | Exposes generated values through holding registers. |
 | `apps/presense-opcua` | OPC UA style endpoint | Exposes generated values through `/read`, `/nodes` and `/subscribe`. |
+| `apps/protocol-lab` | Native Modbus TCP, RTU tunnel, OPC UA Binary; MQTT/AMQP publishers | Shared temperature/running controls; native TCP endpoints and broker demo messages. |
 
 ## Modbus Presense
 
@@ -28,7 +33,9 @@ Example Docker Compose service:
 
 ```yaml
 presense-modbus-01:
-  build: ./apps/presense-modbus
+  build:
+    context: .
+    dockerfile: apps/presense-modbus/Dockerfile
   container_name: presense-modbus-01
   restart: unless-stopped
   environment:

@@ -1,0 +1,43 @@
+'use strict';
+function initSimulatorEditor(sim){
+ const presets={
+  'modbus-tcp':{port:1502,scheme:'modbus-tcp',address:'holding-register:1:UINT',scale:0.01,note:'Unit 1 · wire register 0 = temperature ×100; register 1 = running.'},
+  'modbus-rtu-tcp':{port:1503,scheme:'modbus-rtu:tcp',address:'holding-register:1:UINT',scale:0.01,note:'Transparent TCP tunnel with RTU CRC framing. Unit 1, temperature at wire register 0.'},
+  'opcua-tcp':{port:4842,scheme:'opc.tcp',address:'ns=1;s=Temperature',scale:1,note:'Anonymous / None. Temperature is °C; ns=1;s=Running is boolean.'},
+  mqtt:{port:1883,scheme:'tcp',address:'lab/temperature',scale:1,note:'Retained JSON temperature. '+(sim.mqttURL?'Publisher enabled.':'Publisher disabled: configure LAB_MQTT_URL.')},
+  amqp:{port:5672,scheme:'amqp',address:'amq.topic/lab.temperature',scale:1,note:'AMQP 0-9-1 exchange/routing key. '+(sim.amqpEnabled?'Publisher enabled. Match the configured broker credentials.':'Publisher disabled: configure LAB_AMQP_URL.')}
+ };
+ const el=id=>document.getElementById(id);el('simHost').value=sim.host||'protocol-lab';
+ function source(){const type=el('simProtocol').value,p=presets[type],connection=el('simConnection').value;let host=el('simHost').value,port=p.port;try{const u=new URL(connection.replace('modbus-rtu:tcp:', 'tcp:'));host=u.hostname;port=Number(u.port)||port;}catch{}
+  return{agentId:'presense-'+type,type:'lab-'+type,host,port,options:{gatewayURL:'http://'+el('simHost').value+':8500',connection},metrics:[{name:'temperature',address:p.address,scale:p.scale,unit:'°C'}]};}
+ function output(){el('simSource').textContent=JSON.stringify(source(),null,2);}
+ function select(){const type=el('simProtocol').value,p=presets[type];el('simAddress').value=p.address;el('simProtocolInfo').textContent=p.note;
+  el('simConnection').value=type==='mqtt'?(sim.mqttURL||'tcp://mqtt:1883'):type==='amqp'?'amqp://lab:lab@'+(sim.amqpHost||'rabbitmq:5672')+'/':p.scheme+'://'+el('simHost').value+':'+p.port+(type.startsWith('modbus')?'?default-unit-identifier=1':'');output();}
+ el('simProtocol').onchange=select;el('simHost').oninput=select;el('simConnection').oninput=output;
+ const requested=new URLSearchParams(location.search).get('simulate');if(requested&&presets[requested])el('simProtocol').value=requested;select();
+ el('simCopy').onclick=async()=>{try{await navigator.clipboard.writeText(el('simSource').textContent);el('simStatus').textContent='Sense source copied.';}catch{el('simStatus').textContent='Select and copy the source JSON below.'}};
+ if(requested)el('simProtocol').scrollIntoView({block:'center'});
+}
+const $=id=>document.getElementById(id);
+const api=new URL('../api/',location.href);
+let items=[],selected=null,filter='all',active=null,history=[];
+async function request(path,options={}){const response=await fetch(new URL(path,api),options);let data;try{data=await response.json()}catch{throw new Error('The lab returned an invalid response. Check the service connection.')}if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);return data}
+function status(text,kind=''){$('result').textContent=text;$('result').className='result '+kind}
+function renderCatalog(){const term=$('search').value.toLowerCase();const visible=items.filter(p=>(filter==='all'||(filter==='ip')===Boolean(p.connection))&&(p.name+' '+p.transport+' '+p.notes).toLowerCase().includes(term));$('catalog').replaceChildren();$('catalogCount').textContent=visible.length+' protocols';for(const p of visible){const button=document.createElement('button');button.className='protocol-card'+(selected?.id===p.id?' active':'');button.dataset.status=p.status;button.setAttribute('aria-pressed',String(selected?.id===p.id));const text=document.createElement('span'),name=document.createElement('strong'),meta=document.createElement('small'),dot=document.createElement('span');name.textContent=p.name;meta.textContent=p.transport+' · '+(p.simulator?'demo available':p.status);dot.className='dot';text.append(name,meta);button.append(text,dot);button.onclick=()=>selectProtocol(p);$('catalog').append(button)}if(!visible.length){const p=document.createElement('p');p.className='muted';p.textContent='No matching protocol. Try a broader search.';$('catalog').append(p)}}
+function selectProtocol(p){active?.abort();active=null;document.getElementById("cancelButton").hidden=true;selected=p;$('protocolTitle').textContent=p.name;$('protocolStatus').textContent=p.status;$('protocolNotes').textContent=p.notes;$('connection').value=p.connection;$('address').value=p.address;for(const id of ['connection','address','readButton','configButton'])$(id).disabled=!p.connection;$('configuration').open=false;status(p.connection?'Ready to read a real value.':'This protocol needs the integration described above. No native read is advertised.');renderCatalog()}
+$('readForm').onsubmit=async event=>{event.preventDefault();if(!selected?.connection)return;active?.abort();const controller=new AbortController();active=controller;const protocol=selected;$('readButton').disabled=true;$('cancelButton').hidden=false;status('Connecting and waiting for a value…');try{const data=await request('read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({protocol:protocol.id,connection:$('connection').value.trim(),address:$('address').value.trim()}),signal:controller.signal});if(active!==controller)return;status(JSON.stringify(data.value,null,2)+`\n\n${data.elapsedMs} ms · ${new Date(data.timestamp).toLocaleTimeString()}`,'success');record(protocol.name,JSON.stringify(data.value))}catch(err){if(active!==controller)return;status(err.name==='AbortError'?'Read cancelled.':err.message,err.name==='AbortError'?'':'error');if(err.name!=='AbortError')record(protocol.name,'Failed: '+err.message)}finally{if(active===controller){active=null;$('readButton').disabled=!selected?.connection;$('cancelButton').hidden=true}}};
+$('cancelButton').onclick=()=>active?.abort();
+function record(name,value){history.unshift({time:new Date().toLocaleTimeString(),name,value});history=history.slice(0,20);$('history').replaceChildren();for(const item of history){const row=document.createElement('div');row.className='history-row';for(const value of [item.time,item.name,item.value]){const span=document.createElement('span');span.textContent=value;row.append(span)}$('history').append(row)}}
+$('clearHistory').onclick=()=>{history=[];$('history').textContent='No recent tests.'};
+$('search').oninput=renderCatalog;document.querySelectorAll('[data-filter]').forEach(button=>button.onclick=()=>{filter=button.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('selected',b===button));renderCatalog()});
+$('configButton').onclick=()=>{
+ if(!selected?.connection)return;
+ const connection=$('connection').value.trim();
+ let host='',port=0;
+ try{const endpoint=new URL(connection.replace('modbus-rtu:tcp:','tcp:'));host=endpoint.hostname;port=Number(endpoint.port)||0;}catch{}
+ const source={agentId:'lab-'+selected.id,type:'lab-'+selected.id,displayName:selected.name,host,port,readMode:'poll',options:{gatewayURL:'http://'+($('simHost').value||'protocol-lab')+':8500',connection},metrics:[{name:'value',address:$('address').value.trim(),scale:1,unit:''}]};
+ $('configOutput').textContent=JSON.stringify(source,null,2);$('configuration').open=true;
+};
+$('copyButton').onclick=async()=>{try{await navigator.clipboard.writeText($('configOutput').textContent);$('copyButton').textContent='Copied'}catch{$('copyButton').textContent='Select and copy the JSON above'}};
+$('simForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{await request('simulator',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({temperature:Number($('temperature').value),mode:$('mode').value,running:$('running').checked})});$('simStatus').textContent='Simulator updated.'}catch(err){$('simStatus').textContent=err.message}finally{button.disabled=false}};
+async function init(){try{const data=await request('catalog');items=data.items;$('availableCount').textContent=items.filter(p=>p.connection).length;$('simCount').textContent=items.filter(p=>p.simulator).length;selectProtocol(items[0]);const sim=await request('simulator');initSimulatorEditor(sim);$('temperature').value=sim.values.temperature;$('mode').value=sim.values.mode;$('running').checked=sim.values.running;$('publisherStatus').textContent=Object.entries(sim.publishers).map(([key,value])=>key+': '+value).join(' · ')||'Broker publishers are enabled with LAB_MQTT_URL / LAB_AMQP_URL.'}catch(err){status(err.message,'error')}}init();

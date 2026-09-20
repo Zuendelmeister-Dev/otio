@@ -22,6 +22,8 @@ func PublishJSON(client Client, topic string, qos byte, retained bool, payload a
 // Publish sends a raw payload to the given topic.
 func Publish(client Client, topic string, qos byte, retained bool, payload any, timeout time.Duration) error {
 	token := client.Publish(topic, qos, retained, payload)
-	token.WaitTimeout(timeout)
+	if !token.WaitTimeout(timeout) {
+		return ErrTimeout
+	}
 	return token.Error()
 }

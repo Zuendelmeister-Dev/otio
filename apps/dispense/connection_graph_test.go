@@ -19,8 +19,8 @@ func TestDispenseConnectionGraphExistsAndUsesCommonPalette(t *testing.T) {
 		"function renderDispenseConnectionGraph(targetId)",
 		"const systemColor=CONNECTION_PALETTE.system",
 		"const dispenseColor=CONNECTION_PALETTE.dispense",
-		"addLine(brokerX+brokerW,brokerY+38,dispenseX,dispenseY+38,Boolean(input.connected),systemColor,'system')",
-		"addLine(dispenseX+dispenseW,dispenseY+38,targetX,targetY+38,Boolean(output.connected),dispenseColor,'dispense')",
+		"addLine(brokerX+brokerW,brokerY+42,dispenseX,dispenseY+42,Boolean(input.connected),systemColor,'system')",
+		"addLine(dispenseX+dispenseW,dispenseY+42,targetX,targetY+42,Boolean(output.connected),dispenseColor,'dispense')",
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("missing %s", want)

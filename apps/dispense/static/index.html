@@ -47,7 +47,7 @@ pre{background:#0e0f12;border:1px solid var(--border);border-radius:12px;padding
 .edge-presense{stroke:#8a9099!important}.edge-sense{stroke:#14b8a6!important}.edge-lense{stroke:#ff8a1d!important}.edge-dispense{stroke:#ef4444!important}.edge-system{stroke:#facc15!important}
 
 </style>
-</head>
+<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script></head>
 <body>
 <div class="layout">
 <aside><div class="brand">IoT <span>Dispense</span></div><nav>
@@ -103,7 +103,7 @@ function renderDispenseConnectionGraph(targetId){
   const input=statusData.inputBroker||{};
   const output=statusData.outputBroker||{};
   const instance=statusData.instanceId||'IoT Dispense';
-  const w=Math.max(860, box.clientWidth||860);
+  const w=1040; box.style.width=w+"px"; IoTWorkspace.graphViewport(box);
   const h=320;
   const brokerW=210, dispenseW=240, targetW=230;
   const brokerX=36, brokerY=118;
@@ -138,8 +138,8 @@ function renderDispenseConnectionGraph(targetId){
     box.appendChild(n);
   }
 
-  addLine(brokerX+brokerW,brokerY+38,dispenseX,dispenseY+38,Boolean(input.connected),systemColor,'system');
-  addLine(dispenseX+dispenseW,dispenseY+38,targetX,targetY+38,Boolean(output.connected),dispenseColor,'dispense');
+  addLine(brokerX+brokerW,brokerY+42,dispenseX,dispenseY+42,Boolean(input.connected),systemColor,'system');
+  addLine(dispenseX+dispenseW,dispenseY+42,targetX,targetY+42,Boolean(output.connected),dispenseColor,'dispense');
   addNode(brokerX,brokerY,brokerW,'system','Input MQTT Broker',(input.connected?'connected':'down')+' | '+(input.host||'mqtt')+':'+(input.port||1883));
   addNode(dispenseX,dispenseY,dispenseW,'dispense',instance,statusData.sourceFilter||'forwarder');
   addNode(targetX,targetY,targetW,'system','Target MQTT Broker',(output.connected?'connected':'down')+' | '+(output.host||'dispense-broker')+':'+(output.port||1883));

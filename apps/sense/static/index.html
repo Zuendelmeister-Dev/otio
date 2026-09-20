@@ -80,7 +80,7 @@ addLine(sourceAnchorX,y+36,senseX,senseY+38,value.connected,presenseColor)
 addLine(senseX+senseW,senseY+38,brokerX,brokerY+38,status.broker.connected,senseColor)
 */
 </style>
-</head>
+<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script></head>
 <body>
 <div class="layout">
 <aside>
@@ -363,15 +363,15 @@ function renderConnectionGraph(status){
   const box=document.getElementById('connectionGraph');
   if(!box)return;
   const rows=Object.entries(status.sources||{}).sort(([a],[b])=>a.localeCompare(b));
-  const boxWidth=Math.max(980, box.clientWidth || 980);
-  const height=Math.max(360, rows.length*76+100);
+  const boxWidth=1040;
+  const height=Math.max(360, rows.length*100+100);
   const sourceX=30;
-  const sourceW=205;
+  const sourceW=260;
   const sourceAnchorX=sourceX+sourceW;
-  const senseW=190;
-  const brokerW=190;
-  const brokerX=boxWidth-brokerW-50;
-  const senseX=Math.max(sourceAnchorX+160, brokerX-330);
+  const senseW=260;
+  const brokerW=260;
+  const brokerX=730;
+  const senseX=380;
   const senseY=Math.max(50, height/2-40);
   const brokerY=senseY;
   const presenseColor=CONNECTION_PALETTE.presense;
@@ -379,6 +379,7 @@ function renderConnectionGraph(status){
   const systemColor=CONNECTION_PALETTE.system;
 
   box.style.height=height+'px';
+  box.style.width=boxWidth+'px';
   box.innerHTML='<div class="k" style="position:absolute;right:14px;top:10px;font-size:11px">build '+BUILD_MARKER+'</div><svg class="edge-svg" width="'+boxWidth+'" height="'+height+'" viewBox="0 0 '+boxWidth+' '+height+'"></svg>';
   if(!rows.length){
     const empty=document.createElement('div');
@@ -415,15 +416,16 @@ function renderConnectionGraph(status){
   }
 
   rows.forEach(([id,value],idx)=>{
-    const y=40+idx*76;
-    addLine(sourceAnchorX,y+36,senseX,senseY+38,value.connected,presenseColor,'presense');
+    const y=60+idx*100;
+    addLine(sourceAnchorX,y+42,senseX,senseY+42,value.connected,presenseColor,'presense');
     addNode(sourceX,y,sourceW,'presense',id,(value.connected?'connected':'down')+' | '+(value.lastReadAgoHuman||'n/a'),()=>highlightSource(id));
   });
 
-  addLine(senseX+senseW,senseY+38,brokerX,brokerY+38,status.broker.connected,senseColor,'sense');
+  addLine(senseX+senseW,senseY+42,brokerX,brokerY+42,status.broker.connected,senseColor,'sense');
   addNode(senseX,senseY,senseW,'sense',status.config.clientId||'IoT Sense',status.config.valid?'config valid':'config invalid',()=>location.hash='config');
   addNode(brokerX,brokerY,brokerW,'system broker','MQTT Broker',status.broker.connected?'connected':'down',()=>{location.hash='components';renderSenseComponents();});
   void systemColor;
+  IoTWorkspace.graphLanes(box,[{x:0,width:340,label:'Sources / Presense'},{x:340,width:350,label:'Collection / Sense'},{x:690,width:350,label:'Messaging'}]);
 }
 
 function highlightSource(id){
@@ -508,7 +510,14 @@ function senseTopicToMetric(topic){
 
 async function openSenseTopicPreview(topic){
   const ref=senseTopicToMetric(topic);
-  if(!ref)return;
+  const wrap=document.getElementById('senseUnsChart').closest('.chart-wrap');
+  wrap.hidden=!ref; senseUnsLegend.hidden=!ref;
+  senseUnsChart.draw([], '');
+  if(!ref){
+    senseUnsChartTitle.textContent='Status endpoint';
+    senseUnsChartHint.textContent=topic+' — This topic has no numeric metric history. Select a metrics endpoint to view a chart.';
+    return;
+  }
   senseUnsChartTitle.textContent=ref.agentId+' / '+ref.metricName;
   senseUnsChartHint.textContent=topic;
   const points=((metricData[ref.agentId]||{})[ref.metricName]||[]).map(p=>({timestamp:p.timestamp,value:p.value}));
@@ -529,7 +538,7 @@ function renderSenseTree(node,el,path=[]){
     }else{
       const div=document.createElement('div');div.className='leaf';div.textContent=k;
       const topic=next.join('/');
-      if(senseTopicToMetric(topic)){div.title='Open metric preview';div.onclick=()=>openSenseTopicPreview(topic);}
+      div.title='Open endpoint preview';div.onclick=()=>openSenseTopicPreview(topic);
       el.appendChild(div);
     }
   });
@@ -546,7 +555,7 @@ async function loadSenseUNS(force){
     const topics=[];
     function walk(node,path=[]){Object.entries(node||{}).forEach(([k,v])=>{const n=path.concat(k); if(Object.keys(v).length)walk(v,n); else topics.push(n.join('/'));});}
     walk(tree);
-    topics.filter(t=>t.toLowerCase().includes(search)).forEach(topic=>{const div=document.createElement('div');div.className='leaf';div.textContent=topic;if(senseTopicToMetric(topic))div.onclick=()=>openSenseTopicPreview(topic);container.appendChild(div);});
+    topics.filter(t=>t.toLowerCase().includes(search)).forEach(topic=>{const div=document.createElement('div');div.className='leaf';div.textContent=topic;div.onclick=()=>openSenseTopicPreview(topic);container.appendChild(div);});
   }else{
     renderSenseTree(tree,container,[]);
   }
@@ -652,7 +661,7 @@ async function loadConfig(force=false){
   await loadHistory();
 }
 
-configEditor.addEventListener('input',()=>{configDirty=true;setFeedback('Unsaved editor changes','');});
+configEditor.addEventListener('input',()=>{configDirty=true;proposalId='';applyButton.disabled=true;setFeedback('Unsaved editor changes','');});
 
 function resetConfigEditor(){
   configEditor.value=lastConfigRaw;

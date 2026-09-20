@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: {{ .Release.Name }}-sense-config}
+data:
+  config.json: |
+    {
+      "broker": {"host": "{{ .Release.Name }}-broker", "port": 1883, "clientId": "{{ .Release.Name }}-sense", "topicPrefix": "iot-lense"},
+      "pollIntervalMs": 1000,
+      "healthTimeoutSeconds": 30,
+      "sources": [{"agentId": "ha-machine", "type": "modbus-tcp", "host": {{ .Values.sourceHost | toJson }}, "port": {{ .Values.sourcePort }}, "unitId": {{ .Values.sourceUnitId }},
+        "metrics": [{"name": "temperature", "register": 0, "scale": 0.1, "type": "gauge", "unit": "°C"}]}]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: {{ .Release.Name }}-lense-config}
+data:
+  topology.json: |
+    {"senses": [{"id": "{{ .Release.Name }}-sense", "label": "IoT Sense HA", "internalUrl": "http://{{ .Release.Name }}-sense:8100", "url": {{ .Values.browserSenseURL | toJson }}, "sourceType": "modbus-tcp"}], "presenses": [], "dispenses": [], "agents": [{"agentId": "ha-machine", "senseId": "{{ .Release.Name }}-sense", "sourceType": "modbus-tcp", "sourceHost": {{ .Values.sourceHost | toJson }}}]}

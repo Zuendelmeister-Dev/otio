@@ -1,6 +1,20 @@
 # OT.io Deployment
 
-The first supported deployment model is Docker Compose. Individual Docker runs are also possible and are useful for understanding how the modules fit together.
+Deployment examples cover Docker Compose and Kubernetes. Individual Docker runs are also possible and are useful for understanding how the modules fit together.
+
+## Kubernetes deployment
+
+For Helm, use [Example 06](../examples/06-helm/README.md) and the chart in `deploy/helm/otio`. It includes `values.yaml`, validated configuration, persistent volumes, installation/upgrade/rollback instructions and a `helm test` hook. Kustomize remains available as a separate example below.
+
+[Example 05](../examples/05-kubernetes/README.md) provides a Kustomize rollout for Protocol Lab, Sense, Lense, MQTT, AMQP and Postgres. The reusable base lives in `deploy/kubernetes`. The example includes image build/load instructions for kind, registry overrides, PVCs, service probes, writable Sense configuration, UI access and a smoke test.
+
+After preparing images and selecting the intended cluster:
+
+```sh
+kubectl apply -k examples/05-kubernetes
+kubectl -n otio wait --for=condition=Available deployment --all --timeout=300s
+kubectl -n otio port-forward service/lense 8000:8000
+```
 
 ## Docker Compose deployment
 
@@ -26,7 +40,7 @@ docker compose up
 From the repository root:
 
 ```bash
-docker build -t otio/presense-modbus:beta apps/presense-modbus
+docker build -t otio/presense-modbus:beta -f apps/presense-modbus/Dockerfile .
 docker build -t otio/presense-opcua:beta -f apps/presense-opcua/Dockerfile .
 docker build -t otio/sense:beta -f apps/sense/Dockerfile .
 docker build -t otio/lense:beta -f apps/lense/Dockerfile .
@@ -95,4 +109,8 @@ Before production usage, add:
 - backup and restore
 - operational monitoring
 - alerting
-- Kubernetes manifests or Helm charts
+- production-specific Kubernetes availability, backup and network policies
+
+## High availability example
+
+See [Example 07](../examples/07-kubernetes-ha/README.md) and its separate chart at `deploy/helm/otio-ha`. It adds application leader election, a RabbitMQ MQTT cluster and CloudNativePG replication. MQTT QoS 0 and Dispense forwarding are not durable queues; automatic failover does not imply zero message loss.

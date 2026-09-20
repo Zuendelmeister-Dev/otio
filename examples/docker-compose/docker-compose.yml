@@ -35,10 +35,14 @@ services:
       - ../../db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   presense-modbus-01:
-    build: ../../apps/presense-modbus
+    build:
+      context: ../..
+      dockerfile: apps/presense-modbus/Dockerfile
     container_name: presense-modbus-01
     restart: unless-stopped
     environment:
+      PRESENSE_CONFIG_PATH: /app/config/simulator.json
+      PRESENSE_HOST: presense-modbus-01
       DEVICE_ID: modbus-machine-01
       MODBUS_PORT: 5020
       TEMP_BASE: 22.0
@@ -51,11 +55,18 @@ services:
       - "5020:5020"
       - "8301:8300"
 
+    volumes:
+      - presense-modbus-01-config:/app/config
+
   presense-modbus-02:
-    build: ../../apps/presense-modbus
+    build:
+      context: ../..
+      dockerfile: apps/presense-modbus/Dockerfile
     container_name: presense-modbus-02
     restart: unless-stopped
     environment:
+      PRESENSE_CONFIG_PATH: /app/config/simulator.json
+      PRESENSE_HOST: presense-modbus-02
       DEVICE_ID: modbus-machine-02
       MODBUS_PORT: 5020
       TEMP_BASE: 24.0
@@ -68,11 +79,18 @@ services:
       - "5021:5020"
       - "8302:8300"
 
+    volumes:
+      - presense-modbus-02-config:/app/config
+
   presense-modbus-03:
-    build: ../../apps/presense-modbus
+    build:
+      context: ../..
+      dockerfile: apps/presense-modbus/Dockerfile
     container_name: presense-modbus-03
     restart: unless-stopped
     environment:
+      PRESENSE_CONFIG_PATH: /app/config/simulator.json
+      PRESENSE_HOST: presense-modbus-03
       DEVICE_ID: modbus-machine-03
       MODBUS_PORT: 5020
       TEMP_BASE: 27.0
@@ -85,6 +103,9 @@ services:
       - "5022:5020"
       - "8303:8300"
 
+    volumes:
+      - presense-modbus-03-config:/app/config
+
   presense-opcua-01:
     build:
       context: ../..
@@ -92,6 +113,8 @@ services:
     container_name: presense-opcua-01
     restart: unless-stopped
     environment:
+      PRESENSE_CONFIG_PATH: /app/config/simulator.json
+      PRESENSE_HOST: presense-opcua-01
       DEVICE_ID: opcua-machine-01
       OPCUA_HTTP_PORT: 4840
       TEMP_BASE: 31.0
@@ -101,6 +124,9 @@ services:
     ports:
       - "4840:4840"
 
+    volumes:
+      - presense-opcua-01-config:/app/config
+
   presense-opcua-02:
     build:
       context: ../..
@@ -108,6 +134,8 @@ services:
     container_name: presense-opcua-02
     restart: unless-stopped
     environment:
+      PRESENSE_CONFIG_PATH: /app/config/simulator.json
+      PRESENSE_HOST: presense-opcua-02
       DEVICE_ID: opcua-machine-02
       OPCUA_HTTP_PORT: 4840
       TEMP_BASE: 35.0
@@ -116,6 +144,9 @@ services:
       GENERATOR_MODE: square
     ports:
       - "4841:4840"
+
+    volumes:
+      - presense-opcua-02-config:/app/config
 
   sense-modbus:
     build:
@@ -208,5 +239,39 @@ services:
       - "8201:8201"
 
 
+  protocol-lab:
+    build:
+      context: ../..
+      dockerfile: apps/protocol-lab/Dockerfile
+    restart: unless-stopped
+    environment:
+      LAB_MQTT_URL: tcp://mqtt:1883
+      LAB_AMQP_URL: amqp://lab:lab@rabbitmq:5672/
+    ports:
+      - "127.0.0.1:8500:8500"
+      - "127.0.0.1:1502:1502"
+      - "127.0.0.1:1503:1503"
+      - "127.0.0.1:4842:4842"
+    depends_on: [mqtt, rabbitmq]
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: lab
+      RABBITMQ_DEFAULT_PASS: lab
+    ports:
+      - "127.0.0.1:5672:5672"
+
 volumes:
   iot_lense_pg:
+
+  presense-modbus-01-config:
+
+  presense-modbus-02-config:
+
+  presense-modbus-03-config:
+
+  presense-opcua-01-config:
+
+  presense-opcua-02-config:

@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS build
+FROM golang:1.26.8-alpine AS build
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -15,7 +15,7 @@ RUN go mod tidy
 RUN go test ./...
 RUN if [ -n "$TARGETOS" ] && [ -n "$TARGETARCH" ]; then       CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -o /out/dispense .;     else       CGO_ENABLED=0 go build -o /out/dispense .;     fi
 
-FROM alpine:3.20
+FROM alpine:3.24
 
 WORKDIR /app
 

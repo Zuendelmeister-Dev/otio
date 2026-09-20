@@ -1,0 +1,60 @@
+{{- if gt (len .Release.Name) 30 }}{{ fail "Use a release name of at most 30 characters" }}{{ end }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-db
+spec:
+  instances: 3
+  bootstrap:
+    initdb: {database: iotdb, owner: iot}
+  postgresql:
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
+  storage:
+    size: {{ .Values.databaseSize }}
+    {{- if .Values.storageClass }}
+    storageClass: {{ .Values.storageClass | quote }}
+    {{- end }}
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 512Mi}
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: {{ .Release.Name }}-broker
+spec:
+  replicas: 3
+  rabbitmq:
+    additionalPlugins: [rabbitmq_mqtt]
+    additionalConfig: |
+      mqtt.allow_anonymous = false
+      mqtt.durable_queue_type = quorum
+  persistence:
+    storage: {{ .Values.brokerSize }}
+    {{- if .Values.storageClass }}
+    storageClassName: {{ .Values.storageClass | quote }}
+    {{- end }}
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels: {app.kubernetes.io/name: {{ .Release.Name }}-broker}
+          topologyKey: kubernetes.io/hostname
+  resources:
+    requests: {cpu: 100m, memory: 1Gi}
+    limits: {memory: 1Gi}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: {{ .Release.Name }}-broker}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: {{ .Release.Name }}-broker}

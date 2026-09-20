@@ -1,0 +1,12 @@
+{
+  "broker": {"host":"mqtt","port":1883,"clientId":"sense-protocol-lab","topicPrefix":"iot-lense"},
+  "pollIntervalMs":2000,
+  "healthTimeoutSeconds":30,
+  "sources":[
+    {"agentId":"lab-modbus","type":"lab-modbus-tcp","host":"protocol-lab","port":1502,"options":{"connection":"modbus-tcp://protocol-lab:1502?default-unit-identifier=1"},"metrics":[{"name":"temperature","address":"holding-register:1:UINT","scale":0.01,"unit":"°C"}]},
+    {"agentId":"lab-rtu","type":"lab-modbus-rtu-tcp","host":"protocol-lab","port":1503,"options":{"connection":"modbus-rtu:tcp://protocol-lab:1503?default-unit-identifier=1"},"metrics":[{"name":"temperature","address":"holding-register:1:UINT","scale":0.01,"unit":"°C"}]},
+    {"agentId":"lab-opcua","type":"lab-opcua-tcp","host":"protocol-lab","port":4842,"options":{"connection":"opc.tcp://protocol-lab:4842"},"metrics":[{"name":"temperature","nodeId":"ns=1;s=Temperature","scale":1,"unit":"°C"},{"name":"running","nodeId":"ns=1;s=Running","scale":1,"type":"state"}]},
+    {"agentId":"lab-mqtt","type":"lab-mqtt","host":"mqtt","port":1883,"options":{"connection":"tcp://mqtt:1883"},"metrics":[{"name":"temperature","address":"lab/temperature","scale":1,"unit":"°C"}]},
+    {"agentId":"lab-amqp","type":"lab-amqp","host":"rabbitmq","port":5672,"options":{"connection":"amqp://lab:lab@rabbitmq:5672/"},"metrics":[{"name":"temperature","address":"amq.topic/lab.temperature","scale":1,"unit":"°C"}]}
+  ]
+}

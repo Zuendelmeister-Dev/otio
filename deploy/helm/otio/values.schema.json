@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["images", "credentials", "persistence", "imagePullPolicy"],
+  "properties": {
+    "imagePullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]},
+    "imagePullSecrets": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}}},
+    "images": {"type": "object", "required": ["protocolLab", "sense", "lense", "mqtt", "rabbitmq", "postgres", "init"], "additionalProperties": {"type": "string", "minLength": 1}},
+    "credentials": {"type": "object", "required": ["postgresUser", "postgresPassword", "postgresDatabase", "rabbitmqUser", "rabbitmqPassword"], "additionalProperties": {"type": "string", "minLength": 1}},
+    "persistence": {"type": "object", "required": ["retain", "postgresSize", "senseSize"], "properties": {"retain": {"type": "boolean"}, "storageClass": {"type": ["string", "null"]}, "postgresSize": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"}, "senseSize": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"}}},
+    "browser": {"type": "object", "properties": {"senseURL": {"type": "string", "pattern": "^https?://"}, "protocolLabURL": {"type": "string", "pattern": "^https?://"}}}
+  }
+}

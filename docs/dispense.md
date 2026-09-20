@@ -232,3 +232,7 @@ Before adding a Dispense extension to the demo stack:
 - test retry/error behavior
 - test health/status output
 - test that Lense shows the module in the connection graph
+
+## Delivery limits
+
+`DISPENSE_BUFFER_LIMIT` limits in-memory chart history. It is not a durable forwarding queue. Input/output use MQTT QoS 0; disconnected output and failed publish attempts are counted as dropped or unconfirmed, with no persistent retry/replay. A timed-out publish can still complete later. Dispense is not included in the HA example.

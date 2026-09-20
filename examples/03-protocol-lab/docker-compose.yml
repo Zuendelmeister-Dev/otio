@@ -1,0 +1,62 @@
+name: otio-protocol-lab
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ../../deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports: ["127.0.0.1:1883:1883"]
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: lab
+      RABBITMQ_DEFAULT_PASS: lab
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+  protocol-lab:
+    build:
+      context: ../..
+      dockerfile: apps/protocol-lab/Dockerfile
+    environment:
+      LAB_MQTT_URL: tcp://mqtt:1883
+      LAB_AMQP_URL: amqp://lab:lab@rabbitmq:5672/
+    ports:
+      - "127.0.0.1:8500:8500"
+      - "127.0.0.1:1502:1502"
+      - "127.0.0.1:1503:1503"
+      - "127.0.0.1:4842:4842"
+    depends_on: [mqtt, rabbitmq]
+    restart: unless-stopped
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: iot
+      POSTGRES_PASSWORD: iotpass
+      POSTGRES_DB: iotdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot -d iotdb"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes: ["lab-db:/var/lib/postgresql/data"]
+  sense:
+    build:
+      context: ../..
+      dockerfile: apps/sense/Dockerfile
+    environment:
+      SENSE_UI_PORT: "8100"
+    volumes: ["./config:/app/config"]
+    ports: ["127.0.0.1:8100:8100"]
+    depends_on: [mqtt, protocol-lab]
+    restart: unless-stopped
+  lense:
+    build:
+      context: ../..
+      dockerfile: apps/lense/Dockerfile
+    environment:
+      PROTOCOL_LAB_URL: http://protocol-lab:8500
+    volumes: ["./topology.json:/app/config/topology.json:ro"]
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+volumes:
+  lab-db:

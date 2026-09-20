@@ -1,0 +1,124 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  kubernetes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: otio
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+      - name: Validate Helm chart
+        run: |
+          node scripts/helm-chart.test.js
+          node scripts/ha-chart.test.js
+      - name: Validate Kubernetes example
+        run: |
+          node scripts/kubernetes-config.test.js
+          kubectl kustomize examples/05-kubernetes > /tmp/otio.yaml
+          kubectl apply -f deploy/kubernetes/namespace.yaml
+          kubectl apply --dry-run=server -f /tmp/otio.yaml
+      - name: Build and load application images
+        run: |
+          for app in protocol-lab sense lense; do
+            docker build -t "otio/$app:local" -f "apps/$app/Dockerfile" .
+            kind load docker-image --name otio "otio/$app:local"
+          done
+      - name: Roll out and verify telemetry
+        run: |
+          kubectl apply -k examples/05-kubernetes
+          bash scripts/kubernetes-smoke.sh
+      - name: Diagnose rollout failure
+        if: failure()
+        run: |
+          kubectl -n otio get pods,svc,pvc
+          kubectl -n otio get events --sort-by=.lastTimestamp
+          for app in protocol-lab sense lense postgres rabbitmq mqtt; do
+            kubectl -n otio logs "deployment/$app" --all-containers --tail=100 || true
+          done
+      - name: Install and test Helm example
+        run: |
+          helm upgrade --install otio deploy/helm/otio -n otio-helm --create-namespace -f examples/06-helm/values-kind.yaml --wait --timeout 5m
+          helm test otio -n otio-helm --logs
+      - name: Diagnose Helm failure
+        if: failure()
+        run: |
+          kubectl -n otio-helm get pods,svc,pvc
+          kubectl -n otio-helm get events --sort-by=.lastTimestamp
+          kubectl -n otio-helm logs otio-connectivity-test || true
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: '**/go.sum'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Tests on Linux
+        if: runner.os == 'Linux'
+        run: bash scripts/test.sh
+      - name: Tests and coverage on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/test.ps1
+          ./scripts/coverage.ps1
+      - name: Upload coverage
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+      - name: Vet and race detector
+        if: runner.os == 'Linux'
+        run: |
+          for module in apps/* shared/mqttx; do
+            (cd "$module" && go vet ./... && go test -race ./...)
+          done
+      - name: Vulnerability scan
+        if: runner.os == 'Linux'
+        working-directory: apps/lense
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ../presense-modbus/... ../presense-opcua/... ../sense/... ../lense/... ../dispense/... ../plc4go-modbus/... ../protocol-lab/... ../ha-agent/... ../../shared/mqttx/...
+      - name: Validate and build demo containers
+        if: runner.os == 'Linux'
+        run: |
+          docker compose -f examples/01-local-docker-compose/docker-compose.yml config --quiet
+          docker compose -f examples/01-local-docker-compose/docker-compose.yml build
+          docker compose -f examples/03-protocol-lab/docker-compose.yml config --quiet
+          docker compose -f examples/03-protocol-lab/docker-compose.yml build
+      - name: Real broker integration tests
+        if: runner.os == 'Linux'
+        env:
+          LAB_TEST_MQTT_URL: tcp://localhost:1883
+          LAB_TEST_AMQP_URL: amqp://lab:lab@localhost:5672/
+        run: |
+          docker compose -f examples/03-protocol-lab/docker-compose.yml up -d mqtt rabbitmq
+          for attempt in $(seq 1 30); do
+            if docker compose -f examples/03-protocol-lab/docker-compose.yml exec -T rabbitmq rabbitmq-diagnostics -q ping; then break; fi
+            sleep 2
+          done
+          go test -count=1 -run TestBrokerRoundTrips ./apps/protocol-lab/...
+      - name: Stop integration brokers
+        if: always() && runner.os == 'Linux'
+        run: docker compose -f examples/03-protocol-lab/docker-compose.yml down

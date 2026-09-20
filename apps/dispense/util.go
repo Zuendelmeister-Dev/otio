@@ -58,7 +58,15 @@ func loadConfig() Config {
 		},
 	}
 	if raw := getenv("DISPENSE_CONFIG_JSON", ""); raw != "" {
-		_ = json.Unmarshal([]byte(raw), &config)
+		candidate := config
+		if err := json.Unmarshal([]byte(raw), &candidate); err != nil {
+			addLog("ERROR", "config", "Invalid DISPENSE_CONFIG_JSON: "+err.Error())
+		} else {
+			config = candidate
+		}
+	}
+	if config.BufferLimit < 1 {
+		config.BufferLimit = 1500
 	}
 	return config
 }

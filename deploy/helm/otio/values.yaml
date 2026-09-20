@@ -1,0 +1,29 @@
+# Application images must be built and loaded into kind or pushed to your registry.
+images:
+  protocolLab: otio/protocol-lab:local
+  sense: otio/sense:local
+  lense: otio/lense:local
+  mqtt: eclipse-mosquitto:2
+  rabbitmq: rabbitmq:4-management
+  postgres: postgres:16
+  init: busybox:1.37
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+# Public demo credentials. Override with a private values file for your environment.
+# Credentials are stored in Kubernetes Secrets, including the Sense seed config.
+credentials:
+  postgresUser: iot
+  postgresPassword: iotpass
+  postgresDatabase: iotdb
+  rabbitmqUser: lab
+  rabbitmqPassword: lab
+persistence:
+  # PVCs are retained on helm uninstall by default.
+  retain: true
+  # null uses the cluster's default class; "" explicitly disables dynamic provisioning.
+  storageClass: null
+  postgresSize: 2Gi
+  senseSize: 1Gi
+browser:
+  senseURL: http://localhost:8100
+  protocolLabURL: http://localhost:8500/static/

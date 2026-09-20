@@ -25,7 +25,7 @@ func TestConnectionGraphUsesWideDraggableCanvas(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := string(raw)
-	for _, want := range []string{"bindDragScroll", "overflow-x:auto", "boxWidth=2300", "mousedown"} {
+	for _, want := range []string{"IoTWorkspace.graphViewport", "overflow-x:auto", "boxWidth=1780", "/static/workspace-ui.js"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("connection graph must contain %s", want)
 		}

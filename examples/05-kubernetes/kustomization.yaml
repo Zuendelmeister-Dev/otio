@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../deploy/kubernetes
+namespace: otio
+# Public demo credentials. Use a separately managed Secret for real deployments.
+secretGenerator:
+  - name: otio-credentials
+    literals:
+      - POSTGRES_USER=iot
+      - POSTGRES_PASSWORD=iotpass
+      - POSTGRES_DB=iotdb
+      - RABBITMQ_DEFAULT_USER=lab
+      - RABBITMQ_DEFAULT_PASS=lab
+      - LAB_AMQP_URL=amqp://lab:lab@rabbitmq:5672/

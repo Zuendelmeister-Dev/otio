@@ -13,10 +13,10 @@ func TestConnectionGraphUsesForwardFlowLayout(t *testing.T) {
 	}
 	content := string(raw)
 	for _, want := range []string{
-		"const brokerX=1050",
-		"const lenseX=1360",
-		"const dispenseX=1460",
-		"line(brokerX+brokerW,brokerY+42,lenseX,lenseY+42",
+		"const brokerX=735",
+		"const lenseX=735",
+		"const dispenseX=1085",
+		"polyline([[brokerX+brokerW/2,brokerY],[lenseX+lenseW/2,lenseY+84]]",
 		"line(brokerX+brokerW,brokerY+42,dispenseX,dispenseCenterY",
 		"line(sourceX+sourceW,sourceYs[i],senseX,senseY+42,Boolean(a.connected)&&group.connected,presenseColor",
 	} {
