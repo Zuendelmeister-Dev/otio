@@ -187,7 +187,7 @@ const componentColor='#facc15';
 .legend-node.dashed{border-style:dashed}
 
 </style>
-</head>
+<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script><script src="/static/database-viewer.js?v=3"></script></head>
 <body>
 <div class="layout">
 <aside>
@@ -393,57 +393,6 @@ function clearUiError(){
   if(!el)return;
   el.textContent='';
   el.classList.add('hidden');
-}
-
-function bindDragScroll(element){
-  if(!element || element.dataset.dragScrollBound)return;
-  element.dataset.dragScrollBound='true';
-
-  let active=false;
-  let startX=0;
-  let startLeft=0;
-  let moved=false;
-
-  function begin(event){
-    if(event.button!==0)return;
-    if(event.target.closest('.node') || event.target.closest('.node-menu'))return;
-    active=true;
-    moved=false;
-    startX=event.clientX;
-    startLeft=element.scrollLeft;
-    element.classList.add('dragging');
-    document.body.classList.add('graph-dragging');
-    event.preventDefault();
-  }
-
-  function move(event){
-    if(!active)return;
-    const dx=event.clientX-startX;
-    if(Math.abs(dx)>2)moved=true;
-    element.scrollLeft=startLeft-dx;
-    event.preventDefault();
-  }
-
-  function end(){
-    if(!active)return;
-    active=false;
-    element.classList.remove('dragging');
-    document.body.classList.remove('graph-dragging');
-    setTimeout(()=>{moved=false;},0);
-  }
-
-  element.addEventListener('mousedown',begin);
-  const canvas=element.querySelector('.graph-canvas');
-  if(canvas)canvas.addEventListener('mousedown',begin);
-  window.addEventListener('mousemove',move);
-  window.addEventListener('mouseup',end);
-
-  element.addEventListener('click',event=>{
-    if(moved){
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  },true);
 }
 
 function showLoading(message='Fetching data...'){
@@ -1176,7 +1125,7 @@ function renderHealth(summary,agents){
 
 function renderConnectionGraph(summary,agents){
   const box=document.getElementById('connectionGraph');
-  bindDragScroll(box.closest('.graph-scroll'));
+  IoTWorkspace.graphViewport(box);
   const topology=runtimeConfig.topology||{};
   const compStatuses=(summary&&summary.componentStatus)||componentStatusMap();
   const topologyAgents=(topology.presenses||topology.agents||[]);
@@ -1197,10 +1146,10 @@ function renderConnectionGraph(summary,agents){
     connected: componentOnline(sense.id, false)
   })).filter(g=>g.agents.length>0);
 
-  const laneGap=92;
-  const firstSourceY=55;
+  const laneGap=100;
+  const firstSourceY=200;
   const height=Math.max(620, firstSourceY + sorted.length*laneGap + 220);
-  const boxWidth=2300;
+  const boxWidth=1780;
   box.style.height=height+'px';
   box.style.minWidth=boxWidth+'px';
   box.style.width=boxWidth+'px';
@@ -1209,12 +1158,12 @@ function renderConnectionGraph(summary,agents){
   const svg=box.querySelector('svg');
 
   const sourceX=35, sourceW=250;
-  const senseX=560, senseW=260;
-  const brokerX=1050, brokerW=210;
-  const lenseX=1360, lenseW=240;
-  const dbX=1360, dbW=240;
-  const dispenseX=1460, dispenseW=255;
-  const targetX=1860, targetW=285;
+  const senseX=385, senseW=260;
+  const brokerX=735, brokerW=250;
+  const lenseX=735, lenseW=250;
+  const dbX=1085, dbW=250;
+  const dispenseX=1085, dispenseW=250;
+  const targetX=1435, targetW=290;
   function line(x1,y1,x2,y2,ok,color){
     const path=document.createElementNS('http://www.w3.org/2000/svg','path');
     const dx=Math.max(80, Math.abs(x2-x1)*0.45);
@@ -1274,11 +1223,11 @@ function renderConnectionGraph(summary,agents){
 
   const minY=Math.min(...sensePositions.map(x=>x.y), firstSourceY+100);
   const maxY=Math.max(...sensePositions.map(x=>x.y), firstSourceY+260);
-  const brokerY=((minY+maxY)/2)-42;
-  const lenseY=Math.max(35, brokerY-210);
-  const dbY=lenseY+155;
+  const brokerY=Math.max(285,((minY+maxY)/2)-42);
+  const lenseY=70;
+  const dbY=lenseY;
   const dispenseGroups=groups.filter(group=>group.dispense);
-  const dispenseStartY=brokerY+95;
+  const dispenseStartY=brokerY;
   const targetY=dispenseStartY + Math.max(0, (dispenseGroups.length-1)*58);
 
   sensePositions.forEach(item=>{
@@ -1295,8 +1244,8 @@ function renderConnectionGraph(summary,agents){
   node(brokerX,brokerY,brokerW,brokerCls,'MQTT Broker',brokerOk?'connected':'down',{id:'mqtt',label:'MQTT Broker',kind:'System Component'});
   node(lenseX,lenseY,lenseW,lenseCls,'IoT Lense',lenseOk?'analytics and historian':'down | analytics and historian',{id:'iot-lense',label:'IoT Lense',kind:'IoT Lense',url:'http://127.0.0.1:8000',remoteConfigHash:'#configurations/iot-lense'});
   node(dbX,dbY,dbW,dbCls,'Postgres',dbOk?'historian storage':'down | historian storage',{id:'postgres',label:'Postgres',kind:'System Component'});
-  line(brokerX+brokerW,brokerY+42,lenseX,lenseY+42,brokerOk&&lenseOk,componentColor);
-  line(lenseX+(lenseW/2),lenseY+84,dbX+(dbW/2),dbY,lenseOk&&dbOk,lenseColor);
+  polyline([[brokerX+brokerW/2,brokerY],[lenseX+lenseW/2,lenseY+84]],brokerOk&&lenseOk,componentColor);
+  line(lenseX+lenseW,lenseY+42,dbX,dbY+42,lenseOk&&dbOk,lenseColor);
 
   dispenseGroups.forEach((group,idx)=>{
     const y=dispenseStartY+idx*108;
@@ -1313,6 +1262,7 @@ function renderConnectionGraph(summary,agents){
   const targetOk=componentOnline(targetId, true);
   const targetCls='target'+(targetOk?'':' down-node');
   node(targetX,targetY,targetW,targetCls,'Dispense Target MQTT',(targetOk?'':'down | ')+(target.host||'dispense-broker')+':'+(target.externalPort||1884),{id:targetId,label:target.label||'Dispense Target MQTT',kind:'Target Broker'});
+  IoTWorkspace.graphLanes(box,[{x:0,width:350,label:'Sources / Presense'},{x:350,width:350,label:'Collection / Sense'},{x:700,width:350,label:'Messaging & Lense'},{x:1050,width:350,label:'Storage & forwarding'},{x:1400,width:380,label:'Destinations'}]);
   renderConnectionGraphLegend();
 }
 
@@ -1544,18 +1494,14 @@ function renderComponentsOverview(){
   const senseCards=senses.map(s=>({label:s.label||s.id,value:componentText(s.id,'waiting'),hint:s.url||s.id,ok:componentOnline(s.id,false)}));
   const dispenseCards=dispenses.map(d=>({label:d.label||d.id,value:componentText(d.id,'waiting'),hint:(d.url||d.id)+' | '+(d.sourceType||'all'),ok:componentOnline(d.id,false)}));
   const targetCards=targets.map(t=>({label:t.label||t.id,value:(t.host||'target')+':'+(t.externalPort||t.port||''),hint:'Outbound destination for IoT Dispense'}));
-  const componentCards=[
-    {label:'IoT Lense',value:'running',hint:'Analytics UI and historian writer'},
-    {label:'IoT Sense instances',value:String(senseCount),hint:'Configured collector instances in this demo stack'}
-  ].concat(senseCards).concat([
-    {label:'IoT Dispense modules',value:String(dispenses.length),hint:'Forwarding modules downstream of the internal broker'}
-  ]).concat(dispenseCards).concat(targetCards).concat([
-    {label:'MQTT Broker',value:latestSummary.mqtt.connected?'connected':'disconnected',hint:(runtimeConfig.mqtt.host||'mqtt')+':'+(runtimeConfig.mqtt.port||'1883')},
-    {label:'Postgres',value:'connected',hint:(runtimeConfig.postgres.host||'postgres')+':'+(runtimeConfig.postgres.port||'5432')+' / '+(runtimeConfig.postgres.database||'iotdb')},
-    {label:'Agents',value:String(agents.length),hint:'Configured machine sources'},
-    {label:'Metric topics',value:String((latestSummary.mqtt&&latestSummary.mqtt.messageCount)||0),hint:'Messages received by Lense'}
-  ]);
-  IoTUI.renderOverviewCards('componentsOverview', componentCards);
+  const container=document.getElementById('componentsOverview');
+  container.className='';container.replaceChildren();
+  const sections=[['Sources / Presense',agents.map(a=>({label:a.agentId,value:a.connected?'connected':'down',hint:a.sourceType+' · '+(a.sourceHost||'')}))],['Collectors',senseCards],['Forwarders',dispenseCards],['Destinations',targetCards],['Runtime',[
+    {label:'IoT Lense',value:'running',hint:'Analytics and historian'},
+    {label:'Sources',value:String(agents.length),hint:'Configured machine endpoints'},
+    {label:'Messages received',value:String(latestSummary.mqtt.messageCount||0),hint:'MQTT messages, including status updates'}
+  ]]];
+  sections.forEach(([label,cards],index)=>{if(!cards.length)return;const section=document.createElement('section');section.className='component-group';const title=document.createElement('h4');title.textContent=label;const list=document.createElement('div');list.id='component-group-'+index;section.append(title,list);container.append(section);IoTUI.renderOverviewCards(list.id,cards);});
   renderBrokerOverview();
   renderDatabaseOverview();
 }
@@ -1704,6 +1650,7 @@ function renderTree(node,el,path=[]){
     }
   });
 }
+document.getElementById('lenseConfigEditor').addEventListener('input',()=>{currentLenseConfigProposal=null;currentLenseRemoteProposalId=null;document.getElementById('btnApplyConfigDraft').disabled=true;});
 const openedNamespacePaths=new Set(['iot-lense']);
 
 async function loadUNS(force){
@@ -1720,7 +1667,7 @@ async function tick(){
     if(page.startsWith('dashboard'))await loadSummary();
     if(page.startsWith('analytics'))await loadAnalytics();
   if(page==='logs')await loadLenseLogs();
-    if(page==='components')renderComponentsOverview();
+    if(page==='components'){await loadSummary();renderComponentsOverview();}
     clearUiError();
   }catch(err){showUiError(err.message||String(err));}
 }

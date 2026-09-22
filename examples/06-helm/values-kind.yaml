@@ -1,0 +1,8 @@
+# Build and load these images as described in README.md.
+images:
+  protocolLab: otio/protocol-lab:local
+  sense: otio/sense:local
+  lense: otio/lense:local
+imagePullPolicy: IfNotPresent
+persistence:
+  retain: true

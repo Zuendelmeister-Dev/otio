@@ -80,6 +80,8 @@ func (bank *RegisterBank) read(address uint16, count uint16) ([]uint16, bool) {
 
 func generatorValue(mode string, elapsed float64, base float64, index int) float64 {
 	switch mode {
+	case "constant":
+		return base
 	case "random-int":
 		return float64(int(base + rand.Float64()*100))
 	case "sawtooth":
@@ -110,10 +112,16 @@ func updateRegisters(bank *RegisterBank, tempBase float64, humidityBase float64,
 	cycle := uint16(0)
 	for {
 		elapsed := time.Since(start).Seconds()
+		if settings := currentSimulatorSettings(); settings != nil {
+			tempBase, humidityBase, pressureBase, vibrationBase, generatorMode = settings.Temperature, settings.Humidity, settings.Pressure, settings.Vibration, settings.GeneratorMode
+		}
 		temp := generatorValue(generatorMode, elapsed, tempBase, 0)
 		humidity := generatorValue(generatorMode, elapsed, humidityBase, 1)
 		pressure := generatorValue(generatorMode, elapsed, pressureBase, 2) / 25.0
 		vibration := math.Abs(generatorValue(generatorMode, elapsed, vibrationBase, 3)) / 70.0
+		if generatorMode == "constant" {
+			pressure, vibration = pressureBase, vibrationBase
+		}
 
 		status := uint16(0)
 		if temp > 29.0 || vibration > 0.95 {
@@ -191,6 +199,7 @@ func handleConnection(conn net.Conn, bank *RegisterBank) {
 
 func startUI(deviceID string, protocol string, port int, uiPort int, generatorMode string, startedAt time.Time, bank *RegisterBank) {
 	mux := http.NewServeMux()
+	registerSimulatorConfig(mux, deviceID, envString("PRESENSE_HOST", deviceID), port)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -201,7 +210,7 @@ func startUI(deviceID string, protocol string, port int, uiPort int, generatorMo
 <section id="page-dashboard"><div id="cards"></div><div class="health-layout"><div class="card"><h3>Health distribution</h3><div class="health-pie"></div><div class="k" style="text-align:center">healthy: 1<br>unhealthy: 0</div></div><div class="card"><h3>Health details</h3><div id="healthDetails"></div></div></div><div class="card"><h3>Connection graph</h3><div id="connectionGraph" class="connection-graph"></div></div><div class="card"><h3>Current values</h3><pre id="values"></pre></div></section>
 <section id="page-metrics" class="hidden"><div class="card"><h3>Quick Metrics</h3><div id="metricBars"></div></div></section>
 <section id="page-components" class="hidden"><div class="card"><h3>Components</h3><div id="components"></div></div></section>
-<section id="page-config" class="hidden"><div class="card"><h3>Configuration</h3><div class="toolbar"><button onclick="loadConfigPage()">Refresh configuration</button><button onclick="validateConfigDraft()">Validate changes</button><button id="applyConfigButton" disabled>Apply proposal</button><button onclick="resetConfigDraft()">Reset editor</button><span id="configState" class="k">Idle</span></div><textarea id="configEditor" spellcheck="false" style="width:100%;min-height:360px;background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"></textarea><h3>Validation and diff</h3><pre id="configDiff"></pre><h3>Last 5 configs</h3><div class="k">Backend write-back is not enabled yet.</div></div></section>
+<section id="page-config" class="hidden"><div class="card"><h3>Configuration</h3><div class="toolbar"><button onclick="loadConfigPage()">Refresh configuration</button><button onclick="validateConfigDraft()">Validate changes</button><button id="applyConfigButton" disabled>Apply proposal</button><button onclick="resetConfigDraft()">Reset editor</button><span id="configState" class="k">Idle</span></div><textarea id="configEditor" spellcheck="false" style="width:100%;min-height:360px;background:#0e0f12;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"></textarea><h3>Validation and diff</h3><pre id="configDiff"></pre><h3>Persistence</h3><div class="k">Settings are saved when PRESENSE_CONFIG_PATH is configured.</div></div></section>
 <section id="page-logs" class="hidden"><div class="card"><h3>Logs</h3><div class="toolbar"><label><input type="checkbox" class="log-filter" value="INFO" checked> Info</label><label><input type="checkbox" class="log-filter" value="WARN" checked> Warning</label><label><input type="checkbox" class="log-filter" value="ERROR" checked> Error</label></div><div id="logs"></div></div></section>
 </main></div><script>
 let status={},vals={};
@@ -212,7 +221,7 @@ const logsData=[
 ];
 function esc(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;")}
 async function j(u){const r=await fetch(u);return r.json()}
-function route(){const p=location.hash.replace("#","")||"dashboard";["dashboard","metrics","components","config","logs"].forEach(x=>document.getElementById("page-"+x).classList.toggle("hidden",x!==p));document.querySelectorAll("aside a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+p));render();if(p==="config")loadConfigPage()}
+function route(){const p=location.hash.replace("#","")||"dashboard";["dashboard","metrics","components","config","logs"].forEach(x=>document.getElementById("page-"+x).classList.toggle("hidden",x!==p));document.querySelectorAll("aside a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+p));render()}
 let configOriginal='';
 function defaultRegisterConfig(){
   const metrics=(vals.metrics||{temperature:null,humidity:null,pressure:null,vibration:null,status:null,cycle:null});
@@ -231,31 +240,19 @@ function currentConfig(){
     currentValues:vals
   };
 }
-async function loadConfigPage(){
-  try{
-    if(!status.deviceId)status=await j('/api/status');
-    if(!Object.keys(vals||{}).length)vals=await j('/api/values');
-  }catch(e){
-    logsData.push({level:'ERROR',message:e.message});
-  }
-  configOriginal=JSON.stringify(currentConfig(),null,2);
-  configEditor.value=configOriginal;
-  configDiff.textContent='';
-  configState.textContent='Loaded current configuration';
-  applyConfigButton.disabled=true;
-}function diffText(a,b){const x=a.split('\n'),y=b.split('\n'),m=Math.max(x.length,y.length),o=[];for(let i=0;i<m;i++){if(x[i]===y[i]&&x[i]!==undefined)o.push('  '+x[i]);else{if(x[i]!==undefined)o.push('- '+x[i]);if(y[i]!==undefined)o.push('+ '+y[i]);}}return o.join('\n')}function validateConfigDraft(){try{const normalized=JSON.stringify(JSON.parse(configEditor.value),null,2);configDiff.textContent=diffText(configOriginal,normalized);configState.textContent='Draft is valid JSON';applyConfigButton.disabled=false;}catch(e){configDiff.textContent=e.message;configState.textContent='Validation failed';applyConfigButton.disabled=true;}}function resetConfigDraft(){configEditor.value=configOriginal;configDiff.textContent='';configState.textContent='Editor reset';applyConfigButton.disabled=true;}function pct(v){return Math.max(0,Math.min(100,Number(v)||0))}
+function pct(v){return Math.max(0,Math.min(100,Number(v)||0))}
 function logClass(level){return level==='ERROR'?'log-error':level==='WARN'?'log-warn':'log-info'}
 function renderLogs(){const selected=new Set(Array.from(document.querySelectorAll('.log-filter:checked')).map(x=>x.value));logs.innerHTML=logsData.filter(x=>selected.has(x.level)).map(x=>'<div class="log-row"><span class="'+logClass(x.level)+'"><span class="dot"></span>'+esc(x.level)+'</span> '+esc(x.message)+'</div>').join('')}
 
 function renderPresenseGraph(){
   const box=document.getElementById('connectionGraph'); if(!box)return;
-  const w=Math.max(760, box.clientWidth||760), h=260; box.style.height=h+'px';
+  const w=1040, h=260; box.style.width=w+"px"; if(window.IoTWorkspace)IoTWorkspace.graphViewport(box); box.style.height=h+'px';
   const leftX=40, midX=Math.round(w/2)-110, rightX=w-230, y=95;
   box.innerHTML='<svg class="edge-svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"></svg>';
   const svg=box.querySelector('svg');
   function line(x1,y1,x2,y2){const p=document.createElementNS('http://www.w3.org/2000/svg','path');const dx=Math.max(80,Math.abs(x2-x1)*0.45);p.setAttribute('d','M '+x1+' '+y1+' C '+(x1+dx)+' '+y1+', '+(x2-dx)+' '+y2+', '+x2+' '+y2);p.setAttribute('stroke','#8a9099');p.setAttribute('stroke-width','3');p.setAttribute('fill','none');svg.appendChild(p);}
   function node(x,y,title,sub){const n=document.createElement('div');n.className='node';n.style.left=x+'px';n.style.top=y+'px';n.style.width='200px';n.innerHTML='<div class="title">'+esc(title)+'</div><div class="sub">'+esc(sub||'')+'</div>';box.appendChild(n);}
-  line(leftX+200,y+38,midX,y+38); line(midX+200,y+38,rightX,y+38);
+  line(leftX+200,y+42,midX,y+42); line(midX+200,y+42,rightX,y+42);
   node(leftX,y,status.deviceId||'Presense','simulated source'); node(midX,y,status.protocol||'Protocol','generator '+(status.generatorMode||'unknown')); node(rightX,y,'Endpoint','port '+(status.port||status.uiPort||''));
 }
 function renderHealthDetails(){
@@ -264,10 +261,10 @@ function renderHealthDetails(){
 }
 function metricLabel(key,index){return 'Register '+index+' / '+key}
 function render(){cards.innerHTML='<div class="overview-grid">'+[["Device",status.deviceId,"Simulator identity"],["Protocol",status.protocol,"Protocol exposed by Presense"],["Generator",status.generatorMode,"Data shape"],["Port",String(status.port||status.uiPort||""),"Protocol port"]].map(c=>'<div class="overview-card"><div class="k">'+c[2]+'</div><div class="overview-value">'+(c[1]||'unknown')+'</div><div class="overview-hint">'+c[0]+'</div></div>').join("")+'</div>';renderHealthDetails();renderPresenseGraph();values.textContent=JSON.stringify(vals,null,2);const m=(vals.metrics||{});metricBars.innerHTML=Object.entries(m).map(([k,v],idx)=>'<div style="margin:14px 0"><b>'+esc(metricLabel(k,idx))+'</b><div class="k">'+esc(v)+'</div><div class="bar"><span style="width:'+pct(v)+'%"></span></div></div>').join("");components.innerHTML='<div class="grid"><div class="card"><div class="k">Protocol endpoint</div><div class="v">'+esc(status.protocol||'unknown')+'</div><div class="k">port '+esc(status.port||'')+'</div></div><div class="card"><div class="k">UI endpoint</div><div class="v">running</div><div class="k">port '+esc(status.uiPort||status.port||'')+'</div></div><div class="card"><div class="k">Raw '+esc('registers')+'</div><div class="v">'+Object.keys(m).length+'</div><div class="k">current exposed values</div></div></div>';logsData[1].message='Generator mode: '+(status.generatorMode||'unknown');renderLogs()}
-async function load(){try{status=await j("/api/status");vals=await j("/api/values");render();if((location.hash.replace("#","")||"dashboard")==="config")loadConfigPage()}catch(e){logsData.push({level:'ERROR',message:e.message});renderLogs()}}
+async function load(){try{status=await j("/api/status");vals=await j("/api/values");render();}catch(e){logsData.push({level:'ERROR',message:e.message});renderLogs()}}
 document.addEventListener('change',e=>{if(e.target.classList.contains('log-filter'))renderLogs()});
-applyConfigButton.onclick=()=>{configState.textContent="Configuration apply is prepared, but backend write-back is intentionally guarded for this module.";applyConfigButton.disabled=true;};window.addEventListener("hashchange",route);setInterval(load,2000);route();load()
-</script></body></html>`))
+window.addEventListener("hashchange",route);setInterval(load,2000);route();load()
+</script><script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/presense-ui.js"></script><script src="/static/lab-link.js"></script></body></html>`))
 	})
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
@@ -277,7 +274,7 @@ applyConfigButton.onclick=()=>{configState.textContent="Configuration apply is p
 			"protocol":            protocol,
 			"port":                port,
 			"uiPort":              uiPort,
-			"generatorMode":       generatorMode,
+			"generatorMode":       simulatorMode(generatorMode),
 			"uptimeSeconds":       int(time.Since(startedAt).Seconds()),
 			"supportedGenerators": []string{"sine", "random-int", "random-string", "array", "sawtooth", "square", "triangle"},
 		})
@@ -315,6 +312,7 @@ func main() {
 	humidityBase := envFloat("HUMIDITY_BASE", 50.0)
 	pressureBase := envFloat("PRESSURE_BASE", 1.2)
 	vibrationBase := envFloat("VIBRATION_BASE", 0.5)
+	initSimulatorSettings(simulatorSettings{Protocol: "modbus-tcp", GeneratorMode: generatorMode, Temperature: tempBase, Humidity: humidityBase, Pressure: pressureBase, Vibration: vibrationBase})
 	bank := &RegisterBank{}
 	startedAt := time.Now()
 	go updateRegisters(bank, tempBase, humidityBase, pressureBase, vibrationBase, generatorMode)

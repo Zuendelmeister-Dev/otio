@@ -1,0 +1,182 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: mqtt}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: mqtt}}
+  template:
+    metadata: {labels: {app: mqtt}}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: mqtt
+          image: eclipse-mosquitto:2
+          ports: [{name: mqtt, containerPort: 1883}]
+          resources: {requests: {cpu: 25m, memory: 32Mi}, limits: {memory: 128Mi}}
+          readinessProbe: {tcpSocket: {port: mqtt}, periodSeconds: 5}
+          livenessProbe: {tcpSocket: {port: mqtt}, periodSeconds: 15}
+          volumeMounts: [{name: config, mountPath: /mosquitto/config, readOnly: true}]
+      volumes: [{name: config, configMap: {name: mosquitto-config}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: rabbitmq}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: rabbitmq}}
+  template:
+    metadata: {labels: {app: rabbitmq}}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:4-management
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: RABBITMQ_DEFAULT_USER}}
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: RABBITMQ_DEFAULT_PASS}}
+          ports: [{name: amqp, containerPort: 5672}, {name: management, containerPort: 15672}]
+          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {memory: 768Mi}}
+          startupProbe: {tcpSocket: {port: amqp}, periodSeconds: 5, failureThreshold: 60}
+          readinessProbe: {tcpSocket: {port: amqp}, periodSeconds: 5}
+          livenessProbe: {tcpSocket: {port: amqp}, periodSeconds: 15}
+          volumeMounts: [{name: data, mountPath: /var/lib/rabbitmq}]
+      volumes: [{name: data, emptyDir: {}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: postgres}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_USER}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_PASSWORD}}
+            - name: POSTGRES_DB
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_DB}}
+          ports: [{name: postgres, containerPort: 5432}]
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {memory: 512Mi}}
+          startupProbe:
+            exec: {command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec: {command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']}
+            periodSeconds: 5
+          livenessProbe: {tcpSocket: {port: postgres}, periodSeconds: 15}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, persistentVolumeClaim: {claimName: postgres-data}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: protocol-lab}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: protocol-lab}}
+  template:
+    metadata: {labels: {app: protocol-lab}}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: protocol-lab
+          image: otio/protocol-lab:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: LAB_MQTT_URL, value: 'tcp://mqtt:1883'}
+            - name: LAB_AMQP_URL
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: LAB_AMQP_URL}}
+          ports:
+            - {name: http, containerPort: 8500}
+            - {name: modbus, containerPort: 1502}
+            - {name: rtu, containerPort: 1503}
+            - {name: opcua, containerPort: 4842}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {memory: 512Mi}}
+          startupProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5, failureThreshold: 60}
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 15}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: sense}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: sense}}
+  template:
+    metadata: {labels: {app: sense}}
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        - name: seed-config
+          image: busybox:1.37
+          command: [sh, -ec, 'if [ ! -f /data/config.json ]; then cp /seed/config.json /data/config.json; fi']
+          resources: {requests: {cpu: 10m, memory: 8Mi}, limits: {memory: 32Mi}}
+          volumeMounts:
+            - {name: seed, mountPath: /seed, readOnly: true}
+            - {name: data, mountPath: /data}
+      containers:
+        - name: sense
+          image: otio/sense:local
+          imagePullPolicy: IfNotPresent
+          env: [{name: SENSE_UI_PORT, value: '8100'}]
+          ports: [{name: http, containerPort: 8100}]
+          resources: {requests: {cpu: 50m, memory: 32Mi}, limits: {memory: 256Mi}}
+          startupProbe: {tcpSocket: {port: http}, periodSeconds: 5, failureThreshold: 60}
+          readinessProbe: {httpGet: {path: /api/status, port: http}, periodSeconds: 5}
+          livenessProbe: {tcpSocket: {port: http}, periodSeconds: 15}
+          volumeMounts: [{name: data, mountPath: /app/config}]
+      volumes:
+        - {name: seed, configMap: {name: sense-config}}
+        - {name: data, persistentVolumeClaim: {claimName: sense-data}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: lense}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: lense}}
+  template:
+    metadata: {labels: {app: lense}}
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        - name: wait-postgres
+          image: postgres:16
+          command: [sh, -ec, 'until pg_isready -h postgres -p 5432; do sleep 2; done']
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
+      containers:
+        - name: lense
+          image: otio/lense:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: PROTOCOL_LAB_URL, value: 'http://protocol-lab:8500'}
+            - {name: POSTGRES_HOST, value: postgres}
+            - {name: MQTT_BROKER, value: mqtt}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_USER}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_PASSWORD}}
+            - name: POSTGRES_DB
+              valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_DB}}
+          ports: [{name: http, containerPort: 8000}]
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 256Mi}}
+          startupProbe: {tcpSocket: {port: http}, periodSeconds: 5, failureThreshold: 60}
+          readinessProbe: {tcpSocket: {port: http}, periodSeconds: 5}
+          livenessProbe: {tcpSocket: {port: http}, periodSeconds: 15}
+          volumeMounts: [{name: topology, mountPath: /app/config, readOnly: true}]
+      volumes: [{name: topology, configMap: {name: lense-topology}}]

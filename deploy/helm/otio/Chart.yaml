@@ -1,0 +1,7 @@
+apiVersion: v2
+name: otio
+description: OT.io Protocol Lab, Sense, Lense and demo infrastructure
+type: application
+version: 0.1.0
+appVersion: "beta"
+kubeVersion: ">=1.28.0-0"

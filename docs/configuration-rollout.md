@@ -59,7 +59,9 @@ Production deployments can remove Presense and point Sense to real endpoints.
 
 ```yaml
 presense-modbus-01:
-  build: ./apps/presense-modbus
+  build:
+    context: .
+    dockerfile: apps/presense-modbus/Dockerfile
   container_name: presense-modbus-01
   restart: unless-stopped
   environment:
@@ -448,7 +450,7 @@ docker run -d --name postgres --network otio-net   -e POSTGRES_USER=otio   -e PO
 Build module images:
 
 ```bash
-docker build -t otio/presense-modbus:beta apps/presense-modbus
+docker build -t otio/presense-modbus:beta -f apps/presense-modbus/Dockerfile .
 docker build -t otio/presense-opcua:beta -f apps/presense-opcua/Dockerfile .
 docker build -t otio/sense:beta -f apps/sense/Dockerfile .
 docker build -t otio/lense:beta -f apps/lense/Dockerfile .
@@ -506,3 +508,5 @@ The current stack is a beta demo and development setup. For production usage, ad
 - backup and restore
 - operational monitoring
 - alerting
+
+In the HA example, Sense sets `OTIO_CONFIG_READ_ONLY=true`: apply/rollback through the API is disabled, and the response directs users to Helm. Both replicas mount one shared ConfigMap read-only; its checksum triggers rollout. Broker credentials come from `OTIO_MQTT_USERNAME`/`OTIO_MQTT_PASSWORD` Secrets. Lense accepts `POSTGRES_DSN` for a complete PostgreSQL URI (including TLS parameters); it takes precedence over individual connection fields.

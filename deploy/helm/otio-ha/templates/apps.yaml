@@ -1,0 +1,108 @@
+{{- range $app := list "sense" "lense" }}
+{{- $name := printf "%s-%s" $.Release.Name $app }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: {{ $name }}}
+---
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata: {name: {{ $name }}}
+spec: {}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: {{ $name }}}
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [{{ $name }}]
+    verbs: [get, update]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: {{ $name }}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ $name }}}
+subjects: [{kind: ServiceAccount, name: {{ $name }}, namespace: {{ $.Release.Namespace }}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: {{ $name }}}
+spec:
+  replicas: 2
+  # Both pods are ready; the Service selects only the elected active pod.
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  selector: {matchLabels: {app: {{ $name }}}}
+  template:
+    metadata:
+      labels: {app: {{ $name }}}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") $ | sha256sum }}
+    spec:
+      serviceAccountName: {{ $name }}
+      terminationGracePeriodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector: {matchLabels: {app: {{ $name }}}}
+              topologyKey: kubernetes.io/hostname
+      {{- if eq $app "lense" }}
+      initContainers:
+        - name: wait-database
+          image: alpine:3.24
+          command: [sh, -c]
+          args: ["until nc -z {{ $.Release.Name }}-db-rw 5432; do sleep 2; done"]
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 32Mi}}
+      {{- end }}
+      containers:
+        - name: {{ $app }}
+          image: {{ index $.Values.images $app | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [/app/ha-agent]
+          args: ["--", "/app/{{ $app }}"]
+          ports:
+            - {name: ui, containerPort: {{ if eq $app "sense" }}8100{{ else }}8000{{ end }}}
+            - {name: election, containerPort: 8099}
+          env:
+            - {name: HA_LEASE_NAME, value: {{ $name }}}
+            - {name: POD_NAMESPACE, valueFrom: {fieldRef: {fieldPath: metadata.namespace}}}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            - {name: POD_UID, valueFrom: {fieldRef: {fieldPath: metadata.uid}}}
+            - {name: HA_READY_URL, value: "http://127.0.0.1:{{ if eq $app "sense" }}8100/api/status{{ else }}8000/api/summary{{ end }}"}
+            - {name: OTIO_MQTT_USERNAME, valueFrom: {secretKeyRef: {name: {{ $.Release.Name }}-broker-default-user, key: username}}}
+            - {name: OTIO_MQTT_PASSWORD, valueFrom: {secretKeyRef: {name: {{ $.Release.Name }}-broker-default-user, key: password}}}
+            {{- if eq $app "sense" }}
+            - {name: OTIO_CONFIG_READ_ONLY, value: "true"}
+            - {name: SENSE_CONFIG_PATH, value: /app/config/config.json}
+            - {name: SENSE_HISTORY_DIR, value: /tmp/history}
+            {{- else }}
+            - {name: MQTT_BROKER, value: {{ $.Release.Name }}-broker}
+            - {name: POSTGRES_HOST, value: {{ $.Release.Name }}-db-rw}
+            - {name: POSTGRES_DSN, valueFrom: {secretKeyRef: {name: {{ $.Release.Name }}-db-app, key: uri}}}
+            {{- end }}
+          readinessProbe: {httpGet: {path: /ready, port: election}, periodSeconds: 2, failureThreshold: 1}
+          livenessProbe: {httpGet: {path: /live, port: election}, periodSeconds: 10}
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 256Mi}}
+          volumeMounts: [{name: config, mountPath: /app/config, readOnly: true}]
+      volumes:
+        - name: config
+          configMap: {name: {{ $name }}-config}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: {{ $name }}}
+spec:
+  selector: {app: {{ $name }}, otio.io/active: "true"}
+  ports: [{name: ui, port: {{ if eq $app "sense" }}8100{{ else }}8000{{ end }}, targetPort: ui}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: {{ $name }}}
+spec:
+  minAvailable: 1
+  selector: {matchLabels: {app: {{ $name }}}}
+{{- end }}

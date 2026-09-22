@@ -13,6 +13,8 @@ $modules = @(
   "apps/lense",
   "apps/dispense",
   "apps/plc4go-modbus",
+  "apps/protocol-lab",
+  "apps/ha-agent",
   "shared/mqttx"
 )
 $totalProfiles = @()
@@ -24,7 +26,9 @@ foreach ($module in $modules) {
   Push-Location (Join-Path $root $module)
   try {
     go test ./... -coverprofile $profile -covermode atomic
+    if ($LASTEXITCODE -ne 0) { throw "Go coverage tests failed in $module (exit $LASTEXITCODE)." }
     go tool cover -func $profile | Tee-Object -FilePath (Join-Path $coverageDir "$name.coverage.txt")
+    if ($LASTEXITCODE -ne 0) { throw "Coverage summary failed for $module (exit $LASTEXITCODE)." }
     $totalProfiles += $profile
   }
   finally {
@@ -33,13 +37,21 @@ foreach ($module in $modules) {
 }
 
 $merged = Join-Path $coverageDir "merged.coverprofile"
-"mode: atomic" | Set-Content $merged
+"mode: atomic" | Set-Content -Encoding ascii $merged
 foreach ($profile in $totalProfiles) {
-  Get-Content $profile | Select-Object -Skip 1 | Add-Content $merged
+  Get-Content $profile | Select-Object -Skip 1 | Add-Content -Encoding ascii $merged
 }
 
-go tool cover -func $merged | Tee-Object -FilePath (Join-Path $coverageDir "merged.coverage.txt")
-go tool cover -html $merged -o (Join-Path $coverageDir "coverage.html")
+Push-Location $root
+try {
+  go tool cover -func $merged | Tee-Object -FilePath (Join-Path $coverageDir "merged.coverage.txt")
+  if ($LASTEXITCODE -ne 0) { throw "Merged coverage summary failed (exit $LASTEXITCODE)." }
+  go tool cover -html $merged -o (Join-Path $coverageDir "coverage.html")
+  if ($LASTEXITCODE -ne 0) { throw "Coverage HTML generation failed (exit $LASTEXITCODE)." }
+}
+finally {
+  Pop-Location
+}
 
 Write-Host ""
 Write-Host "Coverage report written to coverage/coverage.html" -ForegroundColor Green

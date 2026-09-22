@@ -25,7 +25,7 @@ func TestConnectionGraphSupportsHorizontalDragScroll(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := string(raw)
-	for _, want := range []string{"bindDragScroll", "graph-scroll", "boxWidth=2300", "mousedown"} {
+	for _, want := range []string{"IoTWorkspace.graphViewport", "graph-scroll", "boxWidth=1780", "/static/workspace-ui.js"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("Connection graph must contain %s", want)
 		}

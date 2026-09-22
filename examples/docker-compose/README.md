@@ -7,6 +7,7 @@ It starts:
 - Mosquitto as the input MQTT broker
 - Mosquitto as the target MQTT broker for Dispense
 - Postgres as historian database
+- A small read-only PostgreSQL data explorer inside Lense at <http://localhost:8000/#agents/postgres>
 - three Modbus Presense simulators
 - two OPC UA style Presense simulators
 - Sense Modbus in polling mode

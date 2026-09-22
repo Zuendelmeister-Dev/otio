@@ -1,0 +1,13 @@
+images:
+  sense: otio/sense:ha
+  lense: otio/lense:ha
+imagePullPolicy: IfNotPresent
+# Both operators must already be installed. This chart does not own them.
+storageClass: ""
+databaseSize: 2Gi
+brokerSize: 2Gi
+# Supply a real device endpoint, or enable the separate demo simulator.
+sourceHost: demo-device
+sourcePort: 5020
+sourceUnitId: 1
+browserSenseURL: http://localhost:18100

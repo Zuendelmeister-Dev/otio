@@ -11,6 +11,7 @@ Thumbs.db
 bin/
 dist/
 coverage.out
+coverage/
 *.test
 
 # Local build artifacts
@@ -45,6 +46,11 @@ node_modules/
 
 # Generated documentation output
 docs/pdf/
+
+# Local-only publishing commands and commit / pull-request drafts
+/docs/releases/**/PUBLISHING.md
+/docs/releases/**/COMMIT_MESSAGE.txt
+/docs/releases/**/PR_DESCRIPTION.md
 
 # Keep documentation images
 !docs/png/

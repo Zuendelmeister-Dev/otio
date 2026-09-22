@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"iot-lense-sense/sense/internal/protocols"
 )
 
 func getenv(name string, fallback string) string {
@@ -65,8 +67,14 @@ func validateConfig(config Config) []string {
 			problems = append(problems, prefix+".agentId must be unique")
 		}
 		agents[source.AgentID] = true
-		if source.Type != "modbus-tcp" && source.Type != "opcua" {
-			problems = append(problems, prefix+".type must be modbus-tcp or opcua")
+		if _, err := protocols.NewRegistry().Reader(source.Type); err != nil {
+			problems = append(problems, prefix+".type is unsupported: "+source.Type)
+		}
+		if strings.HasPrefix(source.Type, "lab-") {
+			connection, _ := source.Options["connection"].(string)
+			if connection == "" {
+				problems = append(problems, prefix+".options.connection is required for lab protocols")
+			}
 		}
 		if source.Host == "" {
 			problems = append(problems, prefix+".host is required")
@@ -105,6 +113,9 @@ func validateConfig(config Config) []string {
 			metrics[metric.Name] = true
 			if source.Type == "opcua" && metric.NodeID == "" {
 				problems = append(problems, mprefix+".nodeId is required for opcua")
+			}
+			if strings.HasPrefix(source.Type, "lab-") && metric.Address == "" && metric.NodeID == "" {
+				problems = append(problems, mprefix+".address or nodeId is required for lab protocols")
 			}
 			if metric.Scale == 0 {
 				problems = append(problems, mprefix+".scale must not be 0")

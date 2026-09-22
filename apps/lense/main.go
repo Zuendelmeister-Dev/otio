@@ -22,6 +22,8 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
 
 	http.HandleFunc("/api/summary", apiSummary)
+	http.HandleFunc("/api/database/tables", apiDatabaseTables)
+	http.HandleFunc("/api/database/query", apiDatabaseQuery)
 	http.HandleFunc("/api/agents", apiAgents)
 	http.HandleFunc("/api/agents/", apiAgent)
 	http.HandleFunc("/api/catalog", apiCatalog)
@@ -36,6 +38,10 @@ func main() {
 	http.HandleFunc("/api/remote-config/history", apiRemoteConfigHistory)
 	http.HandleFunc("/api/remote-config", apiRemoteConfig)
 	http.HandleFunc("/api/logs", apiLogs)
+	http.Handle("/protocol-lab/", protocolLabProxy(getenv("PROTOCOL_LAB_URL", "http://protocol-lab:8500")))
+	http.HandleFunc("/protocols", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/protocol-lab/static/?"+r.URL.RawQuery, http.StatusTemporaryRedirect)
+	})
 	http.HandleFunc("/", ui)
 
 	log.Println("IoT Lense listening on :" + port)

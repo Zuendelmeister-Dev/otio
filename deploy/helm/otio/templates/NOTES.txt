@@ -1,0 +1,12 @@
+OT.io demo installed as {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "otio.prefix" . }}-lense 8000:8000
+Open http://localhost:8000 and select Protocol Lab.
+
+Optional direct UI access (separate terminals):
+kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "otio.prefix" . }}-sense 8100:8100
+kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "otio.prefix" . }}-protocol-lab 8500:8500
+
+Verify: helm test {{ .Release.Name }} -n {{ .Release.Namespace }} --logs
+PVC retention on uninstall: {{ .Values.persistence.retain }}.
+Demo credentials and anonymous MQTT are intended for a trusted lab.

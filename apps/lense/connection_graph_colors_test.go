@@ -21,7 +21,7 @@ func TestConnectionGraphPaletteIsConsistent(t *testing.T) {
 		"const dispenseColor=CONNECTION_PALETTE.dispense",
 		"line(sourceX+sourceW,sourceYs[i],senseX,senseY+42,Boolean(a.connected)&&group.connected,presenseColor)",
 		"line(senseX+senseW,item.y,brokerX,brokerY+42,ok,senseColor)",
-		"line(brokerX+brokerW,brokerY+42,lenseX,lenseY+42,brokerOk&&lenseOk,componentColor)",
+		"polyline([[brokerX+brokerW/2,brokerY],[lenseX+lenseW/2,lenseY+84]],brokerOk&&lenseOk,componentColor)",
 		"line(brokerX+brokerW,brokerY+42,dispenseX,dispenseCenterY,summary.mqtt.connected&&dispenseOk,componentColor)",
 		"line(dispenseX+dispenseW,dispenseCenterY,targetX,targetY+42,dispenseOk,dispenseColor)",
 		"legendLine(CONNECTION_PALETTE.down,'Unavailable connection',true)",

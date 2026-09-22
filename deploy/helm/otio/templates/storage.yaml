@@ -1,0 +1,19 @@
+{{- range $component, $size := dict "postgres" .Values.persistence.postgresSize "sense" .Values.persistence.senseSize }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "otio.prefix" $ }}-{{ $component }}-data
+  {{- if $.Values.persistence.retain }}
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if ne (kindOf $.Values.persistence.storageClass) "invalid" }}
+  storageClassName: {{ $.Values.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $size | quote }}
+{{- end }}

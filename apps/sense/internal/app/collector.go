@@ -50,10 +50,10 @@ func metricAddress(source SourceConfig, metric MetricConfig) string {
 	if metric.Path != "" {
 		return metric.Path
 	}
+	if metric.NodeID != "" {
+		return metric.NodeID
+	}
 	if source.Type == "opcua" {
-		if metric.NodeID != "" {
-			return metric.NodeID
-		}
 		return metric.Name
 	}
 	return fmt.Sprintf("holding-register:%d", metric.Register)

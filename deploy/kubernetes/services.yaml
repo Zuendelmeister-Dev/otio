@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata: {name: mqtt}
+spec:
+  type: ClusterIP
+  selector: {app: mqtt}
+  ports:
+    - {name: mqtt, port: 1883, targetPort: mqtt}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: rabbitmq}
+spec:
+  type: ClusterIP
+  selector: {app: rabbitmq}
+  ports:
+    - {name: amqp, port: 5672, targetPort: amqp}
+    - {name: management, port: 15672, targetPort: management}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres}
+spec:
+  type: ClusterIP
+  selector: {app: postgres}
+  ports:
+    - {name: postgres, port: 5432, targetPort: postgres}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: protocol-lab}
+spec:
+  type: ClusterIP
+  selector: {app: protocol-lab}
+  ports:
+    - {name: http, port: 8500, targetPort: http}
+    - {name: modbus, port: 1502, targetPort: modbus}
+    - {name: rtu, port: 1503, targetPort: rtu}
+    - {name: opcua, port: 4842, targetPort: opcua}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: sense}
+spec:
+  type: ClusterIP
+  selector: {app: sense}
+  ports:
+    - {name: http, port: 8100, targetPort: http}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: lense}
+spec:
+  type: ClusterIP
+  selector: {app: lense}
+  ports:
+    - {name: http, port: 8000, targetPort: http}
+

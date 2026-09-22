@@ -45,10 +45,10 @@ type MetricMessage struct {
 		Host string `json:"host"`
 	} `json:"source"`
 	Metric struct {
-		Name  string  `json:"name"`
-		Value float64 `json:"value"`
-		Unit  string  `json:"unit"`
-		Type  string  `json:"type"`
+		Name  string `json:"name"`
+		Value any    `json:"value"`
+		Unit  string `json:"unit"`
+		Type  string `json:"type"`
 	} `json:"metric"`
 	Quality struct {
 		Status string `json:"status"`

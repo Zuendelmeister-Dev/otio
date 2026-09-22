@@ -6,6 +6,8 @@ I use this documentation to explain the project from the perspective of the deve
 
 Recommended reading order:
 
+For interactive setup, start with [UI workflows and simulator configuration](ui-workflows.md).
+
 1. [Architecture](architecture.md)
 2. [Configuration and rollout guide](configuration-rollout.md)
 3. [IoT Presense](presense.md)
@@ -17,6 +19,7 @@ Recommended reading order:
 9. [Extension guide](extension-guide.md)
 10. [Testing](testing.md)
 11. [Quality review](quality/code-review.md)
+12. [Protocol matrix and Protocol Lab](protocols.md)
 
 ## Diagrams
 
@@ -33,3 +36,9 @@ Only Mermaid diagram sources are maintained to avoid duplicate diagram formats.
 - [Writing custom Dispense modules](dispense.md#writing-a-custom-dispense-extension)
 
 - [Troubleshooting](troubleshooting.md)
+
+## Next beta release
+
+- [Release notes](releases/next-beta/RELEASE_NOTES.md)
+- [Verification record](releases/next-beta/VERIFICATION.md)
+- [Kubernetes HA example](../examples/07-kubernetes-ha/README.md)

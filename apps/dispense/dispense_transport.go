@@ -72,6 +72,9 @@ func onMetric(client mqttx.Client, msg mqttx.Message) {
 
 	var metric MetricMessage
 	if err := json.Unmarshal(msg.Payload(), &metric); err != nil {
+		state.Lock()
+		state.DroppedCount++
+		state.Unlock()
 		addLog("WARN", "router", "Dropped invalid JSON from "+msg.Topic())
 		return
 	}
@@ -88,20 +91,24 @@ func onMetric(client mqttx.Client, msg mqttx.Message) {
 	}
 	targetTopic := mqttx.MetricTopic(config.TargetPrefix, metric.AgentID, metricName)
 
-	state.Lock()
-	if _, ok := state.Metrics[metric.AgentID]; !ok {
-		state.Metrics[metric.AgentID] = map[string][]MetricPoint{}
+	// Only numeric values belong in the chart buffer. Forward all JSON values
+	// unchanged, including the string and boolean telemetry emitted by Sense.
+	if value, ok := metric.Metric.Value.(float64); ok {
+		state.Lock()
+		if _, ok := state.Metrics[metric.AgentID]; !ok {
+			state.Metrics[metric.AgentID] = map[string][]MetricPoint{}
+		}
+		state.Metrics[metric.AgentID][metricName] = append(state.Metrics[metric.AgentID][metricName], MetricPoint{
+			Timestamp: metric.Timestamp,
+			Epoch:     time.Now().UnixMilli(),
+			Value:     value,
+			Unit:      metric.Metric.Unit,
+		})
+		if len(state.Metrics[metric.AgentID][metricName]) > config.BufferLimit {
+			state.Metrics[metric.AgentID][metricName] = state.Metrics[metric.AgentID][metricName][len(state.Metrics[metric.AgentID][metricName])-config.BufferLimit:]
+		}
+		state.Unlock()
 	}
-	state.Metrics[metric.AgentID][metricName] = append(state.Metrics[metric.AgentID][metricName], MetricPoint{
-		Timestamp: metric.Timestamp,
-		Epoch:     time.Now().UnixMilli(),
-		Value:     metric.Metric.Value,
-		Unit:      metric.Metric.Unit,
-	})
-	if len(state.Metrics[metric.AgentID][metricName]) > config.BufferLimit {
-		state.Metrics[metric.AgentID][metricName] = state.Metrics[metric.AgentID][metricName][len(state.Metrics[metric.AgentID][metricName])-config.BufferLimit:]
-	}
-	state.Unlock()
 
 	if !mqttx.IsConnected(output) {
 		state.Lock()

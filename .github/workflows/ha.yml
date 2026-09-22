@@ -1,0 +1,58 @@
+name: Kubernetes HA example
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/ha-agent/**'
+      - 'apps/lense/**'
+      - 'apps/sense/**'
+      - 'shared/mqttx/**'
+      - 'deploy/helm/otio-ha/**'
+      - 'examples/07-kubernetes-ha/**'
+      - '.github/workflows/ha.yml'
+permissions:
+  contents: read
+jobs:
+  failover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: otio-ha
+          config: examples/07-kubernetes-ha/kind.yaml
+          version: v0.31.0
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+      - name: Install operators
+        run: |
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.21.2/cert-manager.yaml
+          kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=180s
+          kubectl apply --server-side -f https://github.com/cloudnative-pg/cloudnative-pg/releases/download/v1.28.4/cnpg-1.28.4.yaml
+          kubectl apply -f https://github.com/rabbitmq/cluster-operator/releases/download/v2.23.0/cluster-operator.yml
+          kubectl -n cnpg-system rollout status deployment/cnpg-controller-manager --timeout=180s
+          kubectl -n rabbitmq-system rollout status deployment/rabbitmq-cluster-operator --timeout=180s
+      - name: Build and deploy
+        run: |
+          for app in sense lense presense-modbus; do
+            docker build -t "otio/$app:ha" -f "apps/$app/Dockerfile" .
+            kind load docker-image --name otio-ha "otio/$app:ha"
+          done
+          kubectl create namespace otio-ha
+          kubectl -n otio-ha apply -f examples/07-kubernetes-ha/demo-device.yaml
+          helm lint deploy/helm/otio-ha --strict
+          helm upgrade --install ha deploy/helm/otio-ha -n otio-ha
+          kubectl -n otio-ha wait cluster/ha-db --for=condition=Ready --timeout=600s
+          kubectl -n otio-ha wait rabbitmqcluster/ha-broker --for=condition=AllReplicasReady --timeout=600s
+      - name: Exercise failover and telemetry recovery
+        shell: pwsh
+        run: ./examples/07-kubernetes-ha/test-failover.ps1 -Context kind-otio-ha
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl -n otio-ha get pods,svc,pvc,leases -o wide
+          kubectl -n otio-ha get events --sort-by=.lastTimestamp
+          kubectl -n otio-ha logs -l app=ha-sense --all-containers --tail=80 --prefix || true
+          kubectl -n otio-ha logs -l app=ha-lense --all-containers --tail=80 --prefix || true

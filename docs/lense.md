@@ -1,5 +1,7 @@
 # IoT Lense
 
+The [Protocol Lab](protocols.md) adds a searchable protocol catalog, native connection tests and simulator controls. Lense serves it through `/protocols` and the same-origin `/protocol-lab/` proxy; configure `PROTOCOL_LAB_URL` when it runs on another host. Start [Example 03](../examples/03-protocol-lab/README.md) for an integrated demonstration.
+
 IoT Lense is the health, diagnostics and configuration view for OT.io.
 
 Lense does not read machines directly. It observes the messages and component status around the stack, stores telemetry in Postgres and renders the connection graph.
@@ -103,3 +105,7 @@ The workflow is:
 Lense is intended to stay the central diagnostics, health and configuration surface.
 
 Custom source protocols should be implemented in IoT Sense. Custom outbound integrations should be implemented in IoT Dispense. Lense should only need changes when the central product UI or the shared topology model itself changes.
+
+## PostgreSQL viewer
+
+The integrated viewer under **Agents → System Components → Postgres** lists public tables, previews bounded results and supports a restricted SELECT grammar plus CSV export. It does not require Adminer or a separate client container. See [query limits and usage](ui-workflows.md#postgresql-data-explorer).

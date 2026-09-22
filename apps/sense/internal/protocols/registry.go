@@ -1,6 +1,9 @@
 package protocols
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type Registry struct {
 	readers     map[string]Reader
@@ -16,6 +19,9 @@ func NewRegistry() Registry {
 	registry.RegisterReader("modbus-tcp", ModbusTCPReader{})
 	registry.RegisterReader("opcua", opcua)
 	registry.RegisterSubscriber("opcua", opcua)
+	for _, sourceType := range LabProtocolTypes {
+		registry.RegisterReader("lab-"+sourceType, LabReader{})
+	}
 	return registry
 }
 
@@ -48,5 +54,6 @@ func (registry Registry) SupportedSourceTypes() []string {
 	for sourceType := range registry.readers {
 		types = append(types, sourceType)
 	}
+	sort.Strings(types)
 	return types
 }

@@ -1,0 +1,25 @@
+# A stand-in for a physical device; deliberately outside the HA guarantee.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: demo-device}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: demo-device}}
+  template:
+    metadata: {labels: {app: demo-device}}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: device
+          image: otio/presense-modbus:ha
+          imagePullPolicy: IfNotPresent
+          ports: [{name: modbus, containerPort: 5020}]
+          readinessProbe: {tcpSocket: {port: modbus}}
+          resources: {requests: {cpu: 25m, memory: 32Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: demo-device}
+spec:
+  selector: {app: demo-device}
+  ports: [{name: modbus, port: 5020, targetPort: modbus}]

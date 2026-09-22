@@ -163,7 +163,11 @@
         const x = getX(point.timestamp);
         const y = getY(point.value);
         if (index === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+        else {
+          const previous = points[index - 1];
+          if (new Date(point.timestamp) - new Date(previous.timestamp) > 120000) ctx.moveTo(x, y);
+          else { ctx.lineTo(x, getY(previous.value)); ctx.lineTo(x, y); }
+        }
       });
       ctx.stroke();
 
@@ -270,6 +274,7 @@
   }
 
 
+  const statusMemory = new Map();
   function rememberBinaryStatus(storageKey, value, timestamp, windowMinutes) {
     const key = 'iot-status-history:' + storageKey;
     const now = timestamp ? new Date(timestamp) : new Date();
@@ -279,7 +284,7 @@
       items = JSON.parse(localStorage.getItem(key) || '[]');
       if (!Array.isArray(items)) items = [];
     } catch (_) {
-      items = [];
+      items = statusMemory.get(key) || [];
     }
 
     items = items.filter(item => {
@@ -291,23 +296,16 @@
     const stamp = now.toISOString();
     const previous = items.length ? items[items.length - 1] : null;
     const previousTime = previous ? new Date(previous.timestamp).getTime() : 0;
-    const shouldAppend = !previous ||
-      previous.value !== normalizedValue ||
-      !Number.isFinite(previousTime) ||
-      Math.abs(now.getTime() - previousTime) >= 60000;
+    const shouldAppend = !previous || previous.value !== normalizedValue || now.getTime() > previousTime;
 
     if (shouldAppend) {
       items.push({ timestamp: stamp, value: normalizedValue });
-    } else if (items.length === 1) {
-      // Keep the first real observation and add a second point for a short, honest line segment.
-      items.push({ timestamp: stamp, value: normalizedValue });
-    } else {
-      // Keep the current edge fresh without inventing data before the first real observation.
-      items[items.length - 1] = { timestamp: stamp, value: normalizedValue };
     }
 
+    items = items.slice(-300);
+    statusMemory.set(key, items);
     try {
-      localStorage.setItem(key, JSON.stringify(items.slice(-300)));
+      localStorage.setItem(key, JSON.stringify(items));
     } catch (_) {
       // Local storage is optional. The chart still works with the current in-memory samples.
     }
@@ -326,7 +324,11 @@ function renderConnectionOverview(options) {
     ];
 
     (options.extraCards || []).forEach(item => cards.push(item));
-    renderOverviewCards(options.cardsElementId, cards);
+    const facts = document.getElementById(options.cardsElementId);
+    if (facts) facts.innerHTML = '<dl class="connection-facts">' + cards.map(item => {
+      const value = /^\d{4}-\d\d-\d\dT/.test(String(item.value)) ? new Date(item.value).toLocaleString() : item.value;
+      return '<div><dt>'+escapeHtml(item.label)+'</dt><dd>'+escapeHtml(value)+'</dd></div>';
+    }).join('') + '</dl>';
 
     const observedAt = new Date();
     const windowMinutes = options.windowMinutes || 1440;
@@ -337,6 +339,7 @@ function renderConnectionOverview(options) {
       windowMinutes
     );
 
+    const domain = window.IoTWorkspace ? window.IoTWorkspace.statusDomain(points, observedAt.getTime()) : {start: observedAt.getTime()-30000,end:observedAt.getTime()+1000};
     renderBinaryStatusChart({
       canvasId: options.canvasId,
       legendId: options.legendId,
@@ -345,8 +348,8 @@ function renderConnectionOverview(options) {
       label: (options.name || 'Component') + ' connection',
       points,
       color: options.color || '#ff8a1d',
-      domainStart: new Date(observedAt.getTime() - windowMinutes * 60 * 1000).toISOString(),
-      domainEnd: observedAt.toISOString()
+      domainStart: new Date(domain.start).toISOString(),
+      domainEnd: new Date(domain.end).toISOString()
     });
   }
 

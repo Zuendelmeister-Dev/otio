@@ -2,6 +2,8 @@
 
 This example starts the full OT.io demo stack on one machine.
 
+Protocol Lab and RabbitMQ are included. Open <http://localhost:8000/protocols> for native protocol simulation and copyable Sense source examples. Presense settings are persisted in individual configuration volumes. See [UI workflows](../../docs/ui-workflows.md) for forms, graph navigation and simulator configuration.
+
 ## Prerequisites
 
 - Docker
@@ -39,6 +41,7 @@ http://127.0.0.1:8000
 | Component | URL |
 |---|---|
 | IoT Lense | http://127.0.0.1:8000 |
+| PostgreSQL data explorer | http://127.0.0.1:8000/#agents/postgres |
 | IoT Sense Modbus | http://127.0.0.1:8100 |
 | IoT Sense OPC UA | http://127.0.0.1:8101 |
 | IoT Dispense Modbus | http://127.0.0.1:8200 |
@@ -49,6 +52,11 @@ http://127.0.0.1:8000
 | Presense OPC UA 01 | http://127.0.0.1:4840 |
 | Presense OPC UA 02 | http://127.0.0.1:4841 |
 
+## Browse PostgreSQL tables
+
+Open <http://localhost:8000/#agents/postgres> or **System Components → PostgreSQL · Data explorer** in Lense. No separate container or database login is needed. Select a table to preview rows and inspect column types. Run a limited SELECT query and export the displayed result to CSV. See [the query examples and limits](../../docs/ui-workflows.md#postgresql-data-explorer).
+
+If you started Adminer with an earlier version, stop and remove just that container with `docker rm -f 01-local-docker-compose-adminer-1` (from the repository root). PostgreSQL data volumes remain intact.
 ## Failure test
 
 Stop one Sense instance:

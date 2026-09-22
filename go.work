@@ -1,11 +1,15 @@
-go 1.22
+go 1.27.0
+
+toolchain go1.27.1
 
 use (
-  ./apps/presense-modbus
-  ./apps/presense-opcua
-  ./apps/sense
-  ./apps/lense
-  ./apps/dispense
-  ./apps/plc4go-modbus
-  ./shared/mqttx
+	./apps/ha-agent
+	./apps/protocol-lab
+	./apps/dispense
+	./apps/lense
+	./apps/plc4go-modbus
+	./apps/presense-modbus
+	./apps/presense-opcua
+	./apps/sense
+	./shared/mqttx
 )

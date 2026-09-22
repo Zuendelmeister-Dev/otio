@@ -1,5 +1,7 @@
 # IoT Sense
 
+Native IP protocol readers are also available through the optional [Protocol Lab](protocols.md): use the `lab-*` source types with `options.connection` and metric addresses. [Example 03](../examples/03-protocol-lab/README.md) provides five configured sources. These readers use polling; broker and IEC 104 samples are not lossless subscriptions.
+
 IoT Sense is the collector part of OT.io. It reads source endpoints and publishes telemetry, status, health and errors to MQTT.
 
 A Sense instance is usually specialized for one source type, for example one Modbus collector and one OPC UA collector.

@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"time"
 )
 
 func ReadHoldingRegister(host string, port int, unitID byte, register uint16) (uint16, error) {
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), 2*time.Second)
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 2*time.Second)
 	if err != nil {
 		return 0, err
 	}
@@ -33,17 +34,20 @@ func ReadHoldingRegister(host string, port int, unitID byte, register uint16) (u
 		return 0, err
 	}
 	length := binary.BigEndian.Uint16(header[4:6])
-	if length < 3 {
+	if binary.BigEndian.Uint16(header[0:2]) != transactionID || binary.BigEndian.Uint16(header[2:4]) != 0 || header[6] != unitID {
+		return 0, errors.New("Modbus response does not match request")
+	}
+	if length != 3 && length != 5 {
 		return 0, errors.New("invalid Modbus response length")
 	}
 	pdu := make([]byte, int(length)-1)
 	if _, err := io.ReadFull(conn, pdu); err != nil {
 		return 0, err
 	}
-	if pdu[0]&0x80 != 0 {
+	if pdu[0] == 0x83 && len(pdu) == 2 {
 		return 0, fmt.Errorf("Modbus exception code %d", pdu[1])
 	}
-	if pdu[0] != 3 || pdu[1] != 2 || len(pdu) < 4 {
+	if pdu[0] != 3 || pdu[1] != 2 || len(pdu) != 4 {
 		return 0, errors.New("invalid Modbus read response")
 	}
 	return binary.BigEndian.Uint16(pdu[2:4]), nil

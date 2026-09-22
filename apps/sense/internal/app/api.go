@@ -14,6 +14,10 @@ func writeJSON(w http.ResponseWriter, value any) {
 }
 
 func requireConfigWriteToken(w http.ResponseWriter, r *http.Request) bool {
+	if os.Getenv("OTIO_CONFIG_READ_ONLY") == "true" {
+		http.Error(w, "HA configuration is managed by Helm. Update the shared configuration and roll out all replicas.", http.StatusForbidden)
+		return false
+	}
 	token := strings.TrimSpace(os.Getenv("OTIO_CONFIG_WRITE_TOKEN"))
 	if token == "" || r.Header.Get("X-OTIO-Config-Token") == token {
 		return true
