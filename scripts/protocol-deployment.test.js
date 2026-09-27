@@ -1,0 +1,28 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {deployment}=require('../apps/protocol-lab/static/deployment.js');
+const source={agentId:'meter',type:'lab-mbus-tcp',host:'meter-gateway',port:1504,options:{connection:'mbus-tcp://meter-gateway:1504'},metrics:[{name:'temperature',address:'1',scale:1}]};
+const opts={broker:'192.168.1.20',target:'iot@192.168.1.30',senseImage:'registry.local:5000/otio/sense:beta',labImage:'registry.local:5000/otio/lab:beta'};
+const output=deployment(source,opts);
+const config=JSON.parse(output.files['sense-config.json']),compose=JSON.parse(output.files['compose.json']),values=JSON.parse(output.files['sense-values.json']);
+assert.equal(config.sources[0].options.gatewayURL,'http://protocol-lab:8500');
+assert.equal(values.config.sources[0].options.gatewayURL,'http://sense-edge-gateway:8500');
+assert.equal(config.sources[0].options.connection,source.options.connection);
+assert.equal(config.broker.host,opts.broker);
+assert(!source.options.gatewayURL,'must not mutate tested source');
+assert.throws(()=>deployment({...source,options:{connection:'mbus-tcp://localhost:1504'}},opts),/local demo address/);
+assert.equal(JSON.parse(deployment(source,{...opts,instanceId:'plant2'}).files['sense-config.json']).broker.clientId,'plant2');
+assert.equal(Object.keys(compose.services).length,2,'must not deploy unwanted simulators, databases or brokers');
+assert(!compose.services['protocol-lab'].environment?.LAB_SIMULATORS);
+assert(output.commands.includes('docker save -o otio-images.tar '+opts.senseImage));
+assert(output.commands.includes('scp otio-images.tar compose.json sense-config.json '+opts.target));
+for(const [key,bad]of [['target','iot@host;whoami'],['senseImage','image$(whoami)'],['labImage','bad image'],['broker','mqtt\nother']])assert.throws(()=>deployment(source,{...opts,[key]:bad}));
+console.log('Deployment configuration, transfer and input-validation tests passed');
+
+assert.throws(()=>deployment({...source,options:{connection:'mbus-tcp://localhost:1504'}},opts),e=>e.field==='deployConnection');
+assert.throws(()=>deployment(source,{...opts,broker:''}),e=>e.field==='deployBroker');
+const secure=deployment({...source,type:'lab-opcua-tcp',options:{connection:'opc.tcp://device:4840?certificateProfile=plant'}},opts);
+assert(secure.files['prepare-certificate.py'].includes("'id': 'plant'"));
+assert.equal(JSON.parse(secure.files['compose.json']).services['protocol-lab'].environment.OTIO_CERTIFICATE_DIR,'/var/lib/otio/certificates');
+assert(secure.commands.includes('scp -r certificates '));assert(secure.helm.includes('kubectl create secret generic'));
+assert.equal(JSON.parse(secure.files['sense-values.json']).existingCertificateSecret,'sense-edge-certificates');

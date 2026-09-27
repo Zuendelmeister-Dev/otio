@@ -57,6 +57,27 @@ func TestAPIValidationAndRead(t *testing.T) {
 		t.Fatalf("invalid requests reached reader: %d", called)
 	}
 }
+
+func TestReadDeadlineRetainsSlotForStalledDriver(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+	h := handler(newSimulator(), func(context.Context, ReadRequest) (any, error) { <-release; return 1, nil })
+	for i := 0; i < 8; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+		req := httptest.NewRequest("POST", "/api/read", strings.NewReader(`{"protocol":"s7","connection":"s7://localhost:102","address":"%DB1:0:REAL"}`)).WithContext(ctx)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		cancel()
+		if w.Code != 504 {
+			t.Fatalf("deadline returned %d", w.Code)
+		}
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("POST", "/api/read", strings.NewReader(`{"protocol":"s7","connection":"s7://localhost:102","address":"%DB1:0:REAL"}`)))
+	if w.Code != 429 {
+		t.Fatalf("stalled workers must retain their slots: %d", w.Code)
+	}
+}
 func TestModbusNativeRoundTrip(t *testing.T) {
 	for _, rtu := range []bool{false, true} {
 		t.Run(fmt.Sprint(rtu), func(t *testing.T) {

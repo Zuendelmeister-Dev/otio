@@ -1,0 +1,8 @@
+senseImage: otio/sense:local
+labImage: otio/protocol-lab:local
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+config: {}
+
+# Existing Secret with <profile>.json keys, prepared from the original PEM files.
+existingCertificateSecret: ""

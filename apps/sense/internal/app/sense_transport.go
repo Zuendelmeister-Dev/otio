@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -78,6 +79,8 @@ func publishJSON(topic string, payload any) {
 		return
 	}
 
+	raw, _ := json.Marshal(payload)
+	messageTraffic.Record(topic, raw)
 	state.Lock()
 	state.LastPublish = nowISO()
 	state.PublishCount++

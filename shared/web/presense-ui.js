@@ -4,27 +4,21 @@
   const editor=document.getElementById('configEditor');if(!editor)return;
   const state=document.getElementById('configState'), apply=document.getElementById('applyConfigButton');
   const panel=document.createElement('div');panel.className='config-form';
-  panel.innerHTML='<h3>Simulator protocol</h3><div class="config-fields"><label>Protocol / endpoint<select id="simulatorProtocol"></select></label><label>Host reachable from Sense<input id="senseReadHost"></label><label>Configuration token (if required)<input id="presenseToken" type="password" autocomplete="off"></label></div><p id="simulatorNote"></p><button type="button" id="copySenseSource">Copy Sense source</button><pre id="senseSourcePreview"></pre>';
+  panel.innerHTML='<h3>Simulator connection</h3><div class="config-fields"><label>Protocol / endpoint<input id="simulatorProtocol" readonly aria-describedby="simulatorNote"></label><label>Host reachable from Sense<input id="senseReadHost"></label><label>Configuration token (if required)<input id="presenseToken" type="password" autocomplete="off"></label></div><p id="simulatorNote"></p><button type="button" id="copySenseSource">Copy Sense source</button><details><summary>Sense source JSON</summary><pre id="senseSourcePreview"></pre></details>';
   editor.closest('.card').prepend(panel);
+  const alternate=document.createElement('a'),lab=new URL(location.href);lab.port='8000';lab.pathname='/protocols';lab.search='?simulate=modbus-tcp';lab.hash='';alternate.href=lab.href;alternate.textContent='Choose another simulator in Protocol Lab ↗';panel.append(alternate);
   const protocol=document.getElementById('simulatorProtocol'),host=document.getElementById('senseReadHost'),preview=document.getElementById('senseSourcePreview');
   function showSource(){if(!loaded)return;const source=JSON.parse(JSON.stringify(loaded.source));source.host=host.value.trim();preview.textContent=JSON.stringify(source,null,2);}
   host.oninput=showSource;
   document.getElementById('copySenseSource').onclick=async()=>{try{await navigator.clipboard.writeText(preview.textContent);state.textContent='Sense source copied. Add it to sources in your Sense configuration.';}catch{state.textContent='Clipboard unavailable. Select and copy the source JSON below.';}};
-  protocol.onchange=()=>{
-    if(protocol.value===loaded.config.protocol)return;
-    const url=new URL(location.href);url.port='8000';url.pathname='/protocols';url.search='?simulate='+encodeURIComponent(protocol.value);url.hash='';
-    location.href=url.href;
-  };
   async function load(){
     try{
       const response=await fetch('/api/config');if(!response.ok)throw Error(await response.text());loaded=await response.json();
       original=JSON.stringify(loaded.config,null,2);editor.value=original;proposal='';apply.disabled=true;
       document.getElementById('configDiff').textContent='';state.textContent='Loaded current simulator configuration';
-      protocol.replaceChildren();
-      const options=[[loaded.config.protocol,loaded.config.protocol==='opcua'?'This instance · OPC UA HTTP demo':'This instance · Modbus TCP'],['modbus-tcp','Protocol Lab · Modbus TCP'],['modbus-rtu-tcp','Protocol Lab · RTU tunnel'],['opcua-tcp','Protocol Lab · OPC UA Binary'],['mqtt','Protocol Lab · MQTT'],['amqp','Protocol Lab · AMQP']];
-      for(const [value,label]of options){if(value===loaded.config.protocol&&protocol.options.length)continue;const option=document.createElement('option');option.value=value;option.textContent=label;protocol.append(option);}protocol.value=loaded.config.protocol;
+      protocol.value=loaded.config.protocol==='opcua'?'OPC UA HTTP demo':'Modbus TCP';
       if(!host.value)host.value=loaded.source.host;showSource();
-      document.getElementById('simulatorNote').textContent='This instance keeps its wire protocol and listener port. Select another protocol to open its Protocol Lab simulator. '+(loaded.persistent?'Applied settings are saved on disk.':'Applied settings last until this process restarts.');
+      document.getElementById('simulatorNote').textContent='Fixed protocol of this running instance (not a selector). For a different simulator, use Protocol Lab → Simulation. '+(loaded.persistent?'Applied settings are saved on disk.':'Applied settings last until this process restarts.');
     }catch(e){state.textContent='Could not load simulator settings: '+e.message;}
   }
   window.loadConfigPage=load;

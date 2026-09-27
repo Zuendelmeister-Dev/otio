@@ -8,7 +8,7 @@ I built OT.io as a small, modular connectivity and diagnostics platform for mach
 
 If something breaks, IoT Lense should make it obvious where the flow stopped.
 
-![IoT Lense dashboard](docs/png/lense-dashboard.png)
+![IoT Lense connection graph with message rates](docs/png/connection-graph.png)
 
 ## What OT.io contains
 

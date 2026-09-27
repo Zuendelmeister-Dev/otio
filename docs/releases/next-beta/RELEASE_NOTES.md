@@ -4,7 +4,7 @@ Status: prepared for review; no release version or tag assigned. OT.io remains a
 
 ## Added
 
-- Protocol Lab with native Modbus TCP, RTU-over-TCP and OPC UA Binary round trips, MQTT/AMQP sampling and simulator controls. Experimental readers cover S7, EtherNet/IP, BACnet/IP, KNXnet/IP and IEC 104. See the [protocol matrix](../../protocols.md) for exact operations and exclusions.
+- Protocol Lab with native Modbus TCP, RTU-over-TCP and OPC UA round trips, MQTT/AMQP sampling and simulator controls. Experimental readers cover S7, EtherNet/IP, BACnet/IP, KNXnet/IP and IEC 104. See the [protocol matrix](../../protocols.md) for exact operations and exclusions.
 - Protocol-specific configuration forms alongside JSON, editable Presense generator settings, and copyable Sense source mappings.
 - An integrated PostgreSQL viewer in Lense: table/column discovery, restricted read-only SELECT queries, bounded previews and CSV extracts. Readable scrolling tables and a full-value dialog handle long text and JSON. No separate database-client container is required.
 - Kubernetes/Kustomize (Example 05), Helm (Example 06) and an active/passive HA example (Example 07).
@@ -15,6 +15,14 @@ Status: prepared for review; no release version or tag assigned. OT.io remains a
 ## Security
 
 - Update Protocol Lab's AMQP client from 1.10.0 to 1.13.0 to address [GO-2026-6372](https://pkg.go.dev/vuln/GO-2026-6372), an oversized broker-payload issue. Rebuild Protocol Lab images to include the fix.
+
+## UI and diagnostics update — 27 September 2026
+
+- Compact, consistent component lists and shared graph actions with data-flow highlighting.
+- Five-minute message rates and Live Messages for Sense, Dispense and observed broker traffic. The latest 50 messages include direct payload previews, topic search, topic selection and Pause/Resume.
+- OPC UA certificate profiles with pinned server certificates, encrypted reads and expiry warnings in Lense.
+- TCP-focused Protocol Lab, opt-in simulators, field-specific deployment validation and generated VM/Helm installation instructions.
+- Updated [screenshots and workflows](../../ui-workflows.md#current-interface-screenshots).
 
 ## Improved and fixed
 

@@ -15,13 +15,19 @@ services:
     build:
       context: ../..
       dockerfile: apps/protocol-lab/Dockerfile
+    volumes:
+      - certificate-profiles:/var/lib/otio/certificates
     environment:
+      OTIO_CERTIFICATE_DIR: /var/lib/otio/certificates
+      LAB_SIMULATORS: modbus-tcp,modbus-rtu-tcp,opcua-tcp,mqtt,amqp
       LAB_MQTT_URL: tcp://mqtt:1883
       LAB_AMQP_URL: amqp://lab:lab@rabbitmq:5672/
     ports:
       - "127.0.0.1:8500:8500"
       - "127.0.0.1:1502:1502"
       - "127.0.0.1:1503:1503"
+      - "127.0.0.1:1102:1102"
+      - "127.0.0.1:1504:1504"
       - "127.0.0.1:4842:4842"
     depends_on: [mqtt, rabbitmq]
     restart: unless-stopped
@@ -59,4 +65,5 @@ services:
       postgres: {condition: service_healthy}
     restart: unless-stopped
 volumes:
+  certificate-profiles:
   lab-db:

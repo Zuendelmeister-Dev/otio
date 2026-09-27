@@ -187,7 +187,8 @@ const componentColor='#facc15';
 .legend-node.dashed{border-style:dashed}
 
 </style>
-<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script><script src="/static/database-viewer.js?v=3"></script></head>
+<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script><script src="/static/database-viewer.js?v=3"></script><script src="/static/certificates.js" defer></script><script src="/static/live-messages.js" defer></script>
+</head>
 <body>
 <div class="layout">
 <aside>
@@ -214,6 +215,7 @@ const componentColor='#facc15';
     </div>
     <a href="#logs">Logs</a>
     <a href="#namespace">Unified Namespace</a>
+    <a href="#certificates">Certificates</a>
   </nav>
 </aside>
 <main><div id="uiError" class="hidden" style="background:#2a1414;border:1px solid #ff4d4f;color:#ffdada;border-radius:12px;padding:10px 12px;margin-bottom:12px"></div>
@@ -316,7 +318,7 @@ const componentColor='#facc15';
     <div id="agentListBreadcrumbs" class="k" style="margin-bottom:12px"><a href="#agents">Agents</a></div>
     <h2 id="agentListTitle">Agents</h2>
     <div class="toolbar">
-      <input id="agentSearch" placeholder="Search agents or sources">
+      <input id="agentSearch" placeholder="Search agents or sources" oninput="loadAgents(currentAgentGroupSlug)">
       <button onclick="loadAgents(currentAgentGroupSlug)">Search</button>
     </div>
     <div id="agents"></div>
@@ -358,6 +360,8 @@ const componentColor='#facc15';
   </div>
 </section>
 
+<section id="page-live-messages" class="hidden"></section>
+<section id="page-certificates" class="hidden"></section>
 <section id="page-namespace" class="hidden">
   <div class="namespace-grid">
     <div class="card">
@@ -444,7 +448,7 @@ async function configWriteJson(url, payload){
   return await response.json();
 }
 
-const pages=['dashboard','agents','agent-detail','analytics','namespace','components','configurations','config-detail','logs'];
+const pages=['dashboard','agents','agent-detail','analytics','namespace','components','configurations','config-detail','logs','certificates','live-messages'];
 const CONNECTION_PALETTE={presense:'#8a9099',sense:'#14b8a6',lense:'#ff8a1d',dispense:'#ef4444',system:'#facc15',down:'#ff4d4f'};
 let latestSummary=null;
 let latestAgents=[];
@@ -536,32 +540,6 @@ function renderConnectionGraphLegend(){
     legendLine(CONNECTION_PALETTE.down,'Unavailable connection',true)
   ].join('');
 }
-
-function showNodeMenu(event, item){
-  event.preventDefault();
-  event.stopPropagation();
-  const menu=document.getElementById('nodeMenu');
-  if(!menu)return;
-  const lenseSelf=isLenseSelfItem(item);
-  const canRemote=Boolean(item.url)&&!lenseSelf;
-  const configHash='configurations/'+encodeURIComponent(item.id||item.label||'');
-  const remoteClass=toolClass(item.kind);
-  menu.innerHTML='<div class="node-menu-title">'+IoTStandardChart.escapeHtml(item.label||item.id||'Component')+'</div>'+
-    '<div class="k">'+IoTStandardChart.escapeHtml(item.kind||'component')+'</div>'+
-    (canRemote?'<button class="'+remoteClass+'" id="nodeRemote">Open instance UI</button>':'')+
-    '<button class="local-action" id="nodeConfig">'+(lenseSelf?'Open IoT Lense configuration':'Configure in IoT Lense')+'</button>';
-  menu.style.left=Math.min(event.clientX+8, window.innerWidth-300)+'px';
-  menu.style.top=Math.min(event.clientY+8, window.innerHeight-160)+'px';
-  menu.classList.remove('hidden');
-  const remote=document.getElementById('nodeRemote');
-  if(remote && canRemote)remote.onclick=()=>{menu.classList.add('hidden');window.open(remoteConfigUrl(item),'_blank','noopener');};
-  document.getElementById('nodeConfig').onclick=()=>{menu.classList.add('hidden');location.hash=configHash;};
-}
-document.addEventListener('click',event=>{
-  const menu=document.getElementById('nodeMenu');
-  if(menu && !menu.contains(event.target))menu.classList.add('hidden');
-});
-
 
 let lenseConfigItems={};
 let currentLenseConfigItem=null;
@@ -965,17 +943,16 @@ async function loadConfigurations(focusId){
     ? '<a href="#configurations">Configurations</a> / '+IoTStandardChart.escapeHtml(configGroupTitle(groupSlug))
     : '<a href="#configurations">Configurations</a>';
   if(intro)intro.textContent=groupSlug
-    ? 'Filtered configuration overview for '+configGroupTitle(groupSlug)+'.'
-    : 'Central overview of the configured demo stack. Direct write-back is intentionally still owned by the individual modules. This view is the navigation and audit starting point.';
+    ? 'Choose an instance to configure.'
+    : 'Choose an instance to configure, or open its own UI.';
   container.innerHTML=groups.map(group=>{
-    const cards='<div class="config-grid">'+(group.items.length?group.items.map(item=>{
+    const esc=IoTStandardChart.escapeHtml;
+    const cards=(group.items||[]).map(item=>{
       const safeId=String(item.id||item.label).replace(/[^a-zA-Z0-9_-]/g,'_');
-      const focused=focusItemId && String(item.id)===String(focusItemId);
-      const remoteButton=(item.url&&!isLenseSelfItem(item))?'<button type="button" data-url="'+IoTStandardChart.escapeHtml(remoteConfigUrl(item))+'" class="'+toolClass(item.kind)+' open-remote">Open instance UI</button>':'';
-      const editButton='<button type="button" class="local-action open-lense-config" data-config-id="'+IoTStandardChart.escapeHtml(item.id)+'">Configure in IoT Lense</button>';
-      return '<div id="config-'+safeId+'" class="overview-card config-card '+(focused?'focused':'')+'"><div class="k">'+IoTStandardChart.escapeHtml(item.kind||group.title)+'</div><div class="overview-value" style="font-size:16px">'+IoTStandardChart.escapeHtml(item.label||item.id)+'</div><div class="overview-hint">'+IoTStandardChart.escapeHtml(item.value||'')+'</div><div class="overview-hint">'+IoTStandardChart.escapeHtml(item.hint||'')+'</div><div class="config-actions">'+remoteButton+editButton+'</div></div>';
-    }).join(''):'<div class="k">No entries configured.</div>')+'</div>';
-    return '<div class="card '+group.className+'"><h3>'+IoTStandardChart.escapeHtml(group.title)+'</h3>'+cards+'</div>';
+      const remoteButton=(item.url&&!isLenseSelfItem(item))?'<button type="button" data-url="'+esc(remoteConfigUrl(item))+'" class="open-remote">Instance ↗</button>':'';
+      return '<tr id="config-'+safeId+'"><td>'+esc(item.label||item.id)+'</td><td>'+esc(item.hint||'')+'</td><td>'+esc(item.value||'')+'</td><td class="actions-cell"><button type="button" class="open-lense-config" data-config-id="'+esc(item.id)+'">Configure</button>'+remoteButton+'</td></tr>';
+    }).join('');
+    return '<section class="card '+group.className+'">'+(groupSlug?'':'<h3>'+esc(group.title)+'</h3>')+'<div class="list-scroll"><table class="compact-list"><thead><tr><th>Instance</th><th>Protocol / role</th><th>Endpoint</th><th>Actions</th></tr></thead><tbody>'+cards+'</tbody></table></div>'+(!cards?'<p>No entries configured.</p>':'')+'</section>';
   }).join('');
   document.querySelectorAll('.open-remote').forEach(button=>button.onclick=(event)=>{event.stopPropagation();window.open(button.dataset.url,'_blank','noopener');});
   document.querySelectorAll('.open-lense-config').forEach(button=>button.onclick=(event)=>{event.stopPropagation();location.hash='configurations/'+encodeURIComponent(button.dataset.configId);});
@@ -1057,7 +1034,7 @@ function route(){
   if(target)target.classList.remove('hidden');
   if(page==='dashboard')routeLoad('Fetching dashboard data...', () => loadSummary());
   if(page==='agents')routeLoad('Fetching agents...', () => loadAgents(isAgentGroupSlug(id)?id:null));
-  if(page==='namespace')routeLoad('Fetching Unified Namespace...', () => loadUNS(true));
+  if(page==='namespace')routeLoad('Fetching Unified Namespace...', async () => { const topic=id?decodeURIComponent(id):'';if(topic){unsSearch.value='';const parts=topic.split('/');for(let i=1;i<parts.length;i++)openedNamespacePaths.add(parts.slice(0,i).join('/'));}await loadUNS(true);if(topic){await openTopicPreview(topic);const leaf=[...uns.querySelectorAll('[data-topic]')].find(el=>el.dataset.topic===topic);leaf?.scrollIntoView({block:'nearest'});leaf?.focus();} });
   if(page==='analytics')routeLoad('Fetching quick metrics...', () => loadAnalytics());
   if(page==='components')routeLoad('Fetching components...', async () => { await loadSummary(); renderComponentsOverview(); });
   if(page==='configurations')routeLoad('Fetching configurations...', () => loadConfigurations(isConfigurationGroupSlug(id)?id:null));
@@ -1075,16 +1052,7 @@ function setupCanvas(c,h=300){
   return{ctx,w,h};
 }
 
-function drawPie(c,healthy,unhealthy){
-  const {ctx,w}=setupCanvas(c,300);
-  const total=healthy+unhealthy||1;
-  let start=-Math.PI/2;
-  [[healthy,'#28c76f','healthy'],[unhealthy,'#ff4d4f','unhealthy']].forEach(([v,color,label],i)=>{
-    const angle=v/total*Math.PI*2;
-    ctx.beginPath();ctx.moveTo(w/2,145);ctx.arc(w/2,145,95,start,start+angle);ctx.closePath();ctx.fillStyle=color;ctx.fill();start+=angle;
-    ctx.fillStyle='#e7e9ee';ctx.font='13px Inter, sans-serif';ctx.fillText(label+': '+v,40,255+i*18);
-  });
-}
+function drawPie(c,healthy,unhealthy){IoTWorkspace.drawHealthPie(c,healthy,unhealthy);}
 
 
 function componentStatusMap(){
@@ -1127,6 +1095,7 @@ function renderConnectionGraph(summary,agents){
   const box=document.getElementById('connectionGraph');
   IoTWorkspace.graphViewport(box);
   const topology=runtimeConfig.topology||{};
+  IoTWorkspace.setTopology(topology);
   const compStatuses=(summary&&summary.componentStatus)||componentStatusMap();
   const topologyAgents=(topology.presenses||topology.agents||[]);
   const topoById=Object.fromEntries(topologyAgents.map(a=>[a.agentId||a.id,a]));
@@ -1164,6 +1133,7 @@ function renderConnectionGraph(summary,agents){
   const dbX=1085, dbW=250;
   const dispenseX=1085, dispenseW=250;
   const targetX=1435, targetW=290;
+  let graphFlows=['historian'];
   function line(x1,y1,x2,y2,ok,color){
     const path=document.createElementNS('http://www.w3.org/2000/svg','path');
     const dx=Math.max(80, Math.abs(x2-x1)*0.45);
@@ -1172,6 +1142,7 @@ function renderConnectionGraph(summary,agents){
     path.setAttribute('stroke-width','3');
     path.setAttribute('fill','none');
     path.setAttribute('stroke-dasharray',ok?'':'8 6');
+    path.dataset.flows=JSON.stringify(graphFlows);
     svg.appendChild(path);
   }
   function polyline(points,ok,color){
@@ -1181,6 +1152,7 @@ function renderConnectionGraph(summary,agents){
     path.setAttribute('stroke-width','3');
     path.setAttribute('fill','none');
     path.setAttribute('stroke-dasharray',ok?'':'8 6');
+    path.dataset.flows=JSON.stringify(graphFlows);
     svg.appendChild(path);
   }
   function node(x,y,w,cls,title,sub,item){
@@ -1188,10 +1160,8 @@ function renderConnectionGraph(summary,agents){
     el.className='node '+(cls||'')+(item?' clickable':'');
     el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=w+'px';
     el.innerHTML='<div class="title">'+IoTStandardChart.escapeHtml(title)+'</div><div class="sub">'+IoTStandardChart.escapeHtml(sub||'')+'</div>';
-    if(item){
-      el.onclick=(event)=>showNodeMenu(event,item);
-      el.onmouseenter=(event)=>{ if(event.buttons===0) showNodeMenu(event,item); };
-    }
+    el.dataset.flows=JSON.stringify(graphFlows);el.dataset.explicitFlows='true';
+    if(item)el.graphInfo={...IoTWorkspace.topologyModel(topology).find(n=>n.id===item.id),...item,kind:IoTWorkspace.topologyModel(topology).find(n=>n.id===item.id)?.kind||'system'};
     box.appendChild(el);
   }
 
@@ -1204,6 +1174,7 @@ function renderConnectionGraph(summary,agents){
   let row=0;
   const sensePositions=[];
   groups.forEach(group=>{
+    graphFlows=[group.id];
     const sourceYs=[];
     group.agents.forEach(a=>{
       const y=firstSourceY + row*laneGap;
@@ -1231,6 +1202,7 @@ function renderConnectionGraph(summary,agents){
   const targetY=dispenseStartY + Math.max(0, (dispenseGroups.length-1)*58);
 
   sensePositions.forEach(item=>{
+    graphFlows=[item.group.id];
     const ok=item.group.connected && item.group.agents.some(a=>a.connected) && summary.mqtt.connected;
     line(senseX+senseW,item.y,brokerX,brokerY+42,ok,senseColor);
   });
@@ -1241,13 +1213,16 @@ function renderConnectionGraph(summary,agents){
   const lenseCls='center lense'+(lenseOk?'':' down-node');
   const dbOk=componentOnline('postgres', brokerOk);
   const dbCls='system'+(dbOk?'':' down-node');
+  graphFlows=[...groups.map(g=>g.id),'historian'];
   node(brokerX,brokerY,brokerW,brokerCls,'MQTT Broker',brokerOk?'connected':'down',{id:'mqtt',label:'MQTT Broker',kind:'System Component'});
+  graphFlows=['historian'];
   node(lenseX,lenseY,lenseW,lenseCls,'IoT Lense',lenseOk?'analytics and historian':'down | analytics and historian',{id:'iot-lense',label:'IoT Lense',kind:'IoT Lense',url:'http://127.0.0.1:8000',remoteConfigHash:'#configurations/iot-lense'});
   node(dbX,dbY,dbW,dbCls,'Postgres',dbOk?'historian storage':'down | historian storage',{id:'postgres',label:'Postgres',kind:'System Component'});
   polyline([[brokerX+brokerW/2,brokerY],[lenseX+lenseW/2,lenseY+84]],brokerOk&&lenseOk,componentColor);
   line(lenseX+lenseW,lenseY+42,dbX,dbY+42,lenseOk&&dbOk,lenseColor);
 
   dispenseGroups.forEach((group,idx)=>{
+    graphFlows=[group.id];
     const y=dispenseStartY+idx*108;
     const dispenseOk=componentOnline(group.dispense.id,false);
     const dispenseCls='dispense'+(dispenseOk?'':' down-node');
@@ -1261,6 +1236,7 @@ function renderConnectionGraph(summary,agents){
   const targetId=target.id||'dispense-target-mqtt';
   const targetOk=componentOnline(targetId, true);
   const targetCls='target'+(targetOk?'':' down-node');
+  graphFlows=dispenseGroups.map(g=>g.id);
   node(targetX,targetY,targetW,targetCls,'Dispense Target MQTT',(targetOk?'':'down | ')+(target.host||'dispense-broker')+':'+(target.externalPort||1884),{id:targetId,label:target.label||'Dispense Target MQTT',kind:'Target Broker'});
   IoTWorkspace.graphLanes(box,[{x:0,width:350,label:'Sources / Presense'},{x:350,width:350,label:'Collection / Sense'},{x:700,width:350,label:'Messaging & Lense'},{x:1050,width:350,label:'Storage & forwarding'},{x:1400,width:380,label:'Destinations'}]);
   renderConnectionGraphLegend();
@@ -1320,20 +1296,11 @@ async function loadAgents(groupSlug=null){
   agents.innerHTML=visibleGroups.map(group=>{
     const rows=group.rows
       .filter(row=>!q || row.id.toLowerCase().includes(q) || row.type.toLowerCase().includes(q) || String(row.source).toLowerCase().includes(q))
-      .sort((a,b)=>a.id.localeCompare(b.id));
+      .sort((a,b)=>Number(a.connected&&a.healthy)-Number(b.connected&&b.healthy)||a.id.localeCompare(b.id));
     if(!rows.length)return '';
-    const cards=rows.map(row=>'<div class="agent-card">'+
-      '<div class="k">'+IoTStandardChart.escapeHtml(row.type)+'</div>'+
-      '<a href="'+row.link+'">'+IoTStandardChart.escapeHtml(row.id)+'</a>'+
-      '<div class="overview-hint">'+IoTStandardChart.escapeHtml(row.hint||'')+'</div>'+
-      '<div class="agent-meta">'+
-        '<div class="meta-box"><div class="k">Connected</div><div>'+statusDot(row.connected)+row.connected+'</div></div>'+
-        '<div class="meta-box"><div class="k">Healthy</div><div>'+statusDot(row.healthy)+row.healthy+'</div></div>'+
-      '</div>'+
-      '<div class="overview-hint" style="margin-top:10px">'+IoTStandardChart.escapeHtml(row.source)+'</div>'+
-      '<div class="overview-hint">'+IoTStandardChart.escapeHtml(row.ts||'')+'</div>'+
-    '</div>').join('');
-    return '<div class="card agent-group '+group.className+'"><h3>'+IoTStandardChart.escapeHtml(group.title)+'</h3><div class="agent-grid">'+cards+'</div></div>';
+    const esc=IoTStandardChart.escapeHtml;
+    const cards=rows.map(row=>'<tr><td><a href="'+row.link+'">'+esc(row.id)+'</a></td><td>'+statusDot(row.connected)+(row.connected?'Connected':'Offline')+'</td><td>'+statusDot(row.healthy)+(row.healthy?'Healthy':'Check')+'</td><td>'+esc(row.source)+'</td><td title="'+esc(row.ts||'')+'">'+esc(Number.isFinite(Date.parse(row.ts))?new Date(row.ts).toLocaleTimeString():row.ts||'—')+'</td></tr>').join('');
+    return '<section class="card agent-group '+group.className+'">'+(groupSlug?'':'<h3>'+esc(group.title)+'</h3>')+'<div class="list-scroll"><table class="compact-list"><thead><tr><th>Instance</th><th>Connection</th><th>Health</th><th>Protocol / endpoint</th><th>Last seen</th></tr></thead><tbody>'+cards+'</tbody></table></div></section>';
   }).join('');
 }
 
@@ -1391,11 +1358,11 @@ async function loadAgent(id){
   ]);
 
   agentTopics.innerHTML=topics.length
-    ? topics.map(t=>'<div class="leaf">'+IoTUI.escapeHtml(t)+'</div>').join('')
+    ? topics.map(t=>'<div><a class="leaf" href="#namespace/'+encodeURIComponent(t)+'">'+IoTUI.escapeHtml(t)+'</a></div>').join('')
     : '<div class="k">No topics observed for this entry yet.</div>';
 
-  messages.innerHTML=messages.length
-    ? messages.map(m=>'<pre>['+m.timestamp+'] '+m.topic+'\n'+JSON.stringify(m.payload,null,2)+'</pre>').join('')
+  document.getElementById('messages').innerHTML=messages.length
+    ? messages.map(m=>'<pre>'+IoTUI.escapeHtml('['+m.timestamp+'] '+m.topic+'\n'+JSON.stringify(m.payload,null,2))+'</pre>').join('')
     : '<div class="k">No messages observed yet. For virtual stack components, use System Components or Configurations for more details.</div>';
 
   let availabilityItems=[];
@@ -1600,6 +1567,17 @@ async function openTopicPreview(topic){
   unsValueTable.innerHTML='';
   unsChartWrap.classList.remove('hidden');
   unsLegend.classList.remove('hidden');
+  const logRef=IoTWorkspace.topicLogRef(topic);
+  if(logRef){
+    unsChartTitle.textContent=logRef.agentId+' / '+(logRef.kind==='errors'?'Errors':'Logs');unsChartHint.textContent=topic;
+    unsChartWrap.classList.add('hidden');unsLegend.classList.add('hidden');unsChart.draw([], '');
+    unsStatusPreview.textContent='Loading…';
+    try{const data=await safeJson('/api/logs');const items=IoTWorkspace.topicLogs(data.items,logRef);
+      if(items.length)IoTUI.renderGroupedLogs(unsStatusPreview,items,new Set(['ERROR','WARN','WARNING','INFO']));
+      else unsStatusPreview.textContent=logRef.kind==='errors'?'No errors reported for this source in the last 24 hours.':'No logs available for this source.';
+    }catch(error){unsStatusPreview.textContent='Could not load '+logRef.kind+': '+error.message;}
+    return;
+  }
   if(metric){
     unsChartTitle.textContent=metric.agentId+' / '+metric.metricName;
     unsChartHint.textContent=topic;
@@ -1615,15 +1593,17 @@ async function openTopicPreview(topic){
     }
     const url='/api/query?agent_id='+encodeURIComponent(metric.agentId)+'&metric_name='+encodeURIComponent(metric.metricName)+'&range_minutes=60&bucket_seconds=30&aggregation=avg';
     const d=await safeJson(url);
+    if(!(d.items||[]).length){unsChart.draw([],metric.metricName);unsChartWrap.classList.add('hidden');unsLegend.classList.add('hidden');renderValueTable([],metric);return;}
     unsChart.draw([{key:metric.agentId+':'+metric.metricName,label:metric.agentId+' '+metric.metricName,points:(d.items||[]).map(i=>({timestamp:i.timestamp,value:i.value}))}],metric.metricName);
     return;
   }
+  unsChartTitle.textContent=topic;unsChartHint.textContent='No preview available for this topic yet.';unsChartWrap.classList.add('hidden');unsLegend.classList.add('hidden');
   const status=topicToStatus(topic);
   if(status){
     unsChartTitle.textContent=status.agentId+' / status';
     unsChartHint.textContent=topic;
     const d=await safeJson('/api/agents/'+encodeURIComponent(status.agentId));
-    unsStatusPreview.innerHTML='<pre>'+JSON.stringify(d.agent,null,2)+'</pre>';
+    unsStatusPreview.innerHTML='<pre>'+IoTUI.escapeHtml(JSON.stringify(d.agent,null,2))+'</pre>';
     unsValueTable.innerHTML='';
     unsChartWrap.classList.add('hidden');
     unsLegend.classList.add('hidden');
@@ -1644,8 +1624,8 @@ function renderTree(node,el,path=[]){
       const child=document.createElement('div');child.className='tree-node';renderTree(v,child,next);d.appendChild(child);el.appendChild(d);
     }else{
       const div=document.createElement('div');div.className='leaf';div.textContent=k;
-      const topic=next.join('/');
-      if(topicToMetric(topic)||topicToStatus(topic)){div.title='Open endpoint preview';div.onclick=()=>openTopicPreview(topic);}
+      const topic=next.join('/');div.dataset.topic=topic;div.tabIndex=0;
+      div.setAttribute('role','button');div.title='Open endpoint preview';div.onclick=()=>openTopicPreview(topic);div.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();div.click();}};
       el.appendChild(div);
     }
   });

@@ -14,5 +14,8 @@ node shared/web/iot-ui.test.js
 node shared/web/standard-chart.test.js
 node shared/web/workspace-ui.test.js
 node scripts/kubernetes-config.test.js
+node scripts/protocol-deployment.test.js
+node shared/web/live-messages.test.js
+node scripts/repository-check.cjs
 
 printf '\n%s\n' 'All tests finished successfully.'

@@ -6,7 +6,7 @@ I use this documentation to explain the project from the perspective of the deve
 
 Recommended reading order:
 
-For interactive setup, start with [UI workflows and simulator configuration](ui-workflows.md).
+For interactive setup, start with [UI workflows and simulator configuration](ui-workflows.md), including [current interface screenshots](ui-workflows.md#current-interface-screenshots). OPC UA security setup is documented under [Certificates](certificates.md).
 
 1. [Architecture](architecture.md)
 2. [Configuration and rollout guide](configuration-rollout.md)

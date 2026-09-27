@@ -9,19 +9,19 @@ OT.io separates **simulation** (Presense), **collection** (Sense), and **observa
 | Requested protocol | Network variant / implementation | Presense and test status |
 |---|---|---|
 | Modbus TCP / RTU | Native TCP; RTU frames with CRC over TCP tunnel | Both local simulator/client round trips tested. Serial RTU needs a transparent gateway. |
-| OPC UA | Native OPC UA Binary over TCP via `lab-opcua-tcp` | Native numeric and boolean round trips tested; anonymous / None lab mode. Existing `opcua` remains the older HTTP demo. |
+| OPC UA | Native OPC UA Binary over TCP via `lab-opcua-tcp` | Native numeric and boolean round trips tested; None demo mode or certificate profiles with Basic256Sha256 / SignAndEncrypt (anonymous user token). See [certificates](certificates.md). Existing `opcua` remains the older HTTP demo. |
 | PROFINET | RT/IRT requires Ethernet controller stack | Gateway; no native IO controller/device simulation. S7 access is not PROFINET IO. |
 | PROFIBUS DP/PA | Fieldbus master/gateway | Gateway; no direct TCP driver. |
 | EtherNet/IP (CIP) | PLC4Go explicit symbolic tag reads | Experimental `lab-ethernet-ip`; no cyclic I/O adapter simulation. |
 | EtherCAT | Raw Ethernet master and suitable interface | Gateway; no native process-I/O implementation. |
-| Siemens S7 / ISO-on-TCP / RFC1006 | PLC4Go S7 read over TCP | Experimental `lab-s7`; device requires appropriate access configuration. |
+| Siemens S7 / ISO-on-TCP / RFC1006 | PLC4Go S7 read over TCP | Experimental `lab-s7`; device requires appropriate access configuration. Optional read-only DB1 REAL simulator on TCP 1102. |
 | CAN / CANopen | CAN interface or mapped gateway | Gateway. |
 | J1939 | CAN/J1939 interface and PGN/SPN mapping | Gateway. |
 | IO-Link | Point-to-point device through an IO-Link master | Gateway using the master's actual upstream API/protocol. |
 | HART | Wired HART requires hardware; HART-IP exists | HART-IP is **not implemented**, although IP based. |
 | BACnet | BACnet/IP over UDP | Experimental `lab-bacnet-ip` ReadProperty; no MS/TP support. |
 | KNX | KNXnet/IP over UDP | Experimental `lab-knxnet-ip` group reads; matching DPT and gateway needed. |
-| M-Bus / Wireless M-Bus | Wired bus or radio receiver/gateway | Gateway; no native telegram parser. |
+| M-Bus / Wireless M-Bus | Wired bus or radio receiver/gateway | `lab-mbus-tcp`: limited CI72 / DIF02 / VIF5A temperature read through a transparent TCP gateway and matching optional simulator. No serial/radio access. |
 | IEC 60870-5-104 | PLC4Go TCP event sampling | Experimental `lab-iec-60870-5-104`; waits for a matching ASDU/IOA event. |
 | IEC 61850 | MMS over IP; GOOSE/SV use separate Ethernet mappings | **Not implemented**; no claim of MMS, GOOSE or SV support. |
 | DNP3 | TCP and serial variants exist | **Not implemented**; a gateway is currently required. |
@@ -31,9 +31,9 @@ OT.io separates **simulation** (Presense), **collection** (Sense), and **observa
 
 ## Start and test
 
-Use [Example 03](../examples/03-protocol-lab/README.md) for the complete stack or `go run ./apps/protocol-lab` for the standalone native simulators and lab UI. [Example 04](../examples/04-device-gateways/README.md) covers connection strings and physical-device gateways.
+Use [Example 03](../examples/03-protocol-lab/README.md) for the complete stack or `go run ./apps/protocol-lab` for the standalone lab UI (simulators off until explicitly started). [Example 04](../examples/04-device-gateways/README.md) covers connection strings and physical-device gateways.
 
-The modern lab UI offers protocol search, capability filters, connection/address presets, one-shot reads, cancellation, clear error/result states, a bounded in-memory test history, simulator controls and a Sense configuration snippet. Unsupported entries cannot be submitted as a native read.
+The Lab separates TCP connection testing, Sense deployment preparation, and optional simulation. The selector includes only implemented TCP adapters. UDP and hardware-only entries remain in this reference for compatibility and planning. Simulator activation is explicit through the UI or `LAB_SIMULATORS`. External reads do not activate simulators.
 
 Lense uses `PROTOCOL_LAB_URL` (default `http://protocol-lab:8500`) for its same-origin `/protocol-lab/` proxy. The other demo UIs link to port 8500 on the current host. For a split-host deployment, open the lab's actual URL or configure Lense's proxy target.
 
@@ -82,3 +82,5 @@ Tests cover catalog/URL validation, every experimental driver's default address 
 - [FieldComm Group HART-IP](https://www.fieldcommgroup.org/technologies/HART-IP).
 - [IEC 61850-8-1 mappings](https://webstore.iec.ch/en/publication/66585).
 - [IO-Link technology](https://io-link.com/) and [DNP3 overview](https://www.dnp.org/About/Overview-of-DNP3-Protocol).
+
+The limited M-Bus fixture follows the [documented FT1.2 frame format](https://m-bus.com/documentation-wired/05-data-link-layer) and [variable-data layout](https://m-bus.com/documentation-wired/06-application-layer); unsupported encodings, units and corrupt checksums fail explicitly. Validate against the specific gateway and meter before using it beyond the demo.

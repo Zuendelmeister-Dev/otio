@@ -72,7 +72,7 @@
     element.innerHTML = rows.slice(0, 250).map(item => {
       const levelClass = item.level === 'ERROR' ? 'log-error' : item.level === 'WARN' ? 'log-warn' : 'log-info';
       const count = item.count > 1 ? ' <span class="status-pill">x' + item.count + '</span>' : '';
-      return '<pre><span class="' + levelClass + '">' + statusDot(item.level === 'INFO', item.level === 'WARN') + item.level + '</span>' +
+      return '<pre class="log-entry"><span class="' + levelClass + '">' + statusDot(item.level === 'INFO', item.level === 'WARN') + item.level + '</span>' +
         count + ' [' + escapeHtml(item.lastSeen) + '] ' + escapeHtml(item.component) + ': ' + escapeHtml(item.message) +
         '<br><span class="k">first seen: ' + escapeHtml(item.firstSeen) + '</span></pre>';
     }).join('');

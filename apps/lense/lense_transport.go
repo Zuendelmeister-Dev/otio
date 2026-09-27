@@ -55,6 +55,7 @@ func startMQTT() {
 
 func onMessage(client mqttx.Client, msg mqttx.Message) {
 	topic := msg.Topic()
+	messageTraffic.Record(topic, msg.Payload())
 	state.Lock()
 	state.LastMessage = nowISO()
 	state.MessageCount++

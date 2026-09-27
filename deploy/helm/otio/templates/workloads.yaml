@@ -121,6 +121,7 @@ spec:
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - {name: LAB_HOST, value: '{{ include "otio.prefix" . }}-protocol-lab'}
+            - {name: LAB_SIMULATORS, value: "modbus-tcp,modbus-rtu-tcp,opcua-tcp,mqtt,amqp"}
             - {name: LAB_MQTT_URL, value: 'tcp://{{ include "otio.prefix" . }}-mqtt:1883'}
             - name: LAB_AMQP_URL
               valueFrom: {secretKeyRef: {name: {{ include "otio.prefix" . }}-otio-credentials, key: LAB_AMQP_URL}}

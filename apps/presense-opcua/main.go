@@ -230,17 +230,7 @@ function pct(v){return Math.max(0,Math.min(100,Number(v)||0))}
 function logClass(level){return level==='ERROR'?'log-error':level==='WARN'?'log-warn':'log-info'}
 function renderLogs(){const selected=new Set(Array.from(document.querySelectorAll('.log-filter:checked')).map(x=>x.value));logs.innerHTML=logsData.filter(x=>selected.has(x.level)).map(x=>'<div class="log-row"><span class="'+logClass(x.level)+'"><span class="dot"></span>'+esc(x.level)+'</span> '+esc(x.message)+'</div>').join('')}
 
-function renderPresenseGraph(){
-  const box=document.getElementById('connectionGraph'); if(!box)return;
-  const w=1040, h=260; box.style.width=w+"px"; if(window.IoTWorkspace)IoTWorkspace.graphViewport(box); box.style.height=h+'px';
-  const leftX=40, midX=Math.round(w/2)-110, rightX=w-230, y=95;
-  box.innerHTML='<svg class="edge-svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"></svg>';
-  const svg=box.querySelector('svg');
-  function line(x1,y1,x2,y2){const p=document.createElementNS('http://www.w3.org/2000/svg','path');const dx=Math.max(80,Math.abs(x2-x1)*0.45);p.setAttribute('d','M '+x1+' '+y1+' C '+(x1+dx)+' '+y1+', '+(x2-dx)+' '+y2+', '+x2+' '+y2);p.setAttribute('stroke','#8a9099');p.setAttribute('stroke-width','3');p.setAttribute('fill','none');svg.appendChild(p);}
-  function node(x,y,title,sub){const n=document.createElement('div');n.className='node';n.style.left=x+'px';n.style.top=y+'px';n.style.width='200px';n.innerHTML='<div class="title">'+esc(title)+'</div><div class="sub">'+esc(sub||'')+'</div>';box.appendChild(n);}
-  line(leftX+200,y+42,midX,y+42); line(midX+200,y+42,rightX,y+42);
-  node(leftX,y,status.deviceId||'Presense','simulated source'); node(midX,y,status.protocol||'Protocol','generator '+(status.generatorMode||'unknown')); node(rightX,y,'Endpoint','port '+(status.port||status.uiPort||''));
-}
+function renderPresenseGraph(){const box=document.getElementById('connectionGraph');if(box&&window.IoTWorkspace)IoTWorkspace.renderPresenseGraph(box,status);}
 function renderHealthDetails(){
   const el=document.getElementById('healthDetails'); if(!el)return;
   el.innerHTML=[['Protocol endpoint','ready',true],['Generator',status.generatorMode||'unknown',true],['Protocol',status.protocol||'unknown',true],['Values exposed',String(Object.keys((vals.metrics||{})).length),true]].map(x=>'<div class="health-item"><span><span class="dot" style="color:'+(x[2]?'var(--green)':'var(--red)')+'"></span>'+esc(x[0])+'</span><span>'+esc(x[1])+'</span></div>').join('');

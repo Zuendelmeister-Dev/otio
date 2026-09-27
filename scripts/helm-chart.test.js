@@ -5,6 +5,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const root = path.resolve(__dirname, '..');
 const helm = process.env.HELM_BIN || 'helm';
+const collectorConfig={broker:{host:'plant-mqtt',port:1883,clientId:'sense-edge-01'},sources:[{agentId:'machine',type:'lab-s7',options:{gatewayURL:'http://sense-edge-gateway:8500',connection:'s7://192.168.1.10:102'},metrics:[{name:'temperature',address:'%DB1:0:REAL',scale:1}]}]};
 for (const name of ['sense.json', 'topology.json']) {
   const read = dir => JSON.parse(fs.readFileSync(path.join(root, dir, name), 'utf8'));
   assert.deepEqual(read('deploy/helm/otio/files'), read('deploy/kubernetes/config'), `Chart seed drift: ${name}`);
@@ -23,6 +24,15 @@ function embeddedJSON(text, key) {
   return JSON.parse(match[1].split('\n').map(line => line.slice(4)).join('\n'));
 }
 run(['lint', 'deploy/helm/otio', '--strict']);
+run(['lint','deploy/helm/otio-sense','--strict','--set-json','config='+JSON.stringify(collectorConfig)]);
+run(['template','sense-edge','deploy/helm/otio-sense'],false);
+const collector=run(['template','sense-edge','deploy/helm/otio-sense','--set-json','config='+JSON.stringify(collectorConfig)]);
+assert.equal((collector.match(/^kind: Deployment$/gm)||[]).length,2);
+assert.equal((collector.match(/^kind: Service$/gm)||[]).length,2);
+assert.equal((collector.match(/^kind: Secret$/gm)||[]).length,1);
+assert(!collector.includes('LAB_SIMULATORS'),'Collector deployment must not start simulators');
+assert(collector.includes('type: Recreate'),'Collector must not overlap identical MQTT identities');
+assert(collector.includes('sense-edge-gateway:8500'));
 const standard = render(['-f', 'examples/06-helm/values-kind.yaml']);
 assert.equal((standard.match(/^kind: Deployment$/gm) || []).length, 6);
 assert.equal((standard.match(/^kind: Service$/gm) || []).length, 6);
@@ -51,3 +61,8 @@ assert(render(['--set-string', 'persistence.storageClass=']).includes('storageCl
 run(['template', 'invalid', 'deploy/helm/otio', '--set', 'imagePullPolicy=invalid'], false);
 run(['template', 'invalid', 'deploy/helm/otio', '--set-string', 'persistence.postgresSize=oops'], false);
 console.log('Helm render, configuration, credential escaping, storage and validation tests passed');
+
+const secured=run(['template','sense-edge','deploy/helm/otio-sense','--set-json','config='+JSON.stringify(collectorConfig),'--set','existingCertificateSecret=edge-certificates']);
+assert(secured.includes('secretName: "edge-certificates"'));
+assert(secured.includes('OTIO_CERTIFICATE_DIR'));
+assert(secured.includes('readOnly: true'));

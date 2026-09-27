@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 func findRemoteBaseURL(id string) string {
@@ -337,6 +339,19 @@ func apiAgents(w http.ResponseWriter, r *http.Request) {
 func apiAgent(w http.ResponseWriter, r *http.Request) {
 	agentID := strings.TrimPrefix(r.URL.Path, "/api/agents/")
 	topo, configured := configuredAgentSet()[agentID]
+	sourceIDs := []string{agentID}
+	if !configured {
+		if sense, exists := configuredSenseSet()[agentID]; exists {
+			sourceIDs = []string{}
+			for _, source := range loadTopology().Agents {
+				if source.SenseID == agentID {
+					sourceIDs = append(sourceIDs, source.AgentID)
+				}
+			}
+			topo = AgentTopology{AgentID: agentID, SourceType: "sense", SourceHost: sense.URL}
+			configured = true
+		}
+	}
 	if !configured {
 		http.Error(w, "agent is not in current topology", http.StatusNotFound)
 		return
@@ -356,7 +371,7 @@ func apiAgent(w http.ResponseWriter, r *http.Request) {
 		payload = `{}`
 	}
 
-	topicRows, _ := db.Query(`SELECT DISTINCT topic FROM metric_events WHERE agent_id=$1 ORDER BY topic`, agentID)
+	topicRows, _ := db.Query(`SELECT DISTINCT topic FROM metric_events WHERE agent_id=ANY($1) ORDER BY topic`, pq.Array(sourceIDs))
 	var topics []string
 	if topicRows != nil {
 		defer topicRows.Close()
@@ -367,7 +382,7 @@ func apiAgent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	msgRows, _ := db.Query(`SELECT ts, topic, payload FROM metric_events WHERE agent_id=$1 ORDER BY ts DESC LIMIT 50`, agentID)
+	msgRows, _ := db.Query(`SELECT ts, topic, payload FROM metric_events WHERE agent_id=ANY($1) ORDER BY ts DESC LIMIT 50`, pq.Array(sourceIDs))
 	var messages []map[string]any
 	if msgRows != nil {
 		defer msgRows.Close()
@@ -380,6 +395,11 @@ func apiAgent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if topo.SourceType == "sense" {
+		state := componentStatusSnapshot()[agentID]
+		connected = state.Connected
+		healthy = state.Healthy
+	}
 	timestamp := ""
 	if !ts.IsZero() {
 		timestamp = scanTimeString(ts)
