@@ -58,6 +58,8 @@ helm test otio -n otio-helm --logs
 
 The Helm test checks Lense's Protocol Lab proxy, valid Sense configuration and an actual native OPC UA read. It does not certify physical-device interoperability. `helm template` output includes Secrets; do not publish output rendered with private credentials.
 
+The completed test Pod remains available so `helm test --logs` can retrieve its output. The next test run replaces it automatically. Helm does not manage hook Pods during uninstall; remove it explicitly with `kubectl -n otio-helm delete pod otio-connectivity-test --ignore-not-found` when finished (adjust the namespace and release prefix if changed).
+
 ## Access and try the demo
 
 Run each port-forward in its own terminal:

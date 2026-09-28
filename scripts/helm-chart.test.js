@@ -34,6 +34,9 @@ assert(!collector.includes('LAB_SIMULATORS'),'Collector deployment must not star
 assert(collector.includes('type: Recreate'),'Collector must not overlap identical MQTT identities');
 assert(collector.includes('sense-edge-gateway:8500'));
 const standard = render(['-f', 'examples/06-helm/values-kind.yaml']);
+const connectivityTest = standard.split(/^---\s*$/m).find(doc => /^kind: Pod$/m.test(doc) && doc.includes('name: plant-a-connectivity-test'));
+assert(connectivityTest, 'Missing connectivity test Pod');
+assert.match(connectivityTest, /helm\.sh\/hook-delete-policy: before-hook-creation\s*\n/, 'Keep completed test Pods for helm test --logs; replace them on the next run');
 const lenseDeployment = standard.split(/^---\s*$/m).find(doc => /^kind: Deployment$/m.test(doc) && doc.includes('name: plant-a-lense'));
 assert(lenseDeployment, 'Missing rendered Lense deployment');
 assert(lenseDeployment.includes('enableServiceLinks: false'), 'Lense must not inherit Service port URLs');
