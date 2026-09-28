@@ -167,7 +167,10 @@ spec:
           env:
             - {name: PROTOCOL_LAB_URL, value: 'http://protocol-lab:8500'}
             - {name: POSTGRES_HOST, value: postgres}
+            # Override Kubernetes Service variables such as POSTGRES_PORT=tcp://IP:5432.
+            - {name: POSTGRES_PORT, value: '5432'}
             - {name: MQTT_BROKER, value: mqtt}
+            - {name: MQTT_PORT, value: '1883'}
             - name: POSTGRES_USER
               valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_USER}}
             - name: POSTGRES_PASSWORD

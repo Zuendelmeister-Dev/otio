@@ -5,12 +5,24 @@ services:
     volumes:
       - ../../deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ports: ["127.0.0.1:1883:1883"]
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "127.0.0.1", "-t", "healthcheck", "-m", "ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
   rabbitmq:
     image: rabbitmq:4-management
     environment:
       RABBITMQ_DEFAULT_USER: lab
       RABBITMQ_DEFAULT_PASS: lab
     ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    healthcheck:
+      # Use the broker user so an early CLI probe cannot create a root-owned Erlang cookie.
+      test: ["CMD", "gosu", "rabbitmq", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
   protocol-lab:
     build:
       context: ../..

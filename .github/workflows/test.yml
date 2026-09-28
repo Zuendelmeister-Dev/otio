@@ -110,15 +110,16 @@ jobs:
       - name: Real broker integration tests
         if: runner.os == 'Linux'
         env:
-          LAB_TEST_MQTT_URL: tcp://localhost:1883
-          LAB_TEST_AMQP_URL: amqp://lab:lab@localhost:5672/
+          LAB_TEST_MQTT_URL: tcp://127.0.0.1:1883
+          LAB_TEST_AMQP_URL: amqp://lab:lab@127.0.0.1:5672/
         run: |
-          docker compose -f examples/03-protocol-lab/docker-compose.yml up -d mqtt rabbitmq
-          for attempt in $(seq 1 30); do
-            if docker compose -f examples/03-protocol-lab/docker-compose.yml exec -T rabbitmq rabbitmq-diagnostics -q ping; then break; fi
-            sleep 2
-          done
+          docker compose -f examples/03-protocol-lab/docker-compose.yml up -d --wait --wait-timeout 180 mqtt rabbitmq
           go test -count=1 -run TestBrokerRoundTrips ./apps/protocol-lab/...
+      - name: Diagnose integration broker failure
+        if: failure() && runner.os == 'Linux'
+        run: |
+          docker compose -f examples/03-protocol-lab/docker-compose.yml ps -a
+          docker compose -f examples/03-protocol-lab/docker-compose.yml logs --no-color --tail=200 mqtt rabbitmq
       - name: Stop integration brokers
         if: always() && runner.os == 'Linux'
         run: docker compose -f examples/03-protocol-lab/docker-compose.yml down
