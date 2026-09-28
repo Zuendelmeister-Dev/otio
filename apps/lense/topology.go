@@ -2,9 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"sync"
 )
+
+// apiPublicTopology shares navigation metadata only, never configuration or credentials.
+func apiPublicTopology(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, loadTopology())
+}
 
 type SenseTopology struct {
 	ID         string `json:"id"`

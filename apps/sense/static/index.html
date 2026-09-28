@@ -308,22 +308,7 @@ function setFeedback(text, kind){
 }
 
 function statusDot(ok,warn=false){return '<span class="dot '+(ok?'ok':warn?'warn':'')+'"></span>'}
-function drawSensePie(healthy,unhealthy){
-  const c=document.getElementById('sensePie');
-  if(!c)return;
-  const ratio=window.devicePixelRatio||1;
-  const w=c.clientWidth||c.width||360;
-  const h=220;
-  c.width=w*ratio;c.height=h*ratio;
-  const ctx=c.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);
-  const total=Math.max(1,healthy+unhealthy);
-  let start=-Math.PI/2;
-  [[healthy,'#28c76f','healthy'],[unhealthy,'#ff4d4f','unhealthy']].forEach(([value,color,label],idx)=>{
-    const angle=(value/total)*Math.PI*2;
-    ctx.beginPath();ctx.moveTo(w/2,92);ctx.arc(w/2,92,70,start,start+angle);ctx.closePath();ctx.fillStyle=color;ctx.fill();start+=angle;
-    ctx.fillStyle='#e7e9ee';ctx.font='13px Inter, system-ui, sans-serif';ctx.fillText(label+': '+value,24,180+idx*18);
-  });
-}
+function drawSensePie(healthy,unhealthy){IoTWorkspace.drawHealthPie(document.getElementById('sensePie'),healthy,unhealthy);}
 
 function countMetricPoints(data){
   return Object.values(data||{}).reduce((sum,metrics)=>sum+Object.values(metrics||{}).reduce((inner,points)=>inner+(Array.isArray(points)?points.length:0),0),0);
@@ -362,6 +347,7 @@ function renderBrokerDetails(){
 function renderConnectionGraph(status){
   const box=document.getElementById('connectionGraph');
   if(!box)return;
+  box.dataset.defaultFlow=status.config.clientId||'local';
   const rows=Object.entries(status.sources||{}).sort(([a],[b])=>a.localeCompare(b));
   const boxWidth=1040;
   const height=Math.max(360, rows.length*100+100);
@@ -401,6 +387,7 @@ function renderConnectionGraph(status){
     path.setAttribute('fill','none');
     path.setAttribute('stroke-dasharray', ok ? '' : '7 5');
     if(cls) path.setAttribute('class','edge-'+cls);
+    path.dataset.flows=JSON.stringify([status.config.clientId||'local']);
     svg.appendChild(path);
   }
 
@@ -513,6 +500,10 @@ async function openSenseTopicPreview(topic){
   const wrap=document.getElementById('senseUnsChart').closest('.chart-wrap');
   wrap.hidden=!ref; senseUnsLegend.hidden=!ref;
   senseUnsChart.draw([], '');
+  let preview=document.getElementById('senseTopicDetails');if(!preview){preview=document.createElement('div');preview.id='senseTopicDetails';senseUnsChartHint.after(preview);}preview.replaceChildren();
+  const logRef=IoTWorkspace.topicLogRef(topic);
+  if(logRef){senseUnsChartTitle.textContent=logRef.agentId+' / '+(logRef.kind==='errors'?'Errors':'Logs');senseUnsChartHint.textContent=topic;
+    try{const response=await fetch('/api/logs');if(!response.ok)throw Error('Service unavailable');const data=await response.json();const items=IoTWorkspace.topicLogs(data.items,logRef);if(items.length)IoTUI.renderGroupedLogs(preview,items,new Set(['ERROR','WARN','WARNING','INFO']));else preview.textContent='No '+logRef.kind+' reported for this source.';}catch(error){preview.textContent='Could not load '+logRef.kind+': '+error.message;}return;}
   if(!ref){
     senseUnsChartTitle.textContent='Status endpoint';
     senseUnsChartHint.textContent=topic+' — This topic has no numeric metric history. Select a metrics endpoint to view a chart.';
@@ -538,7 +529,7 @@ function renderSenseTree(node,el,path=[]){
     }else{
       const div=document.createElement('div');div.className='leaf';div.textContent=k;
       const topic=next.join('/');
-      div.title='Open endpoint preview';div.onclick=()=>openSenseTopicPreview(topic);
+      div.tabIndex=0;div.setAttribute('role','button');div.title='Open endpoint preview';div.onclick=()=>openSenseTopicPreview(topic);div.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();div.click();}};
       el.appendChild(div);
     }
   });

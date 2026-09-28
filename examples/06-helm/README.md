@@ -2,6 +2,34 @@
 
 The chart at [`deploy/helm/otio`](../../deploy/helm/otio) deploys the same six-service Protocol Lab stack as Example 05: native Presense simulators, Sense, Lense, MQTT, AMQP and Postgres. This is a single-replica lab chart, without Dispense or the legacy standalone Presense services.
 
+## Pods, Services and ports
+
+The diagram shows namespace `otio-helm`. Each box combines a ClusterIP Service with its single backing application Pod; Service and container port numbers match. Arrows indicate connection initiation, not the direction of every telemetry message.
+
+```mermaid
+flowchart LR
+  browser["Browser via kubectl port-forward"] -->|"HTTP localhost 8000 to 8000"| lense
+  subgraph namespace["Namespace otio-helm"]
+    lense["otio-lense: Service + Pod"] -->|"HTTP proxy 8500"| lab["otio-protocol-lab: Service + Pod"]
+    lense -->|"HTTP 8100"| sense["otio-sense: Service + Pod"]
+    sense -->|"HTTP read requests 8500"| lab
+    lab -->|"Native reads within Lab Pod: TCP 1502 / 1503 / 4842"| lab
+    lab -->|"MQTT sample publish and subscribe 1883"| mqtt["otio-mqtt: Service + Pod"]
+    lab -->|"AMQP sample publish and consume 5672"| rabbit["otio-rabbitmq: Service + Pod"]
+    sense -->|"MQTT telemetry publish 1883"| mqtt
+    lense -->|"MQTT telemetry subscribe 1883"| mqtt
+    lense -->|"PostgreSQL TCP 5432"| db["otio-postgres: Service + Pod"]
+    sense --- config[("Sense config PVC")]
+    db --- data[("PostgreSQL data PVC")]
+  end
+```
+
+Protocol Lab exposes HTTP 8500, Modbus TCP 1502, RTU-over-TCP 1503 and OPC UA Binary 4842 through its Service. RabbitMQ also exposes its management interface on 15672 inside the cluster. Storage lines represent volume mounts, not network connections.
+
+Optional UI port-forwards map localhost 8100 → Sense 8100 and localhost 8500 → Lab 8500. Native clients need their own port-forward, for example 4842 → 4842. ClusterIP Services do not publish these ports on the host. Sense's seed init container copies configuration into its PVC; Lense's init container waits for PostgreSQL on 5432.
+
+The names shown assume Helm release `otio`; another release name changes the Service prefix and the generated connection settings together.
+
 ## Prepare images and cluster
 
 Install Helm (tested with 3.19.0), kubectl, Docker and kind. For an existing cluster, use its selected kubectl context and registry images instead. A default StorageClass or explicitly configured storage is required.
@@ -29,6 +57,8 @@ helm test otio -n otio-helm --logs
 ```
 
 The Helm test checks Lense's Protocol Lab proxy, valid Sense configuration and an actual native OPC UA read. It does not certify physical-device interoperability. `helm template` output includes Secrets; do not publish output rendered with private credentials.
+
+The completed test Pod remains available so `helm test --logs` can retrieve its output. The next test run replaces it automatically. Helm does not manage hook Pods during uninstall; remove it explicitly with `kubectl -n otio-helm delete pod otio-connectivity-test --ignore-not-found` when finished (adjust the namespace and release prefix if changed).
 
 ## Access and try the demo
 

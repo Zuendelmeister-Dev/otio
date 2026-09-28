@@ -1,8 +1,29 @@
 # Next beta verification
 
+## UI release candidate — 27 September 2026
+
+Branch: `codex/ui-usability-release`. This local record covers the working tree prepared for review; it does not claim a GitHub CI run.
+
+| Check | Result |
+|---|---|
+| `scripts/test.ps1` | Passed: all nine Go modules, shared UI/chart tests, workspace navigation, deployment generation, Kubernetes consistency, live-topic selection and repository hygiene |
+| `go vet ./...` in all nine Go modules | Passed |
+| Examples 01 and 03 `docker compose ... config --quiet` | Passed; Docker CLI warned that its user config was inaccessible in the sandbox |
+| Live Messages browser checks | Topic selection, persistent selection after refresh, paused filtering, empty results and directly visible escaped payload checked with local fixtures |
+| Documentation | Six supplied screenshots incorporated; local Markdown links and image references pass repository check |
+| Git hygiene | Candidate-file scan passed; private keys, certificate profile directories, environment overrides, image archives and publishing drafts excluded |
+| Helm render/lint suites | Not rerun: Helm is unavailable on this session's PATH |
+| Container builds / HA / physical devices / vulnerability scan | Not rerun for this UI candidate; earlier results below apply only to their dated runs |
+
+Review changes include reusable topic selection logic with regression tests, rejecting aborted stale UI responses, an eight-second total deadline for live-message aggregation, explicit HTTP upstream errors, and updated repository checks in both test wrappers. Shared Go traffic counters remain bounded; UI rendering uses text content for message payloads. Go retains protocol/network logic, while JavaScript handles view filtering and interactions.
+
+The repository scan is heuristic and is not a guarantee that all secrets are detected. Existing Go test suites skip optional external-broker tests when their endpoint variables are absent. No new coverage percentage or race-detector result is claimed.
+
+## Historical verification — 19–20 September 2026
+
 Checked locally on 2026-09-19; security update and follow-up checks on 2026-09-20, Windows/amd64, Go 1.27.1. This record covers the current working tree before its release commit; no GitHub CI run or release tag exists for these unpushed changes.
 
-## Current final checks
+### Checks in the earlier run
 
 | Check | Result |
 |---|---|
@@ -19,7 +40,7 @@ The Go test run skips optional real-broker tests when their endpoint environment
 
 ## Statement coverage
 
-These are current Go statement percentages, weighted across each module. They include newly added application code; they are not directly comparable with an older smaller package set. The overall historical baseline was 25.2%; this release candidate is 37.5% with a larger codebase. Integration tests running deployed binaries are not instrumented into these profiles.
+These are the earlier run’s Go statement percentages, weighted across each module. They include newly added application code; they are not directly comparable with an older smaller package set. The overall historical baseline was 25.2%; this release candidate is 37.5% with a larger codebase. Integration tests running deployed binaries are not instrumented into these profiles.
 
 | Module | Coverage |
 |---|---:|

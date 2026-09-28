@@ -96,6 +96,7 @@ spec:
           image: otio/protocol-lab:local
           imagePullPolicy: IfNotPresent
           env:
+            - {name: LAB_SIMULATORS, value: "modbus-tcp,modbus-rtu-tcp,opcua-tcp,mqtt,amqp"}
             - {name: LAB_MQTT_URL, value: 'tcp://mqtt:1883'}
             - name: LAB_AMQP_URL
               valueFrom: {secretKeyRef: {name: otio-credentials, key: LAB_AMQP_URL}}
@@ -153,6 +154,8 @@ spec:
   template:
     metadata: {labels: {app: lense}}
     spec:
+      # Service discovery uses DNS; injected *_PORT URLs conflict with application settings.
+      enableServiceLinks: false
       automountServiceAccountToken: false
       initContainers:
         - name: wait-postgres
@@ -165,8 +168,12 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - {name: PROTOCOL_LAB_URL, value: 'http://protocol-lab:8500'}
+            - {name: LENSE_PORT, value: '8000'}
             - {name: POSTGRES_HOST, value: postgres}
+            # Override Kubernetes Service variables such as POSTGRES_PORT=tcp://IP:5432.
+            - {name: POSTGRES_PORT, value: '5432'}
             - {name: MQTT_BROKER, value: mqtt}
+            - {name: MQTT_PORT, value: '1883'}
             - name: POSTGRES_USER
               valueFrom: {secretKeyRef: {name: otio-credentials, key: POSTGRES_USER}}
             - name: POSTGRES_PASSWORD

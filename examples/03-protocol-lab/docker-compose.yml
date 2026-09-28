@@ -5,23 +5,41 @@ services:
     volumes:
       - ../../deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ports: ["127.0.0.1:1883:1883"]
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "127.0.0.1", "-t", "healthcheck", "-m", "ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
   rabbitmq:
     image: rabbitmq:4-management
     environment:
       RABBITMQ_DEFAULT_USER: lab
       RABBITMQ_DEFAULT_PASS: lab
     ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    healthcheck:
+      # Use the broker user so an early CLI probe cannot create a root-owned Erlang cookie.
+      test: ["CMD", "gosu", "rabbitmq", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
   protocol-lab:
     build:
       context: ../..
       dockerfile: apps/protocol-lab/Dockerfile
+    volumes:
+      - certificate-profiles:/var/lib/otio/certificates
     environment:
+      OTIO_CERTIFICATE_DIR: /var/lib/otio/certificates
+      LAB_SIMULATORS: modbus-tcp,modbus-rtu-tcp,opcua-tcp,mqtt,amqp
       LAB_MQTT_URL: tcp://mqtt:1883
       LAB_AMQP_URL: amqp://lab:lab@rabbitmq:5672/
     ports:
       - "127.0.0.1:8500:8500"
       - "127.0.0.1:1502:1502"
       - "127.0.0.1:1503:1503"
+      - "127.0.0.1:1102:1102"
+      - "127.0.0.1:1504:1504"
       - "127.0.0.1:4842:4842"
     depends_on: [mqtt, rabbitmq]
     restart: unless-stopped
@@ -59,4 +77,5 @@ services:
       postgres: {condition: service_healthy}
     restart: unless-stopped
 volumes:
+  certificate-profiles:
   lab-db:

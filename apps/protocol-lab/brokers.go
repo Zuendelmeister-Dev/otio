@@ -98,7 +98,8 @@ func sampleAMQP(ctx context.Context, r ReadRequest) (any, error) {
 	}
 }
 
-func publishDemo(ctx context.Context, sim *simulator) {
+func publishDemo(ctx context.Context, sim *simulator) { publishDemoProtocol(ctx, sim, "") }
+func publishDemoProtocol(ctx context.Context, sim *simulator, protocol string) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
@@ -108,7 +109,7 @@ func publishDemo(ctx context.Context, sim *simulator) {
 		case <-ticker.C:
 			func() {
 				raw, _ := json.Marshal(sim.snapshot().Temperature)
-				if broker := os.Getenv("LAB_MQTT_URL"); broker != "" {
+				if broker := os.Getenv("LAB_MQTT_URL"); broker != "" && (protocol == "" || protocol == "mqtt") {
 					tick, cancel := context.WithTimeout(ctx, 4*time.Second)
 					client := mqttClient(broker)
 					if err := waitMQTT(tick, client.Connect()); err == nil {

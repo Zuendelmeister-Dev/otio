@@ -26,6 +26,8 @@ func main() {
 
 	port := getenv("DISPENSE_UI_PORT", "8200")
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
+	http.Handle("/api/traffic", &messageTraffic)
+	http.HandleFunc("/api/messages", messageTraffic.ServeMessages)
 	http.HandleFunc("/api/status", apiStatus)
 	http.HandleFunc("/api/metrics", apiMetrics)
 	http.HandleFunc("/api/logs", apiLogs)

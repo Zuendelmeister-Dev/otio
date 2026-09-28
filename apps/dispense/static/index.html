@@ -103,6 +103,7 @@ function renderDispenseConnectionGraph(targetId){
   const input=statusData.inputBroker||{};
   const output=statusData.outputBroker||{};
   const instance=statusData.instanceId||'IoT Dispense';
+  box.dataset.defaultFlow=instance;
   const w=1040; box.style.width=w+"px"; IoTWorkspace.graphViewport(box);
   const h=320;
   const brokerW=210, dispenseW=240, targetW=230;
@@ -125,6 +126,7 @@ function renderDispenseConnectionGraph(targetId){
     path.setAttribute('fill','none');
     path.setAttribute('stroke-dasharray', ok ? '' : '7 5');
     path.setAttribute('class','edge-'+cls);
+    path.dataset.flowInstance=instance;
     svg.appendChild(path);
   }
 

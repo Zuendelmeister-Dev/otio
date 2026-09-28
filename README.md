@@ -8,7 +8,13 @@ I built OT.io as a small, modular connectivity and diagnostics platform for mach
 
 If something breaks, IoT Lense should make it obvious where the flow stopped.
 
-![IoT Lense dashboard](docs/png/lense-dashboard.png)
+![IoT Lense connection graph with message rates](docs/png/connection-graph.png)
+
+Hover over a node or focus it with the keyboard to highlight its configured data flow. Unrelated nodes and connections fade into the background, making the selected route easier to follow. The example below highlights the Modbus flow through Sense, the MQTT broker and Dispense to the target broker. This shows configured routing, not live traffic tracing.
+
+![Highlighted Modbus data flow with unrelated nodes and connections faded out](docs/png/connection-flow-focus.png)
+
+See the [interface screenshot gallery](docs/ui-workflows.md#current-interface-screenshots) for Logs, Unified Namespace, configuration forms, Protocol Lab, component lists and the PostgreSQL explorer.
 
 ## What OT.io contains
 
@@ -35,7 +41,7 @@ If something breaks, IoT Lense should make it obvious where the flow stopped.
 - Modbus polling in Sense
 - MQTT telemetry publishing
 - central Lense dashboard
-- connection graph with status colors and line styles
+- connection graph with status colors, line styles and flow highlighting that fades unrelated paths
 - Quick Metrics and Unified Namespace views
 - protocol-specific configuration forms alongside the existing JSON workflow
 - bounded read-only PostgreSQL queries, table previews and CSV extracts

@@ -53,4 +53,10 @@ if ($LASTEXITCODE -ne 0) { throw "Kubernetes configuration tests failed (exit $L
 Write-Host ""
 & $nodePath (Join-Path $root "shared/web/workspace-ui.test.js")
 if ($LASTEXITCODE -ne 0) { throw "Workspace UI tests failed." }
+& $nodePath (Join-Path $root "scripts/protocol-deployment.test.js")
+if ($LASTEXITCODE -ne 0) { throw "Deployment generator tests failed." }
+& $nodePath (Join-Path $root "shared/web/live-messages.test.js")
+if ($LASTEXITCODE -ne 0) { throw "Live message tests failed." }
+& $nodePath (Join-Path $root "scripts/repository-check.cjs")
+if ($LASTEXITCODE -ne 0) { throw "Repository checks failed." }
 Write-Host "All tests finished successfully." -ForegroundColor Green

@@ -21,6 +21,8 @@ func main() {
 	// is handled by the catch-all UI route and the browser receives HTML instead of JS.
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/app/static"))))
 
+	http.HandleFunc("/api/graph-traffic", apiGraphTraffic)
+	http.HandleFunc("/api/live-messages", apiLiveMessages)
 	http.HandleFunc("/api/summary", apiSummary)
 	http.HandleFunc("/api/database/tables", apiDatabaseTables)
 	http.HandleFunc("/api/database/query", apiDatabaseQuery)
@@ -33,6 +35,7 @@ func main() {
 	http.HandleFunc("/api/uns", apiUNS)
 	http.HandleFunc("/api/export", apiExport)
 	http.HandleFunc("/api/runtime", apiRuntime)
+	http.HandleFunc("/api/topology", apiPublicTopology)
 	http.HandleFunc("/api/remote-config/apply", apiRemoteApplyConfig)
 	http.HandleFunc("/api/remote-config/validate", apiRemoteValidateConfig)
 	http.HandleFunc("/api/remote-config/history", apiRemoteConfigHistory)

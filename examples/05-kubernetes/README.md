@@ -2,6 +2,32 @@
 
 Deploys Protocol Lab (including native Presense simulators), Sense, Lense, Mosquitto, RabbitMQ and Postgres into namespace `otio`. Uses Kustomize built into kubectl; Helm is not required. Dispense and the legacy standalone Presense demos are not included in this example.
 
+## Pods, Services and ports
+
+The diagram shows namespace `otio`. Each box combines a ClusterIP Service with its single backing application Pod; Service and container port numbers match. Arrows indicate connection initiation, not the direction of every telemetry message.
+
+```mermaid
+flowchart LR
+  browser["Browser via kubectl port-forward"] -->|"HTTP localhost 8000 to 8000"| lense
+  subgraph namespace["Namespace otio"]
+    lense["lense: Service + Pod"] -->|"HTTP proxy 8500"| lab["protocol-lab: Service + Pod"]
+    lense -->|"HTTP 8100"| sense["sense: Service + Pod"]
+    sense -->|"HTTP read requests 8500"| lab
+    lab -->|"Native reads within Lab Pod: TCP 1502 / 1503 / 4842"| lab
+    lab -->|"MQTT sample publish and subscribe 1883"| mqtt["mqtt: Service + Pod"]
+    lab -->|"AMQP sample publish and consume 5672"| rabbit["rabbitmq: Service + Pod"]
+    sense -->|"MQTT telemetry publish 1883"| mqtt
+    lense -->|"MQTT telemetry subscribe 1883"| mqtt
+    lense -->|"PostgreSQL TCP 5432"| db["postgres: Service + Pod"]
+    sense --- config[("Sense config PVC")]
+    db --- data[("PostgreSQL data PVC")]
+  end
+```
+
+Protocol Lab exposes HTTP 8500, Modbus TCP 1502, RTU-over-TCP 1503 and OPC UA Binary 4842 through its Service. RabbitMQ also exposes its management interface on 15672 inside the cluster. Storage lines represent volume mounts, not network connections.
+
+Optional UI port-forwards map localhost 8100 → Sense 8100 and localhost 8500 → Lab 8500. Native clients need their own port-forward, for example 4842 → 4842. ClusterIP Services do not publish these ports on the host. Sense's seed init container copies configuration into its PVC; Lense's init container waits for PostgreSQL on 5432.
+
 ## Requirements
 
 - A Kubernetes cluster, kubectl with a selected context, and permission to create a namespace, Deployments, Services, ConfigMaps, Secrets and PVCs.

@@ -4,8 +4,9 @@
     'modbus-tcp':{label:'Modbus TCP',port:5020,metric:{register:0,scale:0.1}},
     opcua:{label:'OPC UA HTTP demo',port:4840,metric:{nodeId:'ns=2;s=Machine.Temperature',scale:1}},
     'lab-modbus-tcp':{label:'Modbus TCP · native lab',port:1502,connection:'modbus-tcp://protocol-lab:1502?default-unit-identifier=1',metric:{address:'holding-register:1:UINT',scale:0.01}},
-    'lab-modbus-rtu-tcp':{label:'Modbus RTU tunnel',port:1503,connection:'modbus-rtu:tcp://protocol-lab:1503?default-unit-identifier=1',metric:{address:'holding-register:1:UINT',scale:0.01}},
-    'lab-opcua-tcp':{label:'OPC UA Binary',port:4842,connection:'opc.tcp://protocol-lab:4842',metric:{nodeId:'ns=1;s=Temperature',scale:1}},
+    'lab-modbus-rtu-tcp':{label:'Modbus RTU over TCP',port:1503,connection:'modbus-rtu:tcp://protocol-lab:1503?default-unit-identifier=1',metric:{address:'holding-register:1:UINT',scale:0.01}},
+    'lab-opcua-tcp':{label:'OPC UA',port:4842,connection:'opc.tcp://protocol-lab:4842',metric:{nodeId:'ns=1;s=Temperature',scale:1}},
+    'lab-mbus-tcp':{label:'M-Bus over TCP · temperature subset',port:1504,connection:'mbus-tcp://protocol-lab:1504',metric:{address:'1',scale:1}},
     'lab-s7':{label:'Siemens S7',port:102,connection:'s7://192.168.1.10:102?remote-rack=0&remote-slot=1',metric:{address:'%DB1:0:REAL',scale:1}},
     'lab-ethernet-ip':{label:'EtherNet/IP CIP',port:44818,connection:'eip://192.168.1.10:44818',metric:{address:'%Temperature:REAL',scale:1}},
     'lab-bacnet-ip':{label:'BACnet/IP',port:47808,connection:'bacnet-ip://192.168.1.10:47808',metric:{address:'0,1/85',scale:1}},
@@ -26,11 +27,12 @@
   }
   function mount(editor){
     if(editor.dataset.formMounted)return;editor.dataset.formMounted='true';
-    const panel=document.createElement('details');panel.className='config-form';
+    const panel=document.createElement('details');panel.className='config-form';panel.open=true;
     const summary=document.createElement('summary');summary.textContent='Form editor · protocol-specific fields';
     const hint=document.createElement('p');hint.textContent='Form edits update the JSON draft. Validate and review changes before applying. Changing a source protocol replaces its address and scale presets.';
     const refresh=document.createElement('button');refresh.type='button';refresh.textContent='Load fields from JSON';
-    const body=document.createElement('div');panel.append(summary,hint,refresh,body);editor.before(panel);
+    const body=document.createElement('div');panel.append(summary,hint,refresh,body);editor.before(panel);editor.closest('.two-col')?.classList.add('config-stack');
+    const json=document.createElement('details');const jsonTitle=document.createElement('summary');jsonTitle.textContent='Advanced · JSON draft';json.append(jsonTitle);editor.before(json);json.append(editor);
     editor.closest('.card').addEventListener('click',event=>{
       const button=event.target.closest('button');
       const invalid=panel.querySelector('input:invalid');
@@ -59,7 +61,7 @@
       for(const key of Object.keys(obj)){
         if(path.length===0&&obj.generatorMode&&((obj.protocol==='modbus-tcp'&&['speed','current'].includes(key))||(obj.protocol==='opcua'&&['humidity','pressure','vibration'].includes(key))))continue;
         if(obj[key]!==null&&typeof obj[key]==='object'){
-          const details=document.createElement('details'),title=document.createElement('summary');title.textContent=Array.isArray(obj)?(obj[key].agentId||obj[key].name||'Entry '+(Number(key)+1)):key;details.open=path.length<2;details.append(title);parent.append(details);object(details,obj[key],path.concat(key));
+          const details=document.createElement('details'),title=document.createElement('summary');title.textContent=Array.isArray(obj)?(obj[key].agentId||obj[key].name||'Entry '+(Number(key)+1)):key;details.open=path.length===0;details.append(title);parent.append(details);object(details,obj[key],path.concat(key));
           if(Array.isArray(obj)){const remove=document.createElement('button');remove.type='button';remove.textContent='Remove entry from draft';remove.onclick=()=>{obj.splice(Number(key),1);publish();draw();};details.append(remove);}
         }else field(fields,obj,key,path);
       }

@@ -1,0 +1,102 @@
+{{- if not .Values.config.broker }}
+{{- fail "config.broker is required; generate sense-values.json in Protocol Lab" }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-config
+type: Opaque
+stringData:
+  config.json: {{ .Values.config | toJson | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: {{ .Release.Name }}, component: sense}
+  template:
+    metadata:
+      labels: {app: {{ .Release.Name }}, component: sense}
+      annotations:
+        checksum/config: {{ .Values.config | toJson | sha256sum }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toJson . }}
+      {{- end }}
+      containers:
+        - name: sense
+          image: {{ .Values.senseImage | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - {name: SENSE_CONFIG_PATH, value: /app/config/config.json}
+            - {name: OTIO_CONFIG_READ_ONLY, value: "true"}
+          ports: [{containerPort: 8100}]
+          readinessProbe:
+            httpGet: {path: /health, port: 8100}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts: [{name: config, mountPath: /app/config, readOnly: true}]
+      volumes:
+        - name: config
+          secret: {secretName: {{ .Release.Name }}-config}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  selector: {app: {{ .Release.Name }}, component: sense}
+  ports: [{port: 8100, targetPort: 8100}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: {{ .Release.Name }}, component: gateway}
+  template:
+    metadata:
+      labels: {app: {{ .Release.Name }}, component: gateway}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toJson . }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: {{ .Values.labImage | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .Values.existingCertificateSecret }}
+          env:
+            - {name: OTIO_CERTIFICATE_DIR, value: /var/lib/otio/certificates}
+          volumeMounts:
+            - {name: certificates, mountPath: /var/lib/otio/certificates, readOnly: true}
+          {{- end }}
+          ports: [{containerPort: 8500}]
+          readinessProbe:
+            httpGet: {path: /health, port: 8500}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+      {{- if .Values.existingCertificateSecret }}
+      volumes:
+        - name: certificates
+          secret:
+            secretName: {{ .Values.existingCertificateSecret | quote }}
+            defaultMode: 0400
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-gateway
+spec:
+  selector: {app: {{ .Release.Name }}, component: gateway}
+  ports: [{port: 8500, targetPort: 8500}]

@@ -33,7 +33,7 @@ func validateRead(r ReadRequest) error {
 	if len(r.Connection) > 2048 || len(r.Address) > 1024 || strings.TrimSpace(r.Address) == "" {
 		return errors.New("a non-empty address and a bounded connection URL are required")
 	}
-	schemes := map[string]string{"modbus-tcp": "modbus-tcp", "modbus-rtu-tcp": "modbus-rtu:tcp", "opcua-tcp": "opc.tcp", "s7": "s7", "ethernet-ip": "eip", "bacnet-ip": "bacnet-ip", "knxnet-ip": "knxnet-ip", "iec-60870-5-104": "iec-60870-5-104", "mqtt": "tcp", "amqp": "amqp"}
+	schemes := map[string]string{"mbus-tcp": "mbus-tcp", "modbus-tcp": "modbus-tcp", "modbus-rtu-tcp": "modbus-rtu:tcp", "opcua-tcp": "opc.tcp", "s7": "s7", "ethernet-ip": "eip", "bacnet-ip": "bacnet-ip", "knxnet-ip": "knxnet-ip", "iec-60870-5-104": "iec-60870-5-104", "mqtt": "tcp", "amqp": "amqp"}
 	prefix := schemes[r.Protocol] + "://"
 	if !strings.HasPrefix(r.Connection, prefix) {
 		return fmt.Errorf("connection must start with %s", prefix)
@@ -51,6 +51,8 @@ func readValue(ctx context.Context, r ReadRequest) (any, error) {
 		return nil, err
 	}
 	switch r.Protocol {
+	case "mbus-tcp":
+		return readMBus(ctx, r)
 	case "mqtt":
 		return sampleMQTT(ctx, r)
 	case "amqp":
@@ -60,7 +62,11 @@ func readValue(ctx context.Context, r ReadRequest) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		client, err := opcua.NewClient(r.Connection, opcua.SecurityMode(ua.MessageSecurityModeNone), opcua.SecurityPolicy(ua.SecurityPolicyURINone), opcua.AutoReconnect(false))
+		endpoint, options, err := opcuaClientOptions(ctx, r.Connection)
+		if err != nil {
+			return nil, err
+		}
+		client, err := opcua.NewClient(endpoint, options...)
 		if err != nil {
 			return nil, err
 		}

@@ -126,6 +126,7 @@ func onMetric(client mqttx.Client, msg mqttx.Message) {
 		return
 	}
 
+	messageTraffic.Record(targetTopic, msg.Payload())
 	state.Lock()
 	state.ForwardedCount++
 	state.LastOutput = nowISO()

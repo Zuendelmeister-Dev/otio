@@ -56,3 +56,18 @@ docs/pdf/
 !docs/png/
 !docs/png/**
 !docs/png/.gitkeep
+
+
+# Local credentials, certificate uploads and image exports
+.env.*
+!.env.example
+!.env.sample
+*.key
+*.pem
+*.p12
+*.pfx
+certificate-profiles/
+certificates-local/
+certificates/
+*.tar
+*.tar.gz

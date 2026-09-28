@@ -65,9 +65,14 @@ This checks the selected platform and current vulnerability database; it is not 
 node shared/web/iot-ui.test.js
 node shared/web/standard-chart.test.js
 node shared/web/workspace-ui.test.js
+node scripts/protocol-deployment.test.js
 ```
 
 ## Docker build test
+
+Protocol Lab tests include native S7/RFC1006 and M-Bus-over-TCP fixture reads, malformed M-Bus responses, opt-in simulator lifecycle and bounded requests when a driver ignores cancellation. Deployment generator tests check matching Sense/gateway addresses, unique collector identity, transfer commands and rejected shell input. `scripts/helm-chart.test.js` also lints and renders the minimal `otio-sense` collector chart; rendering is not a live cluster installation.
+
+For browser regression checks, verify that agent searches preserve the selected group, all instance logos return home, graph nodes open consistent details, and changing deployment inputs clears previously generated files. Check Presense form validation/application against its actual endpoint. Logs and Unified Namespace retain their existing workflows.
 
 ```bash
 docker compose build --no-cache
@@ -94,3 +99,13 @@ The separate `Kubernetes HA example` workflow runs Example 07 on a four-node kin
 ## Release verification
 
 The [next beta verification record](releases/next-beta/VERIFICATION.md) distinguishes current unit/static checks from previously completed live checks and remaining CI-only coverage.
+
+
+Certificate tests exercise upload validation, replacement, metadata privacy, expiry rejection, and a native encrypted OPC UA read with trusted-server pinning and no insecure fallback. Collector-history tests verify source scoping and the latest-50 limit. Deployment tests cover field-specific errors, certificate provisioning and Helm Secret mounts. Browser fixtures validate layout and navigation; they are not a live deployment or device connectivity test.
+## Release preparation checks
+
+Run `./scripts/test.ps1` on Windows or `sh scripts/test.sh` on Linux/macOS. Both include live-message filter regression tests and `node scripts/repository-check.cjs` (local Markdown links, image references, likely credentials and accidental runtime/build files among Git candidates). The repository check never prints matching secret values; it is a heuristic, not a complete secret audit.
+
+Run `go vet ./...` in each Go module for static analysis. Helm-dependent checks remain separate: `node scripts/helm-chart.test.js` and `node scripts/ha-chart.test.js` require Helm on PATH (or `HELM_BIN`). Validate the chosen Compose example with `docker compose -f examples/01-local-docker-compose/docker-compose.yml config --quiet` before building.
+
+The dated [verification record](releases/next-beta/VERIFICATION.md) separates current checks from earlier HA and coverage runs.

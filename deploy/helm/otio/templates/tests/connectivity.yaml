@@ -4,7 +4,9 @@ metadata:
   name: {{ include "otio.prefix" . }}-connectivity-test
   annotations:
     helm.sh/hook: test
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    # Keep the completed Pod so helm test --logs can read its output.
+    # The next test run deletes it before creating a replacement.
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   restartPolicy: Never
   activeDeadlineSeconds: 120

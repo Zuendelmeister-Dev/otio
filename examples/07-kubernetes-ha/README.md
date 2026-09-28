@@ -2,6 +2,37 @@
 
 This separate Helm example covers **Sense, Lense, MQTT and PostgreSQL**. It keeps the existing Compose and single-replica Helm examples unchanged.
 
+## HA Pods and communication
+
+These names assume release `ha` in namespace `otio-ha`. Solid arrows show application connections to listening ports. Dashed arrows show election/control traffic. Each application Deployment has two Pods; only the elected Pod runs the Sense/Lense child process.
+
+```mermaid
+flowchart LR
+  browser["Browser"] -->|"Port-forward localhost 18000 to 8000"| ls["Service ha-lense:8000"]
+  subgraph ns["Namespace otio-ha"]
+    ls -->|"HTTP 8000; active label selector"| la["Lense active Pod"]
+    lp["Lense standby Pod"]
+    ss["Service ha-sense:8100"] -->|"HTTP 8100; active label selector"| sa["Sense active Pod"]
+    sp["Sense standby Pod"]
+    la -->|"HTTP status 8100"| ss
+    sa -->|"Modbus TCP 5020"| device["Service demo-device + simulator Pod"]
+    sa -->|"MQTT publish 1883"| broker["Service ha-broker / 3 RabbitMQ Pods"]
+    la -->|"MQTT subscribe 1883"| broker
+    la -->|"PostgreSQL TCP 5432"| rw["Service ha-db-rw"]
+    rw -->|"TCP 5432; current primary"| primary["PostgreSQL primary Pod"]
+    replicas["2 PostgreSQL standby Pods"] -->|"Streaming replication TCP 5432"| primary
+  end
+  api["Kubernetes API / namespaced Leases"]
+  sa -.->|"HTTPS 443"| api
+  sp -.->|"HTTPS 443"| api
+  la -.->|"HTTPS 443"| api
+  lp -.->|"HTTPS 443"| api
+```
+
+The Sense UI can also be forwarded from localhost 18100 to Service `ha-sense:8100`. The HA supervisor exposes readiness/liveness on Pod port 8099 for kubelet probes; it is not an application UI Service. Standbys participate in election but do not collect or ingest until takeover. Application Services select the elected Pod using `otio.io/active=true`.
+
+The operators manage RabbitMQ clustering, database replication and their persistent volumes; their internal control connections are omitted from this application diagram. PostgreSQL requires one synchronous standby to acknowledge commits. The demo device has one Pod and is outside the HA guarantee. Port-forward sessions must be restarted if their selected Pod disappears.
+
 | Component | Arrangement |
 |---|---|
 | Sense | Two pods on different workers; one collector owns a Kubernetes Lease |

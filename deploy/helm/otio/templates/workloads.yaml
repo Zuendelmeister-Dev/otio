@@ -121,6 +121,7 @@ spec:
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - {name: LAB_HOST, value: '{{ include "otio.prefix" . }}-protocol-lab'}
+            - {name: LAB_SIMULATORS, value: "modbus-tcp,modbus-rtu-tcp,opcua-tcp,mqtt,amqp"}
             - {name: LAB_MQTT_URL, value: 'tcp://{{ include "otio.prefix" . }}-mqtt:1883'}
             - name: LAB_AMQP_URL
               valueFrom: {secretKeyRef: {name: {{ include "otio.prefix" . }}-otio-credentials, key: LAB_AMQP_URL}}
@@ -187,6 +188,8 @@ spec:
         checksum/config: {{ include (print .Template.BasePath "/config.yaml") . | sha256sum }}
       labels: {app: {{ include "otio.prefix" . }}-lense}
     spec:
+      # Use DNS and avoid port-variable collisions with other Services in this namespace.
+      enableServiceLinks: false
       automountServiceAccountToken: false
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}
@@ -202,6 +205,7 @@ spec:
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - {name: PROTOCOL_LAB_URL, value: 'http://{{ include "otio.prefix" . }}-protocol-lab:8500'}
+            - {name: LENSE_PORT, value: '8000'}
             - {name: POSTGRES_HOST, value: {{ include "otio.prefix" . }}-postgres}
             - {name: MQTT_BROKER, value: {{ include "otio.prefix" . }}-mqtt}
             - name: POSTGRES_USER

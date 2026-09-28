@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -39,7 +40,26 @@ func decode(w http.ResponseWriter, r *http.Request, v any) error {
 	return nil
 }
 func handler(sim *simulator, read readFunc) http.Handler {
+	return handlerWithRuntime(sim, read, newSimulationRuntime(context.Background(), sim))
+}
+func handlerWithRuntime(sim *simulator, read readFunc, runtime *simulationRuntime) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/certificates", certificatesAPI)
+	mux.HandleFunc("PUT /api/simulator/listener", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Protocol string `json:"protocol"`
+			Enabled  bool   `json:"enabled"`
+		}
+		if err := decode(w, r, &request); err != nil {
+			writeJSON(w, 400, map[string]any{"error": err.Error()})
+			return
+		}
+		if err := runtime.set(request.Protocol, request.Enabled); err != nil {
+			writeJSON(w, 422, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, 200, map[string]any{"active": runtime.names()})
+	})
 	mux.HandleFunc("GET /api/status", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"status": "ok", "values": sim.snapshot(), "publishers": sim.publisherStatus()})
 	})
@@ -53,7 +73,7 @@ func handler(sim *simulator, read readFunc) http.Handler {
 		if endpoint, err := url.Parse(os.Getenv("LAB_AMQP_URL")); err == nil && endpoint.Host != "" {
 			amqpHost = endpoint.Host
 		}
-		writeJSON(w, 200, map[string]any{"values": sim.snapshot(), "publishers": sim.publisherStatus(), "host": host, "mqttURL": os.Getenv("LAB_MQTT_URL"), "amqpHost": amqpHost, "amqpEnabled": os.Getenv("LAB_AMQP_URL") != ""})
+		writeJSON(w, 200, map[string]any{"active": runtime.names(), "values": sim.snapshot(), "publishers": sim.publisherStatus(), "host": host, "mqttURL": os.Getenv("LAB_MQTT_URL"), "amqpHost": amqpHost, "amqpEnabled": os.Getenv("LAB_AMQP_URL") != ""})
 	})
 	mux.HandleFunc("PUT /api/simulator", func(w http.ResponseWriter, r *http.Request) {
 		var v simValues
@@ -80,7 +100,6 @@ func handler(sim *simulator, read readFunc) http.Handler {
 		}
 		select {
 		case slots <- struct{}{}:
-			defer func() { <-slots }()
 		default:
 			writeJSON(w, 429, map[string]any{"error": "All eight test slots are busy; retry shortly."})
 			return
@@ -88,7 +107,22 @@ func handler(sim *simulator, read readFunc) http.Handler {
 		ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 		defer cancel()
 		start := time.Now()
-		value, err := read(ctx, request)
+		// Some experimental drivers do not finish their handshake on cancellation.
+		// Bound the HTTP wait while retaining the slot until the worker exits.
+		type result struct {
+			value any
+			err   error
+		}
+		done := make(chan result, 1)
+		go func() { defer func() { <-slots }(); v, err := read(ctx, request); done <- result{v, err} }()
+		var value any
+		var err error
+		select {
+		case response := <-done:
+			value, err = response.value, response.err
+		case <-ctx.Done():
+			err = ctx.Err()
+		}
 		if err != nil {
 			status := 502
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -100,7 +134,10 @@ func handler(sim *simulator, read readFunc) http.Handler {
 		writeJSON(w, 200, map[string]any{"value": value, "protocol": request.Protocol, "elapsedMs": time.Since(start).Milliseconds(), "timestamp": time.Now().UTC()})
 	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]any{"status": "ok"}) })
-	mux.Handle("GET /static/", http.FileServerFS(assets))
+	mux.Handle("GET /static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		http.FileServerFS(assets).ServeHTTP(w, r)
+	}))
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/", http.StatusTemporaryRedirect)
 	})
@@ -110,30 +147,27 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	sim := newSimulator()
-	uaServer, err := startOPCUA(ctx, sim, "0.0.0.0", 4842)
-	if err != nil {
-		log.Fatal(err)
+	runtime := newSimulationRuntime(ctx, sim)
+	defer runtime.stopAll()
+	for _, name := range strings.Split(os.Getenv("LAB_SIMULATORS"), ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			if err := runtime.set(name, true); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
-	defer uaServer.Close()
-	tcp, err := listenModbus(ctx, sim, 1502, false)
-	if err != nil {
-		log.Fatal(err)
+	httpAddress := os.Getenv("LAB_HTTP_ADDRESS")
+	if httpAddress == "" {
+		httpAddress = ":8500"
 	}
-	defer tcp.Close()
-	rtu, err := listenModbus(ctx, sim, 1503, true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rtu.Close()
-	go publishDemo(ctx, sim)
-	srv := &http.Server{Addr: ":8500", Handler: handler(sim, readValue), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
+	srv := &http.Server{Addr: httpAddress, Handler: handlerWithRuntime(sim, readValue, runtime), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdown)
 	}()
-	log.Println("OT.io Protocol Lab: http://localhost:8500/static/ · Modbus :1502 · RTU tunnel :1503 · OPC UA :4842")
+	log.Printf("OT.io Protocol Lab listening on %s · diagnostic reads; simulators are opt-in", httpAddress)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

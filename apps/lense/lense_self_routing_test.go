@@ -18,7 +18,7 @@ func TestLenseSelfNavigationDoesNotCreateRedundantLensePages(t *testing.T) {
 		`<a href="#dashboard" class="lense" data-lense-self-target="agents">IoT Lense</a>`,
 		`<a href="#configurations/iot-lense" class="lense" data-lense-self-target="configurations">IoT Lense</a>`,
 		"function isLenseSelfItem(item)",
-		"lenseSelf?'Open IoT Lense configuration':'Configure in IoT Lense'",
+		"IoTWorkspace.setTopology(topology)",
 		"const remoteButton=(item.url&&!isLenseSelfItem(item))?",
 		"if(page==='agents'&&id==='lense')",
 		"link:'#dashboard',hint:'Analytics, historian and central view'",

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: otio-sense
+description: One IoT Sense collector and a diagnostic protocol gateway, using an existing MQTT broker
+type: application
+version: 0.1.0
