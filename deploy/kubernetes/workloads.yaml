@@ -154,6 +154,8 @@ spec:
   template:
     metadata: {labels: {app: lense}}
     spec:
+      # Service discovery uses DNS; injected *_PORT URLs conflict with application settings.
+      enableServiceLinks: false
       automountServiceAccountToken: false
       initContainers:
         - name: wait-postgres
@@ -166,6 +168,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - {name: PROTOCOL_LAB_URL, value: 'http://protocol-lab:8500'}
+            - {name: LENSE_PORT, value: '8000'}
             - {name: POSTGRES_HOST, value: postgres}
             # Override Kubernetes Service variables such as POSTGRES_PORT=tcp://IP:5432.
             - {name: POSTGRES_PORT, value: '5432'}

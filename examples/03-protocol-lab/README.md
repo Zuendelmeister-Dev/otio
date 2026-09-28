@@ -2,6 +2,34 @@
 
 A standalone demo stack with the new Presense simulator, native protocol adapters, Sense collection, MQTT, RabbitMQ, Postgres and Lense. Stop Example 01 first: this example uses the same UI and broker ports.
 
+## Containers and protocol paths
+
+Each box is a container, except the simulator box inside Protocol Lab. Arrows show who initiates a connection; MQTT/AMQP subscriptions receive data over the same connection. All edge ports are internal destination ports.
+
+```mermaid
+flowchart LR
+  browser["Browser"] -->|"HTTP host 8000"| lense
+  subgraph stack["Docker Compose network"]
+    lense["lense"] -->|"HTTP proxy 8500"| api
+    lense -->|"HTTP status and configuration 8100"| sense["sense"]
+    sense -->|"HTTP read requests 8500"| api
+    subgraph lab["protocol-lab container"]
+      api["Lab API and adapters"]
+      sim["Native simulators"]
+      api -->|"Modbus TCP 1502 / RTU tunnel 1503 / OPC UA TCP 4842"| sim
+    end
+    api -->|"MQTT samples: publish and subscribe 1883"| mqtt["mqtt"]
+    api -->|"AMQP samples: publish and consume 5672"| rabbit["rabbitmq"]
+    sense -->|"MQTT telemetry publish 1883"| mqtt
+    lense -->|"MQTT telemetry subscribe 1883"| mqtt
+    lense -->|"PostgreSQL TCP 5432"| db["postgres"]
+  end
+```
+
+Sense's five `lab-*` sources call the Lab API on 8500; the Lab performs the native protocol or broker read. Sense then publishes the collected telemetry to MQTT. The broker sample reads and the telemetry stream are separate uses of the brokers.
+
+Host access binds to loopback: Lense 8000, Sense 8100, Lab 8500, MQTT 1883, AMQP 5672 and RabbitMQ management 15672 map to the same container ports. Native simulator ports 1502, 1503 and 4842 also map one-to-one. Ports 1102 and 1504 are published for opt-in S7/M-Bus simulators. PostgreSQL 5432 is internal only.
+
 ## Start
 
 From this directory:

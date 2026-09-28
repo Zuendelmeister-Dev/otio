@@ -34,6 +34,10 @@ assert(!collector.includes('LAB_SIMULATORS'),'Collector deployment must not star
 assert(collector.includes('type: Recreate'),'Collector must not overlap identical MQTT identities');
 assert(collector.includes('sense-edge-gateway:8500'));
 const standard = render(['-f', 'examples/06-helm/values-kind.yaml']);
+const lenseDeployment = standard.split(/^---\s*$/m).find(doc => /^kind: Deployment$/m.test(doc) && doc.includes('name: plant-a-lense'));
+assert(lenseDeployment, 'Missing rendered Lense deployment');
+assert(lenseDeployment.includes('enableServiceLinks: false'), 'Lense must not inherit Service port URLs');
+assert(lenseDeployment.includes("{name: LENSE_PORT, value: '8000'}"), 'Lense HTTP port must be numeric');
 assert.equal((standard.match(/^kind: Deployment$/gm) || []).length, 6);
 assert.equal((standard.match(/^kind: Service$/gm) || []).length, 6);
 assert.equal((standard.match(/^kind: PersistentVolumeClaim$/gm) || []).length, 2);
