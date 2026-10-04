@@ -123,7 +123,7 @@ GET /read?nodeId=ns=2;s=Machine.Temperature
 GET /subscribe?nodeIds=ns=2;s=Machine.Temperature,ns=2;s=Machine.State&intervalMs=1000
 ```
 
-`/subscribe` streams Server-Sent Events with JSON payloads. This models an OPC UA subscription for the beta demo. Certificates and encrypted OPC UA sessions are planned later.
+`/subscribe` streams Server-Sent Events with JSON payloads for the legacy HTTP demo. Native OPC UA Binary uses Protocol Lab's `lab-opcua-tcp` source and already supports certificate profiles with Basic256Sha256 / SignAndEncrypt; see [Certificates](certificates.md). The HTTP demo does not provide those native sessions.
 
 ## 4. IoT Sense configuration
 
@@ -142,13 +142,15 @@ The file inside the container is:
 /app/config/config.json
 ```
 
-### Supported Sense source types
+### Source types used by the default demo
 
 | `source.type` | Read mode | What it does |
 |---|---|---|
 | `modbus-tcp` | `poll` | Reads Modbus holding registers. |
 | `opcua` | `poll` | Calls the OPC UA style `/read` endpoint. |
 | `opcua` | `subscription` | Consumes the OPC UA style `/subscribe` stream. |
+
+Sense also supports the `lab-*` readers through Protocol Lab. The shared [protocol catalog](../shared/protocolmeta/catalog.json) defines each source's polling/subscription modes, transport, simulator availability and current status; the Sense editor uses the same definitions. See [Sense](sense.md) and [Protocol Lab](protocols.md) for protocol-specific addresses and examples.
 
 ### Sense configuration fields
 
@@ -161,11 +163,11 @@ The file inside the container is:
 | `pollIntervalMs` | Polling interval for poll mode. Also used as fallback for subscription interval. |
 | `healthTimeoutSeconds` | Timeout used by UIs and health calculations. |
 | `sources[].agentId` | Source id shown in Lense and used in MQTT topics. |
-| `sources[].type` | `modbus-tcp` or `opcua`. |
+| `sources[].type` | A source type in the shared protocol catalog; the default demo uses `modbus-tcp` or `opcua`. |
 | `sources[].host` | Source host inside the Docker network or real network. |
 | `sources[].port` | Source port. |
 | `sources[].unitId` | Modbus unit id. Required for Modbus. |
-| `sources[].readMode` | `poll` or `subscription`. Default is `poll`. Subscription is currently OPC UA only. |
+| `sources[].readMode` | `poll` or `subscription`. Default is `poll`; the selected protocol must support the mode according to the shared catalog. |
 | `sources[].subscriptionIntervalMs` | OPC UA subscription interval. Minimum is 250 ms. |
 | `sources[].metrics[].name` | Metric name. |
 | `sources[].metrics[].register` | Modbus register address. |
@@ -379,7 +381,7 @@ Minimal example:
 
 ## 6. IoT Dispense configuration
 
-Dispense currently reads configuration from environment variables. You can either set individual variables or pass a full JSON object through `DISPENSE_CONFIG_JSON`.
+Dispense reads configuration from environment variables. You can either set individual variables or pass a full JSON object through `DISPENSE_CONFIG_JSON`. MQTT forwarding is the default shown below. For HTTP/HTTPS outputs, retry settings and delivery guarantees, see [Dispense](dispense.md).
 
 ### Individual environment variables
 
@@ -437,9 +439,11 @@ docker network create otio-net
 Start brokers:
 
 ```bash
-docker run -d --name mqtt --network otio-net -p 1883:1883 eclipse-mosquitto:2
-docker run -d --name dispense-broker --network otio-net -p 1884:1883 eclipse-mosquitto:2
+docker run -d --name mqtt --network otio-net -p 1883:1883 -v "$PWD/deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" eclipse-mosquitto:2
+docker run -d --name dispense-broker --network otio-net -p 1884:1883 -v "$PWD/deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" eclipse-mosquitto:2
 ```
+
+Run from the repository root. The mounted demo configuration makes MQTT reachable from other containers; Mosquitto 2 otherwise listens only inside its own container.
 
 Start Postgres:
 
@@ -505,7 +509,7 @@ The current stack is a beta demo and development setup. For production usage, ad
 - secret management
 - audit logging
 - hardened network policies
-- backup and restore
+- a scheduled, monitored backup policy and a tested recovery procedure; see [Historian recovery](historian.md) for the manual tools
 - operational monitoring
 - alerting
 

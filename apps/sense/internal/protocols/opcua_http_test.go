@@ -26,6 +26,23 @@ func endpointFromServer(t *testing.T, server *httptest.Server) SourceEndpoint {
 	return SourceEndpoint{AgentID: "opcua-machine-01", Type: "opcua", Host: host, Port: port}
 }
 
+func TestSubscriptionFansOutSharedNodeToEachMetric(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("nodeIds"); got != "ns=2;s=temperature" {
+			t.Errorf("node must be subscribed once, got %q", got)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"items\":[{\"nodeId\":\"ns=2;s=temperature\",\"value\":235,\"quality\":\"good\"}]}\n\n")
+	}))
+	defer server.Close()
+	var values []MetricValue
+	metrics := []MetricAddress{{Name: "raw", NodeID: "ns=2;s=temperature", Scale: 1}, {Name: "scaled", NodeID: "ns=2;s=temperature", Scale: 0.1}}
+	err := (OPCUAHTTPReader{}).Subscribe(context.Background(), endpointFromServer(t, server), metrics, 250, func(value MetricValue) { values = append(values, value) })
+	if err != nil || len(values) != 2 || values[0].Name != "raw" || values[0].Value != 235.0 || values[1].Name != "scaled" || values[1].Value != 23.5 {
+		t.Fatalf("aliases lost or incorrectly scaled: %+v, %v", values, err)
+	}
+}
+
 func TestOPCUAHTTPReaderReadsNodeValue(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/read" {

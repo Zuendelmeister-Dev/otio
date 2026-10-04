@@ -12,7 +12,8 @@ $modules = @(
   "apps/plc4go-modbus",
   "apps/protocol-lab",
   "apps/ha-agent",
-  "shared/mqttx"
+  "shared/mqttx",
+  "shared/protocolmeta"
 )
 foreach ($module in $modules) {
   Write-Host ""
@@ -55,6 +56,18 @@ Write-Host ""
 if ($LASTEXITCODE -ne 0) { throw "Workspace UI tests failed." }
 & $nodePath (Join-Path $root "scripts/protocol-deployment.test.js")
 if ($LASTEXITCODE -ne 0) { throw "Deployment generator tests failed." }
+& $nodePath (Join-Path $root "scripts/generate-protocol-capabilities.cjs") --check
+if ($LASTEXITCODE -ne 0) { throw "Protocol capabilities bundle is stale." }
+& $nodePath (Join-Path $root "scripts/protocol-capabilities.test.js")
+if ($LASTEXITCODE -ne 0) { throw "Protocol capabilities and form tests failed." }
+& $nodePath (Join-Path $root "scripts/lense-config-workflow.test.js")
+if ($LASTEXITCODE -ne 0) { throw "Lense configuration workflow tests failed." }
+& $nodePath (Join-Path $root "scripts/sense-config-workflow.test.js")
+if ($LASTEXITCODE -ne 0) { throw "Sense configuration workflow tests failed." }
+& $nodePath (Join-Path $root "scripts/arm-bundle.test.js")
+if ($LASTEXITCODE -ne 0) { throw "ARM source archive tests failed." }
+& $nodePath (Join-Path $root "shared/web/operator-ui.test.js")
+if ($LASTEXITCODE -ne 0) { throw "Operator UI tests failed." }
 & $nodePath (Join-Path $root "shared/web/live-messages.test.js")
 if ($LASTEXITCODE -ne 0) { throw "Live message tests failed." }
 & $nodePath (Join-Path $root "scripts/repository-check.cjs")

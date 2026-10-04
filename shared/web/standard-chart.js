@@ -42,13 +42,14 @@
     }
 
     function render(highlight) {
+      const labelColor=typeof getComputedStyle==='function'?(getComputedStyle(canvas).getPropertyValue('--muted').trim()||'#8a9099'):'#8a9099';
       const { ctx, width, height } = setupCanvas(canvas, options.height || 340);
       const active = visibleSeries();
       state.hitPoints = [];
       ctx.clearRect(0, 0, width, height);
 
       if (!active.length) {
-        ctx.fillStyle = '#8a9099';
+        ctx.fillStyle = labelColor;
         ctx.font = '14px Inter, system-ui, sans-serif';
         ctx.fillText('No data available or all series are hidden.', 20, 30);
         renderLegend();
@@ -87,7 +88,7 @@
         ctx.moveTo(left, y);
         ctx.lineTo(width - right, y);
         ctx.stroke();
-        ctx.fillStyle = '#8a9099';
+        ctx.fillStyle = labelColor;
         ctx.fillText(value.toFixed(2), 8, y + 4);
       }
 
@@ -105,7 +106,7 @@
           ctx.moveTo(x, top);
           ctx.lineTo(x, height - bottom);
           ctx.stroke();
-          ctx.fillStyle = '#8a9099';
+          ctx.fillStyle = labelColor;
           ctx.fillText(formatTimeLabel(new Date(time).toISOString()), x - 28, height - 26);
         });
       }
@@ -190,7 +191,7 @@
         ctx.stroke();
       }
 
-      ctx.fillStyle = '#8a9099';
+      ctx.fillStyle = labelColor;
       ctx.fillText('time', width - 54, height - 10);
       ctx.save();
       ctx.translate(16, height / 2);
@@ -260,6 +261,7 @@
     }
 
     attachTooltip();
+    document.addEventListener('otio-appearance-change',()=>render());
     return { draw, render, hidden: state.hidden };
   }
 

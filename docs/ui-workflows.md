@@ -1,5 +1,17 @@
 # UI configuration and connection graphs
 
+## Everyday use
+
+Start with **Overview**. Connection health and measurement freshness are checked separately: a reachable device can still have old measurements. The **Measurement updates** notice lists sources with missing, stale or future-dated values, shows the age of the last stored value, and links to the affected device. **Check again** refreshes the check. An unavailable check is shown as unknown, never as healthy. Deployments can set the freshness window; see [data management](historian.md).
+
+The interface stays dark across the applications, including Protocol Lab. It does not change with the operating system's appearance setting. Status text accompanies colors, keyboard focus remains visible, and reduced-motion preferences are respected. At narrow widths, navigation and forms stack vertically.
+
+In **Settings**, select one instance before editing. Changing instances discards late responses from earlier loads, validations and history requests. Editing a validated draft disables applying until it is validated again. Applying Sense settings means they have been saved; the collector then reconnects in the background. Check **System status** to confirm that connections and measurements have recovered. Other component drafts saved in Lense remain browser-local and are labelled accordingly.
+
+The protocol choices now come from one shared capability catalog. Only protocols supported by Sense are offered in its form; native Lab read support, simulation availability and experimental status remain distinct. The backend validates the actual reader/subscriber capability. Dispense supports the existing MQTT output and an HTTP/HTTPS POST output; see [delivery and retry rules](dispense.md#delivery-retries-and-duplicates).
+
+The existing static Go-served UI is retained. No Next.js or Node server is required to run the applications.
+
 Lense, Sense, Dispense and the legacy Presense UIs share a scrollable graph viewport. Drag the graph background horizontally or vertically, use the scrollbars, or focus the viewport and use the left/right arrow keys. Lense groups sources, collection, messaging, storage/forwarding and destinations into lanes; Lense sits above MQTT and connects directly to Postgres. Sense uses equally spaced source, collector and broker columns.
 
 System Components groups components by role and displays broker/database connection details as compact facts. Connection charts collect actual observations while the page is open, retain up to 300 samples in browser storage and fit the observed time range. The first observation is necessarily a single point; subsequent polls extend the line, even when the state is unchanged. Gaps longer than two minutes are not connected. History is browser-local, not server-side monitoring history.
@@ -18,7 +30,7 @@ Topics on Lense's agent detail page are direct links into Unified Namespace. Ope
 
 ## Forms and JSON
 
-Open **Configuration**. The protocol-aware form is visible by default; **Advanced · JSON draft** retains the JSON editor. Form edits update the JSON draft; editing JSON also refreshes the open form. Source protocol selection changes connection and address presets. Expand **metrics** and review addresses, scaling and units: presets cannot infer a device's register map. Existing custom fields remain in the draft. Validation and application still use each application's workflow. Dispense's current configuration screen prepares drafts; its runtime write-back remains unavailable.
+Open **Settings**. The protocol-aware form is visible by default; **Advanced · JSON draft** retains the JSON editor. Common settings have readable labels and short hints, while their JSON keys remain unchanged. Form edits update the JSON draft; editing JSON also refreshes the open form. Source protocol selection changes connection and address presets. Expand **Measurements** and review addresses, scaling and units: presets cannot infer a device's register map. Existing custom fields remain in the draft. Sense's unused legacy `healthTimeoutSeconds` remains in JSON but is omitted from the form. Validation and application still use each application's workflow. Dispense's current configuration screen prepares drafts; its runtime write-back remains unavailable.
 
 Sense namespace status topics show an explicit information message; error topics show source-specific errors or an empty state. Both clear the previous metric chart. Only metric topics display numeric history.
 
@@ -38,7 +50,7 @@ Dashboard status uses a compact strip. Agents and Configurations use comparable 
 
 ## Protocol Lab: test, deploy, simulate
 
-**Test connection** shows implemented TCP adapters. UDP and hardware-only entries remain documented in the protocol matrix but do not clutter the selector. Testing an external device does not start a simulator.
+**Test connection** shows adapters with an implemented Lab read or sample capability. This includes TCP adapters and the experimental BACnet/IP and KNXnet/IP UDP adapters. Hardware-only and unimplemented entries remain documented in the protocol matrix and are excluded from the selector. Read support and simulator availability are separate capabilities. Testing an external device does not start a simulator.
 
 **Deploy Sense** generates a complete collector configuration, Compose file, SSH/SCP transfer commands and values for the [single-collector Helm chart](../deploy/helm/otio-sense/README.md). Use an existing MQTT broker. All `lab-*` sources require the gateway service; the generated deployment includes it without simulators. Build images locally or use tags already available in your registry. Choose the target CPU architecture when building. Review addresses from the target network. The generator does not execute commands or deploy anything.
 
@@ -85,6 +97,18 @@ Presense shows its running protocol as a read-only field and links to Protocol L
 
 
 ## Current interface screenshots
+
+### Updated operator interface · 4 October 2026
+
+These previews use the current Lense HTML and shared scripts with **sample API data**, not a live deployment. They illustrate the consistent dark interface, readable navigation and separate warnings for measurement freshness. Healthy connections do not imply recent measurements.
+
+![Updated overview with healthy connections and an old-measurement warning, using sample data](png/operator-overview.jpg)
+
+Keyboard focus highlights the configured Modbus route and fades the unrelated OPC UA branch. Focus remains on the selected device when the graph refreshes automatically. The wide graph scrolls within its own viewport.
+
+![Keyboard-focused Modbus route with unrelated components faded, using sample data](png/operator-flow-focus.jpg)
+
+### Earlier deployed-stack views
 
 Graph, Logs, Unified Namespace, Configuration and Protocol Lab screenshots were supplied from the local stack on 27 September 2026. Component, agent and database screenshots are from 23 September. Example log errors illustrate diagnostics and are not a statement about current system health.
 
@@ -144,7 +168,7 @@ Selecting an **errors** leaf opens a source-specific **Errors** panel in both Le
 
 Open **Protocol Lab** from Lense, or visit `/protocols` on the Lense host. The Lab opens through Lense's proxy and **← IoT Lense** returns to the same host and port. Static Lab responses disable caching to avoid mixed UI versions after a rebuild.
 
-1. **Test connection**: choose OPC UA (or another TCP adapter), enter the device address and read a value. OPC UA certificate profiles are managed under **Lense → Certificates**.
+1. **Test connection**: choose OPC UA or another implemented IP adapter, enter the device address and read a value. OPC UA certificate profiles are managed under **Lense → Connection security**.
 2. **Deploy Sense**: verify the separate device address, enter VM login and MQTT broker. Collector name and image tags are under **Advanced**. Invalid fields turn red and receive focus.
 3. **Prepare VM installation**: download the generated configuration files; follow the displayed image build, image transfer and remote start commands. Helm instructions are available separately. The page prepares installation files; it does not deploy them automatically or provide a prebuilt binary download.
 

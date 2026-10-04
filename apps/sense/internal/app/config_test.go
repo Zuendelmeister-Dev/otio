@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func validConfig() Config {
@@ -149,10 +150,13 @@ func TestApplyConfigSavesPreviousConfigSnapshot(t *testing.T) {
 	previousHistoryDir := state.HistoryDir
 	previousConfigRaw := state.ConfigRaw
 	previousProposals := state.Proposals
+	previousUpdate := state.ConfigUpdate
+	previousRevision := state.ConfigRevision
 	state.ConfigPath = configPath
 	state.HistoryDir = historyDir
 	state.ConfigRaw = oldRaw
-	state.Proposals = map[string]Proposal{"proposal-1": {ID: "proposal-1", ConfigRaw: newRaw}}
+	state.ConfigUpdate = ConfigUpdate{}
+	state.Proposals = map[string]Proposal{"proposal-1": {ID: "proposal-1", ConfigRaw: newRaw, BaseRevision: configRevision(oldRaw)}}
 	state.Unlock()
 	t.Cleanup(func() {
 		state.Lock()
@@ -160,15 +164,18 @@ func TestApplyConfigSavesPreviousConfigSnapshot(t *testing.T) {
 		state.HistoryDir = previousHistoryDir
 		state.ConfigRaw = previousConfigRaw
 		state.Proposals = previousProposals
+		state.ConfigUpdate = previousUpdate
+		state.ConfigRevision = previousRevision
 		state.Unlock()
 	})
 
 	request := httptest.NewRequest(http.MethodPost, "/api/config/apply", strings.NewReader(`{"proposalId":"proposal-1"}`))
 	response := httptest.NewRecorder()
 	apiApplyConfig(response, request)
-	if response.Code != http.StatusOK {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
+	waitForConfigRestart(t)
 
 	items := listHistory()
 	if len(items) != 1 {
@@ -185,6 +192,21 @@ func TestApplyConfigSavesPreviousConfigSnapshot(t *testing.T) {
 	if string(written) != newRaw {
 		t.Fatalf("active config should contain new config\nwant: %s\ngot:  %s", newRaw, string(written))
 	}
+}
+
+func waitForConfigRestart(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		state.Lock()
+		restarting := state.ConfigUpdate.Phase == "restarting"
+		state.Unlock()
+		if !restarting {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("configuration restart did not finish")
 }
 
 func TestValidateConfigAcceptsOPCUASubscriptionMode(t *testing.T) {
@@ -222,7 +244,7 @@ func TestValidateConfigRejectsModbusSubscriptionMode(t *testing.T) {
 	}
 	problems := validateConfig(config)
 	joined := strings.Join(problems, "; ")
-	if !strings.Contains(joined, "subscription is currently supported for opcua only") {
+	if !strings.Contains(joined, "subscription is unsupported") {
 		t.Fatalf("problems = %v, want modbus subscription rejection", problems)
 	}
 }

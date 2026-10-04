@@ -8,11 +8,28 @@ A Sense instance is usually specialized for one source type, for example one Mod
 
 ## Supported source types
 
-| Source type | Supported read modes | Description |
+<!-- protocol-capabilities:start -->
+<!-- Generated from shared/protocolmeta/catalog.json. -->
+| Source type | Supported read modes | Protocol / implementation |
 |---|---|---|
-| `modbus-tcp` | `poll` | Reads Modbus holding registers. |
-| `opcua` | `poll` | Reads OPC UA style nodes through `/read`. |
-| `opcua` | `subscription` | Subscribes to OPC UA style node updates through `/subscribe`. |
+| `opcua` | `poll`, `subscription` | OPC UA HTTP demo (demo). |
+| `modbus-tcp` | `poll` | Modbus TCP (read). |
+| `lab-modbus-tcp` | `poll` | Modbus TCP · native lab (read). |
+| `lab-modbus-rtu-tcp` | `poll` | Modbus RTU over TCP (read). |
+| `lab-opcua-tcp` | `poll` | OPC UA (read). |
+| `lab-s7` | `poll` | Siemens S7 (experimental). |
+| `lab-ethernet-ip` | `poll` | EtherNet/IP CIP (experimental). |
+| `lab-bacnet-ip` | `poll` | BACnet/IP (experimental). |
+| `lab-knxnet-ip` | `poll` | KNXnet/IP (experimental). |
+| `lab-iec-60870-5-104` | `poll` | IEC 60870-5-104 (experimental). |
+| `lab-mqtt` | `poll` | MQTT (sample). |
+| `lab-amqp` | `poll` | AMQP 0-9-1 (sample). |
+| `lab-mbus-tcp` | `poll` | M-Bus over TCP · temperature subset (experimental). |
+<!-- protocol-capabilities:end -->
+
+`opcua` is the HTTP/SSE demo adapter. `lab-opcua-tcp` uses native OPC UA TCP through Protocol Lab. The catalog distinguishes working native readers, sampled broker reads and experimental hardware integrations. A sampled MQTT, AMQP or IEC 104 read does not provide a continuous, lossless subscription.
+
+The canonical capability catalog is [`shared/protocolmeta/catalog.json`](../shared/protocolmeta/catalog.json). Sense registry and validation, Protocol Lab, the form editor and the table above consume this catalog. After editing it, run `node scripts/generate-protocol-capabilities.cjs`; CI checks that generated browser assets and documentation match it.
 
 ## MQTT output
 
@@ -47,7 +64,7 @@ volumes:
 | `broker.clientId` | yes | MQTT client id. |
 | `broker.topicPrefix` | yes | MQTT topic prefix. |
 | `pollIntervalMs` | yes | Polling interval in milliseconds. Also used as fallback subscription interval. |
-| `healthTimeoutSeconds` | no | Timeout for health views. Defaults to `300` where needed. |
+| `healthTimeoutSeconds` | no | Legacy field retained in JSON with default `300`. The runtime does not use it as a network or freshness timeout; the form omits it. Lense's freshness window is set separately with `LENSE_STALE_AFTER_SECONDS`. |
 | `sources` | yes | List of source endpoints. |
 
 ## Source configuration fields
@@ -55,12 +72,13 @@ volumes:
 | Field | Source type | Meaning |
 |---|---|---|
 | `agentId` | all | Source id used in topics and shown in Lense. |
-| `type` | all | `modbus-tcp` or `opcua`. |
+| `type` | all | One of the source types in the capability table above. |
 | `host` | all | Source host. In Compose this is usually the service name. |
 | `port` | all | Source port. |
 | `unitId` | Modbus | Modbus unit id. Must be greater than 0 for Modbus. |
-| `readMode` | all | `poll` or `subscription`. Default is `poll`. Subscription is currently OPC UA only. |
+| `readMode` | all | `poll` or `subscription`. Default is `poll`. Subscription must be supported by the registered source driver. |
 | `subscriptionIntervalMs` | OPC UA subscription | Subscription update interval. Minimum is 250 ms. |
+| `options.connection` | `lab-*` | Native connection URL, used by the Protocol Lab adapter. |
 | `metrics` | all | List of metrics or node values to read. |
 
 ## Metric configuration fields
@@ -70,11 +88,30 @@ volumes:
 | `name` | all | Metric name used in MQTT topics. |
 | `register` | Modbus | Holding register address. |
 | `nodeId` | OPC UA | OPC UA node id. |
-| `scale` | numeric values | Numeric scaling factor. Must not be 0. |
+| `address` | `lab-*` | Native protocol metric address; use the catalog preset as a starting point. |
+| `scale` | all | Numeric scaling factor. Required and nonzero; use `1` for strings or unscaled values. |
 | `unit` | all | Display unit. |
 | `type` | all | `gauge`, `string` or another descriptive type. |
 
 Numeric metric values are charted. String and array-like values are shown as tables in Lense.
+
+Readers preserve upstream `good`, `bad`, `uncertain` or `unknown` measurement quality. Missing quality is `unknown`, so an unavailable upstream quality flag cannot silently become `good`.
+
+## Saving configuration changes
+
+Use **Validate** before **Apply**. Validation creates a proposal tied to the SHA-256 revision of the current configuration. If another operator or an external file edit changes that configuration, applying the old proposal returns HTTP `409`; reload and validate the changes again.
+
+Apply and rollback save a complete replacement file atomically and keep a snapshot of the previous configuration. They return HTTP `202` with `saved: true` and `status: "restarting"` before restarting workers or waiting for MQTT. This separates a successful save from a broker connection problem. A missing or slow broker does not undo a saved configuration.
+
+Read `/api/config` for `revision` and `update`, or `/api/status` for `config.revision` and `config.update`:
+
+| Update phase | Meaning |
+|---|---|
+| `restarting` | The configuration is saved and workers are restarting. Further apply/rollback requests return `409` until restart finishes. |
+| `connecting` | Workers have started; the broker is unavailable or still connecting. Check the broker status and logs. |
+| `ready` | The broker is connected with the active configuration. Individual source status still reports machine connection failures separately. |
+
+The update includes its `revision`, `startedAt`, `completedAt` and a readable `message`. History keeps the latest five snapshots. In HA mode configuration changes remain managed by Helm and these mutation endpoints reject requests.
 
 ## Complete Modbus example
 
@@ -214,9 +251,10 @@ If the protocol can be implemented as another reader inside the existing Sense a
 ```text
 apps/
 └── sense/
-    ├── myprotocol_reader.go
-    ├── myprotocol_config.go
-    └── myprotocol_reader_test.go
+    └── internal/
+        └── protocols/
+            ├── myprotocol_reader.go
+            └── myprotocol_reader_test.go
 ```
 
 ### Minimal responsibilities
@@ -235,18 +273,19 @@ A custom Sense extension should:
 
 ### Recommended reader interface
 
-Keep protocol-specific code behind a small reader interface.
+Use the existing interfaces in `apps/sense/internal/protocols/reader.go`.
 
 ```go
-type SourceReader interface {
-    Connect(ctx context.Context) error
-    Read(ctx context.Context) ([]MetricValue, error)
-    Subscribe(ctx context.Context, handler func(MetricValue)) error
-    Close(ctx context.Context) error
+type Reader interface {
+    Read(ctx context.Context, endpoint SourceEndpoint, metric MetricAddress) (MetricValue, error)
+}
+
+type Subscriber interface {
+    Subscribe(ctx context.Context, endpoint SourceEndpoint, metrics []MetricAddress, intervalMS int, handler func(MetricValue)) error
 }
 ```
 
-Polling-only protocols can implement `Read`. Subscription-capable protocols can implement `Subscribe`. If a protocol does not support subscriptions, return a clear unsupported error.
+Polling drivers implement `Reader`; drivers that also stream updates implement and register `Subscriber`. The validator queries the same registry, so a registered custom subscriber is accepted without adding a hardcoded source-type exception. An unsupported subscription produces a clear validation error.
 
 ### Example source configuration
 
@@ -256,10 +295,9 @@ Polling-only protocols can implement `Read`. Subscription-capable protocols can 
   "displayName": "My Machine 01",
   "type": "myprotocol",
   "origin": "external",
-      "host": "custom-sensor-01.local",
+  "host": "custom-sensor-01.local",
   "port": 1234,
   "readMode": "poll",
-  "pollIntervalMs": 1000,
   "metrics": [
     {
       "name": "temperature",
@@ -272,11 +310,14 @@ Polling-only protocols can implement `Read`. Subscription-capable protocols can 
       "name": "machineState",
       "type": "string",
       "unit": "",
-      "path": "status.state"
+      "path": "status.state",
+      "scale": 1
     }
   ]
 }
 ```
+
+This source entry belongs inside the top-level `sources` array. Set `pollIntervalMs` on the top-level configuration, not inside a source.
 
 ### Source origin
 
@@ -326,9 +367,9 @@ sense-myprotocol:
     dockerfile: apps/sense-myprotocol/Dockerfile
   container_name: iot-sense-myprotocol
   environment:
-    CONFIG_FILE: /app/config/config.json
+    SENSE_CONFIG_PATH: /app/config/config.json
   volumes:
-    - ./apps/sense-myprotocol/config/config.json:/app/config/config.json:ro
+    - ./apps/sense-myprotocol/config:/app/config
   ports:
     - "8110:8100"
   depends_on:
@@ -383,8 +424,8 @@ For a new source protocol, start in `apps/sense/internal/protocols`.
 1. create `myprotocol_reader.go`
 2. implement `Reader`
 3. register the reader in `registry.go`
-4. add a config example
-5. add tests
+4. add its source capability and preset to `shared/protocolmeta/catalog.json` and run `node scripts/generate-protocol-capabilities.cjs`
+5. add a config example and behavior tests
 
 Minimal reader:
 
@@ -400,6 +441,7 @@ func (reader MyProtocolReader) Read(ctx context.Context, endpoint SourceEndpoint
         Name: metric.Name,
         Raw: raw,
         Value: value,
+        Quality: QualityGood, // or preserve the upstream quality class
     }, nil
 }
 ```
@@ -416,18 +458,11 @@ func (reader MyProtocolReader) Subscribe(ctx context.Context, endpoint SourceEnd
 
 ### Register the protocol
 
+Add the registration to the existing `NewRegistry` before its `return registry`, preserving the built-in registrations. Register a subscriber only when the driver implements that interface.
+
 ```go
-func NewRegistry() Registry {
-    registry := Registry{
-        readers: map[string]Reader{},
-        subscribers: map[string]Subscriber{},
-    }
-
-    registry.RegisterReader("myprotocol", MyProtocolReader{})
-    registry.RegisterSubscriber("myprotocol", MyProtocolReader{})
-
-    return registry
-}
+registry.RegisterReader("myprotocol", MyProtocolReader{})
+registry.RegisterSubscriber("myprotocol", MyProtocolReader{})
 ```
 
 ### Use protocol-specific options
@@ -450,6 +485,7 @@ For unusual protocols, use `options` on the source or metric instead of changing
       "name": "state",
       "type": "string",
       "path": "machine.state",
+      "scale": 1,
       "options": {
         "encoding": "ascii"
       }

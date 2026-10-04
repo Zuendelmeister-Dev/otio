@@ -64,14 +64,16 @@ docker network create otio-net
 Start input broker:
 
 ```bash
-docker run -d --name mqtt --network otio-net -p 1883:1883 eclipse-mosquitto:2
+docker run -d --name mqtt --network otio-net -p 1883:1883 -v "$PWD/deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" eclipse-mosquitto:2
 ```
 
 Start target broker:
 
 ```bash
-docker run -d --name dispense-broker --network otio-net -p 1884:1883 eclipse-mosquitto:2
+docker run -d --name dispense-broker --network otio-net -p 1884:1883 -v "$PWD/deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" eclipse-mosquitto:2
 ```
+
+The mounted demo configuration enables a listener reachable from the other containers. Without it, Mosquitto 2 defaults to container-local connections. Run these commands from the repository root.
 
 Start Postgres:
 
@@ -106,7 +108,7 @@ Before production usage, add:
 - TLS certificates
 - encrypted broker traffic
 - secret handling
-- backup and restore
+- a scheduled, monitored backup policy and a tested recovery procedure; [Historian recovery](historian.md) provides manual backup/restore tools
 - operational monitoring
 - alerting
 - production-specific Kubernetes availability, backup and network policies

@@ -14,8 +14,9 @@ func (reader ModbusTCPReader) Read(ctx context.Context, endpoint SourceEndpoint,
 		scale = 1
 	}
 	return MetricValue{
-		Name:  metric.Name,
-		Raw:   map[string]any{"register": metric.Register, "value": raw},
-		Value: float64(raw) * scale,
+		Name:    metric.Name,
+		Raw:     map[string]any{"register": metric.Register, "value": raw},
+		Value:   float64(raw) * scale,
+		Quality: QualityGood,
 	}, nil
 }

@@ -43,6 +43,8 @@ mosquitto-config-local/
 
 # Node / frontend temporary
 node_modules/
+__pycache__/
+*.py[cod]
 
 # Generated documentation output
 docs/pdf/

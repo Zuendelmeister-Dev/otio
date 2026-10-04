@@ -234,7 +234,8 @@ The matching Sense source should point to the Presense service name inside the D
       "name": "temperature",
       "type": "gauge",
       "unit": "°C",
-      "path": "temperature"
+      "path": "temperature",
+      "scale": 1
     }
   ]
 }

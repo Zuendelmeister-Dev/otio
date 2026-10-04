@@ -13,10 +13,11 @@ import (
 )
 
 func listenTCPDemo(ctx context.Context, sim *simulator, protocol string) (net.Listener, error) {
-	port := 1102
-	if protocol == "mbus-tcp" {
-		port = 1504
+	metadata, ok := capability(protocol)
+	if !ok || metadata.SimulatorPreset == nil {
+		return nil, fmt.Errorf("no TCP fixture for %s", protocol)
 	}
+	port := metadata.SimulatorPreset.Port
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err

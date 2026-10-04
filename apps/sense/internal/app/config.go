@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"iot-lense-sense/sense/internal/protocols"
+	"iot-lense-sense/shared/protocolmeta"
 )
 
 func getenv(name string, fallback string) string {
@@ -67,10 +67,11 @@ func validateConfig(config Config) []string {
 			problems = append(problems, prefix+".agentId must be unique")
 		}
 		agents[source.AgentID] = true
-		if _, err := protocols.NewRegistry().Reader(source.Type); err != nil {
+		if _, err := sourceProtocols.Reader(source.Type); err != nil {
 			problems = append(problems, prefix+".type is unsupported: "+source.Type)
 		}
-		if strings.HasPrefix(source.Type, "lab-") {
+		capability, _ := protocolmeta.Source(source.Type)
+		if capability.RequiresConnection {
 			connection, _ := source.Options["connection"].(string)
 			if connection == "" {
 				problems = append(problems, prefix+".options.connection is required for lab protocols")
@@ -89,14 +90,16 @@ func validateConfig(config Config) []string {
 		if readMode != "poll" && readMode != "subscription" {
 			problems = append(problems, prefix+".readMode must be poll or subscription")
 		}
-		if source.Type != "opcua" && readMode == "subscription" {
-			problems = append(problems, prefix+".readMode subscription is currently supported for opcua only")
+		if readMode == "subscription" {
+			if _, err := sourceProtocols.Subscriber(source.Type); err != nil {
+				problems = append(problems, prefix+".readMode subscription is unsupported: "+err.Error())
+			}
 		}
 		if source.SubscriptionIntervalMS != 0 && source.SubscriptionIntervalMS < 250 {
 			problems = append(problems, prefix+".subscriptionIntervalMs must be at least 250 when set")
 		}
-		if source.Type == "modbus-tcp" && source.UnitID == 0 {
-			problems = append(problems, prefix+".unitId must be greater than 0 for modbus-tcp")
+		if capability.RequiresUnitID && source.UnitID == 0 {
+			problems = append(problems, prefix+".unitId must be greater than 0 for "+source.Type)
 		}
 		if len(source.Metrics) == 0 {
 			problems = append(problems, prefix+".metrics must not be empty")
@@ -111,10 +114,10 @@ func validateConfig(config Config) []string {
 				problems = append(problems, mprefix+".name must be unique within a source")
 			}
 			metrics[metric.Name] = true
-			if source.Type == "opcua" && metric.NodeID == "" {
-				problems = append(problems, mprefix+".nodeId is required for opcua")
+			if capability.AddressField == "nodeId" && !capability.RequiresConnection && metric.NodeID == "" {
+				problems = append(problems, mprefix+".nodeId is required for "+source.Type)
 			}
-			if strings.HasPrefix(source.Type, "lab-") && metric.Address == "" && metric.NodeID == "" {
+			if capability.RequiresConnection && metric.Address == "" && metric.NodeID == "" {
 				problems = append(problems, mprefix+".address or nodeId is required for lab protocols")
 			}
 			if metric.Scale == 0 {
@@ -159,6 +162,7 @@ func loadConfigFromDisk() bool {
 	state.ConfigPath = path
 	state.HistoryDir = historyDir
 	state.ConfigRaw = normalized
+	state.ConfigRevision = configRevision(normalized)
 	state.Config = config
 	state.ConfigLoaded = true
 	state.ConfigValid = len(problems) == 0

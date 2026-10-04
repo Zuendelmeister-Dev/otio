@@ -45,8 +45,8 @@ func (s *simulationRuntime) set(protocol string, enabled bool) error {
 		}
 		return nil
 	}
-	supported := map[string]bool{"modbus-tcp": true, "modbus-rtu-tcp": true, "opcua-tcp": true, "mqtt": true, "amqp": true, "s7": true, "mbus-tcp": true}
-	if !supported[protocol] {
+	capability, ok := capability(protocol)
+	if !ok || !capability.Simulator || capability.SimulatorPreset == nil {
 		return fmt.Errorf("no simulator for %s", protocol)
 	}
 	if !enabled {
@@ -62,10 +62,7 @@ func (s *simulationRuntime) set(protocol string, enabled bool) error {
 	var closeListener func()
 	switch protocol {
 	case "modbus-tcp", "modbus-rtu-tcp":
-		port := 1502
-		if protocol == "modbus-rtu-tcp" {
-			port = 1503
-		}
+		port := capability.SimulatorPreset.Port
 		l, err := listenModbus(ctx, s.sim, port, protocol == "modbus-rtu-tcp")
 		if err != nil {
 			cancel()
@@ -73,7 +70,7 @@ func (s *simulationRuntime) set(protocol string, enabled bool) error {
 		}
 		closeListener = func() { _ = l.Close() }
 	case "opcua-tcp":
-		server, err := startOPCUA(ctx, s.sim, "0.0.0.0", 4842)
+		server, err := startOPCUA(ctx, s.sim, "0.0.0.0", capability.SimulatorPreset.Port)
 		if err != nil {
 			cancel()
 			return err

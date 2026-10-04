@@ -4,6 +4,8 @@ go 1.26.0
 
 require iot-lense-sense/shared/mqttx v0.0.0
 
+require iot-lense-sense/shared/protocolmeta v0.0.0
+
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
@@ -12,3 +14,5 @@ require (
 )
 
 replace iot-lense-sense/shared/mqttx => ../../shared/mqttx
+
+replace iot-lense-sense/shared/protocolmeta => ../../shared/protocolmeta

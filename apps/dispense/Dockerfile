@@ -17,6 +17,8 @@ RUN if [ -n "$TARGETOS" ] && [ -n "$TARGETARCH" ]; then       CGO_ENABLED=0 GOOS
 
 FROM alpine:3.24
 
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /app
 
 COPY --from=build /out/dispense /app/dispense

@@ -61,21 +61,24 @@ func onMessage(client mqttx.Client, msg mqttx.Message) {
 	state.MessageCount++
 	state.Topics[topic] = true
 	state.Unlock()
-	parts := mqttx.SplitTopic(topic)
+	parts, matched := mqttx.RelativeTopic(getenv("MQTT_TOPIC_PREFIX", "iot-lense"), topic)
+	if !matched {
+		return
+	}
 	raw := string(msg.Payload())
-	if len(parts) >= 4 && parts[len(parts)-2] == "metrics" {
+	if len(parts) >= 3 && parts[len(parts)-2] == "metrics" {
 		storeMetric(topic, raw)
 		return
 	}
-	if len(parts) >= 3 && parts[len(parts)-1] == "status" && parts[1] == "_sense" {
+	if len(parts) == 2 && parts[1] == "status" && parts[0] == "_sense" {
 		storeSenseComponentStatus(raw)
 		return
 	}
-	if len(parts) >= 3 && parts[len(parts)-1] == "status" && parts[1] != "_sense" {
+	if len(parts) == 2 && parts[1] == "status" && parts[0] != "_sense" {
 		storeStatus(raw)
 		return
 	}
-	if len(parts) >= 3 && parts[len(parts)-1] == "errors" {
+	if len(parts) == 2 && parts[1] == "errors" {
 		storeError(raw)
 		return
 	}

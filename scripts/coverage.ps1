@@ -15,7 +15,8 @@ $modules = @(
   "apps/plc4go-modbus",
   "apps/protocol-lab",
   "apps/ha-agent",
-  "shared/mqttx"
+  "shared/mqttx",
+  "shared/protocolmeta"
 )
 $totalProfiles = @()
 foreach ($module in $modules) {

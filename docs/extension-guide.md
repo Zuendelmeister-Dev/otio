@@ -44,20 +44,23 @@ Steps:
 7. expose UI/API status
 8. add tests for configuration parsing, polling and publish behavior
 
-## Add a custom Dispense module
+For a protocol extension, implement `Reader` and optionally `Subscriber` under `apps/sense/internal/protocols`, then register those implementations in `NewRegistry`. Add its capability, supported read modes and form presets to [`shared/protocolmeta/catalog.json`](../shared/protocolmeta/catalog.json). Run `node scripts/generate-protocol-capabilities.cjs` to update the checked-in browser bundle and Sense capability table. The validator checks the registered implementation; catalog metadata does not implement a driver. Use the [Sense implementation guide](sense.md#writing-a-custom-sense-extension) for the exact interfaces.
+
+## Add a custom Dispense output
 
 Use Dispense when you need to forward OT.io data to another system.
 
 Steps:
 
-1. define the target system
-2. implement the target writer
-3. define route and filter configuration
-4. subscribe to the shared input transport
-5. map messages to the target format
-6. publish health, status, logs and errors
-7. expose UI/API status
-8. add tests for filtering, mapping and forwarding
+1. define the target system and what its successful acceptance means
+2. implement `outputWriter` in `apps/dispense`, honoring the context deadline
+3. extend output configuration validation and writer construction
+4. reuse input subscription, routing, filtering and the bounded delivery worker
+5. classify failures with `deliveryError` as terminal, retryable or delivery-uncertain
+6. expose accurate output readiness and status without credentials
+7. add tests for acceptance, retry limits, cancellation and duplicate behavior
+
+MQTT and HTTP/HTTPS POST writers are included. The queue is process-local and bounded; it is not a durable outbox. HTTP retries reuse one message ID, while MQTT QoS 0 cannot prove receipt by the target. New writers must document their own acceptance and duplicate semantics. See [adding another output](dispense.md#adding-another-output) and [delivery rules](dispense.md#delivery-retries-and-duplicates).
 
 ## Design rule
 
@@ -91,4 +94,5 @@ A new protocol normally needs only:
 - a reader implementation
 - optionally a subscriber implementation
 - configuration examples
+- a capability entry and regenerated form/documentation assets
 - tests

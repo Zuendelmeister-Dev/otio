@@ -1,6 +1,7 @@
 FROM golang:1.27.1-alpine AS build
 WORKDIR /src
 COPY apps/protocol-lab/go.mod apps/protocol-lab/go.sum ./
+COPY shared/protocolmeta /shared/protocolmeta
 RUN go mod download
 COPY apps/protocol-lab ./
 RUN go test ./...

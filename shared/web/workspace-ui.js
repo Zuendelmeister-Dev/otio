@@ -70,12 +70,13 @@
   function topicLogRef(topic){const parts=topic.split('/'),kind=parts.at(-1);return parts.length>=3&&['errors','logs'].includes(kind)?{agentId:parts.at(-2),kind}:null;}
   function topicLogs(items,ref){return (items||[]).filter(item=>(item.component===ref.agentId||item.agentId===ref.agentId)&&(ref.kind==='logs'||['ERROR','WARN','WARNING'].includes(String(item.level||item.severity||'').toUpperCase())));}
   function drawHealthPie(canvas,healthy,unhealthy){
+    if(canvas){canvas.workspaceHealth={healthy,unhealthy};if(!canvas.dataset.appearanceListener){canvas.dataset.appearanceListener='true';document.addEventListener('otio-appearance-change',()=>drawHealthPie(canvas,canvas.workspaceHealth.healthy,canvas.workspaceHealth.unhealthy));}}
     if(!canvas)return;const details=canvas.closest('.health-compact')?.querySelector('[id$="HealthDetails"],#healthDetails');
     const rows=[...(details?.querySelectorAll('.health-item')||[])];
     const segments=rows.length?rows.map(row=>({label:row.title||[...row.children].map(el=>el.textContent.trim()).join(': '),ok:!!row.querySelector('.dot.ok')||!!row.querySelector('.dot[style*="green"]')})):[{label:healthy+' healthy',ok:true},{label:unhealthy+' unhealthy',ok:false}].filter((_,i)=>i?unhealthy:healthy);
     const ratio=window.devicePixelRatio||1,w=170,h=110;canvas.width=w*ratio;canvas.height=h*ratio;const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
     segments.forEach((item,i)=>{const start=-Math.PI/2+i*2*Math.PI/segments.length,end=start+2*Math.PI/segments.length;ctx.beginPath();ctx.moveTo(85,42);ctx.arc(85,42,34,start+.035,end-.035);ctx.closePath();ctx.fillStyle=item.ok?'#28c76f':'#ff4d4f';ctx.fill();});
-    ctx.font='11px system-ui';ctx.fillStyle='#d9e6f5';ctx.textAlign='center';ctx.fillText(segments.filter(s=>s.ok).length+' / '+segments.length+' checks healthy',85,98);canvas.setAttribute('aria-label',segments.map(s=>s.label).join('; '));
+    ctx.font='11px system-ui';ctx.fillStyle=getComputedStyle(canvas).getPropertyValue('--muted').trim()||'#d9e6f5';ctx.textAlign='center';ctx.fillText(segments.filter(s=>s.ok).length+' / '+segments.length+' checks healthy',85,98);canvas.setAttribute('aria-label',segments.map(s=>s.label).join('; '));
     canvas.tabIndex=0;canvas.removeAttribute('title');canvas.setAttribute('aria-describedby','workspace-tooltip');
     canvas.onpointermove=event=>{const r=canvas.getBoundingClientRect(),i=healthSegmentAt((event.clientX-r.left)*w/r.width,(event.clientY-r.top)*h/r.height,segments.length);showTooltip(canvas,segments[i]?.label,event);};
     canvas.onpointerleave=hideTooltip;canvas.onblur=hideTooltip;canvas.onfocus=()=>showTooltip(canvas,segments.map(s=>s.label).join(' · '));
@@ -124,7 +125,9 @@
     const dialog=document.createElement('dialog');dialog.className='node-dialog';dialog.setAttribute('aria-label','Connection details');
     dialog.innerHTML='<form method="dialog"><button class="close-detail" aria-label="Close details">×</button></form><h2></h2><p></p><div class="node-actions"></div>';
     document.body.append(dialog);
-    function inspect(node){const info=nodeInfo(node);dialog.querySelector('h2').textContent=info.label||info.id||'Connection';dialog.querySelector('p').textContent=node.querySelector('.sub')?.textContent||'Configured component';const actions=dialog.querySelector('.node-actions');actions.replaceChildren();
+    let dialogGraph,dialogNodeID;
+    dialog.addEventListener('close',()=>{const replacement=[...(dialogGraph?.querySelectorAll('.node')||[])].find(node=>nodeInfo(node).id===dialogNodeID);replacement?.focus({preventScroll:true});});
+    function inspect(node){const info=nodeInfo(node);dialogGraph=node.parentElement;dialogNodeID=info.id;dialog.querySelector('h2').textContent=info.label||info.id||'Connection';dialog.querySelector('p').textContent=node.querySelector('.sub')?.textContent||'Configured component';const actions=dialog.querySelector('.node-actions');actions.replaceChildren();
       function link(label,url){if(!url)return;const a=document.createElement('a');a.textContent=label;a.href=url;a.onclick=()=>dialog.close();actions.append(a);}
       const central=lenseURL();central.hash=componentRoute(info.id);link('View in Lense',central.href);const config=new URL(central);config.hash=componentRoute(info.id,true);link('Configure in Lense',config.href);if(hasLiveMessages(info)){const live=new URL(central);live.hash='live-messages/'+encodeURIComponent(info.id);link('Live Messages',live.href);}
       const remote=navigationURL(info.url);if(remote){remote.hash='dashboard';remote.searchParams.set('lense',lenseURL().href);link('Open instance UI',remote.href);}if(info.local)link('Configure this instance',info.local);else if((document.title.includes('Sense')&&info.kind==='sense')||(document.title.includes('Dispense')&&info.kind==='dispense'))link('Configure this instance','#config');dialog.showModal();
@@ -165,6 +168,7 @@
       .config-form{border:1px solid #334155;border-radius:12px;padding:16px;margin:12px 0;background:#101720}.config-form details{margin:12px 0;padding:10px;border:1px solid #334155;border-radius:10px}.config-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.config-fields label{display:flex;flex-direction:column;align-items:stretch;border:0;border-radius:0;background:none;padding:0;font-size:12px;color:#a6b2c3}.config-fields input,.config-fields select{background:#0c1118;color:#e6edf5;border:1px solid #41516a;border-radius:8px;padding:9px;min-width:0;width:100%;box-sizing:border-box}.config-form summary{cursor:pointer;font-weight:650}.config-form button{margin:8px 8px 0 0;padding:8px 12px}.config-form p{color:#a6b2c3;font-size:13px}.empty-state{padding:22px;border:1px dashed #41516a;border-radius:12px;color:#a6b2c3}
       @media(max-width:900px){.health-layout{grid-template-columns:1fr!important}.grid{grid-template-columns:1fr!important}}
     `;document.head.append(style);
+    if(!root.IoTOperatorUI){const operatorScript=document.createElement('script');operatorScript.src='/static/operator-ui.js';document.head.append(operatorScript);}
     document.querySelectorAll('.graph-canvas,.connection-graph').forEach(graphViewport);
     refreshGraphTraffic();setInterval(refreshGraphTraffic,60000);
   }

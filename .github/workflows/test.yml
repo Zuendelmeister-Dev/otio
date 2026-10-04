@@ -75,6 +75,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Historian backup and restore unit tests
+        run: python -B -m unittest discover -s scripts -p historian_test.py -v
       - name: Tests on Linux
         if: runner.os == 'Linux'
         run: bash scripts/test.sh
@@ -93,13 +98,13 @@ jobs:
       - name: Vet and race detector
         if: runner.os == 'Linux'
         run: |
-          for module in apps/* shared/mqttx; do
+          for module in apps/* shared/mqttx shared/protocolmeta; do
             (cd "$module" && go vet ./... && go test -race ./...)
           done
       - name: Vulnerability scan
         if: runner.os == 'Linux'
         working-directory: apps/lense
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ../presense-modbus/... ../presense-opcua/... ../sense/... ../lense/... ../dispense/... ../plc4go-modbus/... ../protocol-lab/... ../ha-agent/... ../../shared/mqttx/...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ../presense-modbus/... ../presense-opcua/... ../sense/... ../lense/... ../dispense/... ../plc4go-modbus/... ../protocol-lab/... ../ha-agent/... ../../shared/mqttx/... ../../shared/protocolmeta/...
       - name: Validate and build demo containers
         if: runner.os == 'Linux'
         run: |

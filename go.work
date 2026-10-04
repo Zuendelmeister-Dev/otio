@@ -12,4 +12,5 @@ use (
 	./apps/presense-opcua
 	./apps/sense
 	./shared/mqttx
+	./shared/protocolmeta
 )

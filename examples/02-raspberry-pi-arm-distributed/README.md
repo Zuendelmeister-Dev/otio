@@ -58,7 +58,7 @@ The laptop should not manually copy files to every Pi. Ansible is used as a smal
 
 ## Files to edit
 
-For this ready-to-run package, `deploy/ansible/secrets/local-inventory.yml` is already filled for the local lab. If you start from a clean checkout, copy `deploy/ansible/secrets/local-inventory.yml.example` to `deploy/ansible/secrets/local-inventory.yml` and edit the host addresses and credentials.
+Copy `deploy/ansible/secrets/local-inventory.yml.example` to `deploy/ansible/secrets/local-inventory.yml` and enter your hosts and SSH credentials. The private inventory is intentionally not committed; every installation supplies its own values.
 
 Use these files when the topology changes:
 
@@ -98,7 +98,9 @@ docker build -t otio-ansible:arm-distributed .\deploy\ansible
 
 This example is intended for a trusted Raspberry Pi lab network. The UIs, MQTT broker and Postgres port are reachable from the LAN, and the demo Mosquitto configuration allows anonymous clients.
 
-On shared networks, set `OTIO_CONFIG_WRITE_TOKEN` in the rendered `.env` before deployment. The Sense UI and the Lense remote configuration view will ask for that token before applying configuration changes.
+On shared networks, set `otio_config_write_token` in your private Ansible inventory, or pass `OTIO_CONFIG_WRITE_TOKEN` into the Ansible control container before the first deployment. The template writes it to the node's `.env` without exposing it in task output. The Sense UI and the Lense remote configuration view will ask for that token before applying configuration changes.
+
+Redeployment preserves the node's `.env`, edited configuration and history. To deliberately replace configuration from the inventory templates, use `-e otio_replace_runtime_config=true`; to replace the environment file (including a changed token), use `-e otio_replace_environment=true`. These options overwrite the corresponding runtime settings, so back them up first. Source code and Compose files still update normally. The source archive includes the Protocol Lab seed files required by the Sense and Lense Docker builds.
 
 ## Reset the deployment on all Pis
 

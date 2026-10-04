@@ -8,4 +8,6 @@ Port 8099 exposes `/live` for both active and standby. `/ready` reports healthy 
 
 This is leader election without fencing. It does not promise exactly-once processing or immunity to process pauses, clock-rate skew or network partitions. See the complete operating and data-loss boundaries in `examples/07-kubernetes-ha/README.md`.
 
-Tests exercise canceled leadership terminating a real subprocess, stopped-before-start behavior and readiness after process exit. The example's failover script additionally checks application replacement, broker recovery and database primary change against a real Kubernetes cluster.
+The supervisor continues checking after activation. A child that stops answering for `HA_FAILURE_TIMEOUT` (default `15s`) is terminated and the supervisor stops renewing its Lease. The startup deadline is separate: `HA_STARTUP_TIMEOUT` defaults to `2m` and also bounds failed endpoint activation. Both settings accept Go durations of at least `1s`. Recovery before the failure deadline clears the timer. These probes measure application responsiveness; broker outages are reported by the application and do not automatically kill it.
+
+Tests exercise canceled leadership terminating a real subprocess, stopped-before-start behavior, sustained hangs, transient recovery, startup deadlines and failed Kubernetes endpoint activation. The example's failover script additionally checks application replacement, broker recovery and database primary change against a real Kubernetes cluster.

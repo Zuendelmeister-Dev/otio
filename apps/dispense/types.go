@@ -8,13 +8,31 @@ import (
 )
 
 type Config struct {
-	InstanceID   string       `json:"instanceId"`
-	SourceFilter string       `json:"sourceFilter"`
-	InputBroker  BrokerConfig `json:"inputBroker"`
-	OutputBroker BrokerConfig `json:"outputBroker"`
-	SourcePrefix string       `json:"sourcePrefix"`
-	TargetPrefix string       `json:"targetPrefix"`
-	BufferLimit  int          `json:"bufferLimit"`
+	InstanceID   string         `json:"instanceId"`
+	SourceFilter string         `json:"sourceFilter"`
+	InputBroker  BrokerConfig   `json:"inputBroker"`
+	OutputBroker BrokerConfig   `json:"outputBroker"`
+	SourcePrefix string         `json:"sourcePrefix"`
+	TargetPrefix string         `json:"targetPrefix"`
+	BufferLimit  int            `json:"bufferLimit"`
+	Output       OutputConfig   `json:"output"`
+	Delivery     DeliveryConfig `json:"delivery"`
+}
+
+// Output defaults to MQTT, using the existing OutputBroker configuration.
+// HTTP authentication contains only an environment variable name, never a token.
+type OutputConfig struct {
+	Type           string `json:"type"`
+	URL            string `json:"url,omitempty"`
+	BearerTokenEnv string `json:"bearerTokenEnv,omitempty"`
+	TimeoutMs      int    `json:"timeoutMs"`
+}
+
+type DeliveryConfig struct {
+	MaxRetries       int `json:"maxRetries"`
+	InitialBackoffMs int `json:"initialBackoffMs"`
+	MaxBackoffMs     int `json:"maxBackoffMs"`
+	QueueLimit       int `json:"queueLimit"`
 }
 
 type BrokerConfig struct {
@@ -66,9 +84,14 @@ type State struct {
 	ReceivedCount   int64
 	ForwardedCount  int64
 	DroppedCount    int64
+	FilteredCount   int64
+	PendingCount    int64
+	RetryCount      int64
+	UncertainCount  int64
 
 	InputClient  mqttx.Client
 	OutputClient mqttx.Client
+	Output       *deliveryQueue
 
 	Logs    []LogEntry
 	Metrics map[string]map[string][]MetricPoint

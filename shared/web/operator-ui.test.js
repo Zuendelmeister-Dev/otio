@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('node:assert/strict');
+const ui=require('./operator-ui');
+assert.equal(ui.freshnessSummary(null).tone,'unknown');
+assert.equal(ui.freshnessSummary({status:'unknown',items:[]}).tone,'unknown');
+assert.equal(ui.freshnessSummary({items:[]}).tone,'unknown');
+assert.equal(ui.freshnessSummary({items:[{status:'fresh'}]}).tone,'good');
+for(const status of ['stale','missing','clock-skew','unknown'])assert.equal(ui.freshnessSummary({items:[{status}]}).tone,'warning');
+assert.equal(ui.freshnessSummary({items:[{status:'fresh'}],truncated:true}).tone,'unknown');
+assert.equal(ui.ageLabel(null),'No stored measurement');
+assert.equal(ui.ageLabel(-100),'Timestamp is in the future');
+assert.equal(ui.ageLabel(180),'3 minutes ago');
+assert.equal(ui.pageDescription('#agents/device-1','Lense')[0],'Devices and services');
+console.log('Operator UI freshness, incomplete checks and readable age tests passed');

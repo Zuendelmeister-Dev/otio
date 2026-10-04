@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 )
@@ -12,6 +13,11 @@ func main() {
 	if err := ensureSchema(); err != nil {
 		log.Fatal(err)
 	}
+	historianConfig, err := loadHistorianConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	startHistorianMaintenance(context.Background(), db, historianConfig)
 	go startMQTT()
 	startComponentMonitor()
 
@@ -24,6 +30,8 @@ func main() {
 	http.HandleFunc("/api/graph-traffic", apiGraphTraffic)
 	http.HandleFunc("/api/live-messages", apiLiveMessages)
 	http.HandleFunc("/api/summary", apiSummary)
+	http.HandleFunc("/api/historian/status", apiHistorianStatus)
+	http.HandleFunc("/api/historian/freshness", apiHistorianFreshness)
 	http.HandleFunc("/api/database/tables", apiDatabaseTables)
 	http.HandleFunc("/api/database/query", apiDatabaseQuery)
 	http.HandleFunc("/api/agents", apiAgents)

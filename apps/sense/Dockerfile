@@ -14,6 +14,7 @@ WORKDIR /src
 
 COPY apps/sense/go.mod ./
 COPY shared/mqttx /shared/mqttx
+COPY shared/protocolmeta /shared/protocolmeta
 COPY apps/sense ./
 COPY examples/03-protocol-lab /examples/03-protocol-lab
 COPY shared/web/*.js ./static/

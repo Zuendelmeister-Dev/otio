@@ -107,39 +107,41 @@ func publishDemoProtocol(ctx context.Context, sim *simulator, protocol string) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			func() {
-				raw, _ := json.Marshal(sim.snapshot().Temperature)
-				if broker := os.Getenv("LAB_MQTT_URL"); broker != "" && (protocol == "" || protocol == "mqtt") {
-					tick, cancel := context.WithTimeout(ctx, 4*time.Second)
-					client := mqttClient(broker)
-					if err := waitMQTT(tick, client.Connect()); err == nil {
-						err = waitMQTT(tick, client.Publish("lab/temperature", 0, true, raw))
-						sim.recordPublish("mqtt", err)
-					} else {
-						sim.recordPublish("mqtt", err)
-					}
-					client.Disconnect(0)
-					cancel()
-				}
-				if broker := os.Getenv("LAB_AMQP_URL"); broker != "" {
-					tick, cancel := context.WithTimeout(ctx, 4*time.Second)
-					defer cancel()
-					conn, err := dialAMQP(tick, broker)
-					if err != nil {
-						sim.recordPublish("amqp", err)
-						return
-					}
-					defer conn.Close()
-					ch, err := conn.Channel()
-					if err != nil {
-						sim.recordPublish("amqp", err)
-						return
-					}
-					defer ch.Close()
-					err = ch.PublishWithContext(tick, "amq.topic", "lab.temperature", false, false, amqp.Publishing{ContentType: "application/json", Body: raw})
-					sim.recordPublish("amqp", err)
-				}
-			}()
+			publishDemoTick(ctx, sim, protocol)
 		}
+	}
+}
+
+func publishDemoTick(ctx context.Context, sim *simulator, protocol string) {
+	raw, _ := json.Marshal(sim.snapshot().Temperature)
+	if broker := os.Getenv("LAB_MQTT_URL"); broker != "" && (protocol == "" || protocol == "mqtt") {
+		tick, cancel := context.WithTimeout(ctx, 4*time.Second)
+		client := mqttClient(broker)
+		if err := waitMQTT(tick, client.Connect()); err == nil {
+			err = waitMQTT(tick, client.Publish("lab/temperature", 0, true, raw))
+			sim.recordPublish("mqtt", err)
+		} else {
+			sim.recordPublish("mqtt", err)
+		}
+		client.Disconnect(0)
+		cancel()
+	}
+	if broker := os.Getenv("LAB_AMQP_URL"); broker != "" && (protocol == "" || protocol == "amqp") {
+		tick, cancel := context.WithTimeout(ctx, 4*time.Second)
+		defer cancel()
+		conn, err := dialAMQP(tick, broker)
+		if err != nil {
+			sim.recordPublish("amqp", err)
+			return
+		}
+		defer conn.Close()
+		ch, err := conn.Channel()
+		if err != nil {
+			sim.recordPublish("amqp", err)
+			return
+		}
+		defer ch.Close()
+		err = ch.PublishWithContext(tick, "amq.topic", "lab.temperature", false, false, amqp.Publishing{ContentType: "application/json", Body: raw})
+		sim.recordPublish("amqp", err)
 	}
 }

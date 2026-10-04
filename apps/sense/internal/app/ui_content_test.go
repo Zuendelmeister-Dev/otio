@@ -92,8 +92,8 @@ func TestSenseConfigurationShowsApplyFeedbackToast(t *testing.T) {
 	content := readUI(t)
 	required := []string{
 		"function showToast(",
-		"Configuration applied",
-		"Snapshot history was refreshed",
+		"Configuration saved",
+		"Previous settings were saved in history",
 		"rollback-btn",
 	}
 	for _, item := range required {
