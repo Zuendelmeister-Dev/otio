@@ -50,22 +50,25 @@ func (reader OPCUAHTTPReader) Read(ctx context.Context, endpoint SourceEndpoint,
 		return MetricValue{}, err
 	}
 	return MetricValue{
-		Name:  metric.Name,
-		Raw:   map[string]any{"nodeId": payload.NodeID, "value": payload.Value, "quality": payload.Quality},
-		Value: scaleValue(metric, payload.Value),
+		Name:    metric.Name,
+		Raw:     map[string]any{"nodeId": payload.NodeID, "value": payload.Value, "quality": payload.Quality},
+		Value:   scaleValue(metric, payload.Value),
+		Quality: NormalizeQuality(payload.Quality),
 	}, nil
 }
 
 func (reader OPCUAHTTPReader) Subscribe(ctx context.Context, endpoint SourceEndpoint, metrics []MetricAddress, intervalMS int, handler func(MetricValue)) error {
-	metricsByNode := map[string]MetricAddress{}
+	metricsByNode := map[string][]MetricAddress{}
 	nodeIDs := make([]string, 0, len(metrics))
 	for _, metric := range metrics {
 		nodeID := metric.NodeID
 		if nodeID == "" {
 			nodeID = metric.Name
 		}
-		metricsByNode[nodeID] = metric
-		nodeIDs = append(nodeIDs, nodeID)
+		if _, exists := metricsByNode[nodeID]; !exists {
+			nodeIDs = append(nodeIDs, nodeID)
+		}
+		metricsByNode[nodeID] = append(metricsByNode[nodeID], metric)
 	}
 	requestURL := fmt.Sprintf("http://%s:%d/subscribe?nodeIds=%s&intervalMs=%d", endpoint.Host, endpoint.Port, url.QueryEscape(strings.Join(nodeIDs, ",")), intervalMS)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
@@ -103,15 +106,14 @@ func (reader OPCUAHTTPReader) Subscribe(ctx context.Context, endpoint SourceEndp
 			return err
 		}
 		for _, item := range event.Items {
-			metric, ok := metricsByNode[item.NodeID]
-			if !ok {
-				continue
+			for _, metric := range metricsByNode[item.NodeID] {
+				handler(MetricValue{
+					Name:    metric.Name,
+					Raw:     map[string]any{"nodeId": item.NodeID, "value": item.Value, "quality": item.Quality},
+					Value:   scaleValue(metric, item.Value),
+					Quality: NormalizeQuality(item.Quality),
+				})
 			}
-			handler(MetricValue{
-				Name:  metric.Name,
-				Raw:   map[string]any{"nodeId": item.NodeID, "value": item.Value, "quality": item.Quality},
-				Value: scaleValue(metric, item.Value),
-			})
 		}
 	}
 	return scanner.Err()

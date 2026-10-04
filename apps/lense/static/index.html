@@ -187,7 +187,7 @@ const componentColor='#facc15';
 .legend-node.dashed{border-style:dashed}
 
 </style>
-<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script><script src="/static/database-viewer.js?v=3"></script><script src="/static/certificates.js" defer></script><script src="/static/live-messages.js" defer></script>
+<script src="/static/workspace-ui.js"></script><script src="/static/operator-ui.js"></script><script src="/static/protocol-capabilities.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script><script src="/static/database-viewer.js?v=3"></script><script src="/static/certificates.js" defer></script><script src="/static/live-messages.js" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -220,19 +220,20 @@ const componentColor='#facc15';
 </aside>
 <main><div id="uiError" class="hidden" style="background:#2a1414;border:1px solid #ff4d4f;color:#ffdada;border-radius:12px;padding:10px 12px;margin-bottom:12px"></div>
 <section id="page-dashboard">
+  <div id="measurementUpdates" class="card operator-status" data-tone="unknown" role="status" aria-live="polite"><strong>Checking measurement updates…</strong><p>Recent measurements and connection health are checked separately.</p></div>
   <div class="kpis">
-    <div class="kpi"><div class="k">Health</div><div class="v" id="healthTop">unknown</div></div>
+    <div class="kpi"><div class="k">Connections</div><div class="v" id="healthTop">unknown</div></div>
     <div class="kpi"><div class="k">Broker</div><div class="v" id="broker">unknown</div></div>
     <div class="kpi"><div class="k">Connected agents</div><div class="v" id="connected">0</div></div>
     <div class="kpi"><div class="k">Avg msgs/agent 5m</div><div class="v" id="avg">0</div></div>
   </div>
   <div class="grid" style="grid-template-columns: 420px 1fr;">
-    <div class="card"><h3>Health distribution</h3><canvas id="pie" width="420" height="260"></canvas></div>
+    <div class="card"><h3>Connection checks</h3><canvas id="pie" width="420" height="260"></canvas></div>
     <div class="card"><h3>Health details</h3><div id="healthDetails"></div></div>
   </div>
   <div class="card" style="margin-top:14px">
     <h3>Connection graph</h3>
-    <div class="small" style="margin-bottom:8px">Drag horizontally inside the empty graph area or use the scrollbar.</div>
+    <div class="small" style="margin-bottom:8px">Point to a device or use Tab to highlight its data path. Other paths fade. Select a device for details. Drag the empty graph area to move around.</div>
     <div class="graph-scroll"><div id="connectionGraph" class="graph-canvas"></div></div>
     <div id="connectionGraphLegend" class="legend graph-legend"></div>
   </div>
@@ -247,6 +248,7 @@ const componentColor='#facc15';
     <h3>Components</h3>
     <div class="small" style="margin-bottom:14px">Runtime components discovered from this local stack. Configuration editing stays in the owning application, but this view shows identity, endpoints and connection state in one place.</div>
     <div id="componentsOverview"></div>
+    <div id="historianStorage" class="operator-retention" role="status">Checking data storage…</div>
     <div class="grid">
       <div class="card"><h3>Broker connection</h3><div id="brokerOverview"></div><div class="chart-wrap"><canvas id="brokerChart" width="900" height="260"></canvas><div id="brokerTooltip" class="tooltip"></div></div><div id="brokerLegend" class="legend"></div></div>
       <div class="card"><h3>Database connection</h3><div id="databaseOverview"></div><div class="chart-wrap"><canvas id="databaseChart" width="900" height="260"></canvas><div id="databaseTooltip" class="tooltip"></div></div><div id="databaseLegend" class="legend"></div></div>
@@ -409,16 +411,20 @@ function hideLoading(){
   const overlay=document.getElementById('loadingOverlay');
   if(overlay)overlay.classList.add('hidden');
 }
+let loadingRequests=0;
+let routeSequence=0;
 async function withLoading(message, fn){
+  loadingRequests++;
   showLoading(message);
   try{
     return await fn();
   }finally{
-    hideLoading();
+    if(--loadingRequests===0)hideLoading();
   }
 }
 function routeLoad(message, fn){
-  withLoading(message, fn).then(clearUiError).catch(err=>showUiError(err.message||String(err)));
+  const sequence=routeSequence;
+  withLoading(message, fn).then(()=>{if(sequence===routeSequence)clearUiError();}).catch(err=>{if(sequence===routeSequence)showUiError(err.message||String(err));});
 }
 async function safeJson(url, options){
   const response=await fetch(url, options);
@@ -547,6 +553,14 @@ let currentLenseConfigOriginal='';
 let currentLenseConfigProposal=null;
 let currentLenseConfigIsRemote=false;
 let currentLenseRemoteProposalId=null;
+let configLoadSequence=0;
+let configDraftVersion=0;
+function invalidateConfigDraft(){
+  configDraftVersion++;
+  currentLenseConfigProposal=null;
+  currentLenseRemoteProposalId=null;
+  document.getElementById('btnApplyConfigDraft').disabled=true;
+}
 
 function configObjectForItem(item){
   if(item && item.configuration){
@@ -656,15 +670,13 @@ async function loadEffectiveConfigText(item){
     try{
       const remote=await safeJson('/api/remote-config?id='+encodeURIComponent(item.id));
       if(remote && typeof remote.raw==='string'){
-        currentLenseConfigIsRemote=true;
-        return remote.raw;
+        return {raw:remote.raw,isRemote:true};
       }
     }catch(err){
       console.warn('Remote config fetch failed, falling back to topology config', err);
     }
   }
-  currentLenseConfigIsRemote=false;
-  return storedConfigForItem(item);
+  return {raw:storedConfigForItem(item),isRemote:false};
 }
 
 async function remoteHistoryForConfig(id){
@@ -679,12 +691,14 @@ async function remoteHistoryForConfig(id){
 async function renderConfigHistory(){
   const box=document.getElementById('lenseConfigHistory');
   if(!currentLenseConfigItem || !box)return;
+  const itemId=currentLenseConfigItem.id, sequence=configLoadSequence;
   let items=[];
   if(currentLenseConfigIsRemote){
-    items=await remoteHistoryForConfig(currentLenseConfigItem.id);
+    items=await remoteHistoryForConfig(itemId);
   }
+  if(sequence!==configLoadSequence || currentLenseConfigItem?.id!==itemId)return;
   if(!items.length){
-    items=historyForConfig(currentLenseConfigItem.id);
+    items=historyForConfig(itemId);
   }
   if(!items.length){
     box.innerHTML='<div class="k">No saved config snapshots yet. Apply a configuration once to create the first snapshot.</div>';
@@ -693,31 +707,44 @@ async function renderConfigHistory(){
   box.innerHTML=items.map((x,index)=>'<div class="card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><b>Snapshot '+(index+1)+'</b><div class="k">'+IoTStandardChart.escapeHtml(x.createdAt||x.fileName||'')+'</div></div><button data-restore-config="'+index+'">Restore</button></div><details style="margin-top:8px"><summary>Show config</summary><pre>'+IoTStandardChart.escapeHtml(x.configRaw||'')+'</pre></details></div>').join('');
   document.querySelectorAll('[data-restore-config]').forEach(button=>{
     button.onclick=()=>{
+      if(sequence!==configLoadSequence || currentLenseConfigItem?.id!==itemId)return;
       const item=items[Number(button.dataset.restoreConfig)];
+      invalidateConfigDraft();
       document.getElementById('lenseConfigEditor').value=item.configRaw;
       document.getElementById('configWorkflowResult').textContent='Snapshot loaded into editor';
     };
   });
 }
 function loadConfigurationDetail(id){
+  const sequence=++configLoadSequence;
+  currentLenseConfigItem=null;
+  invalidateConfigDraft();
+  document.getElementById('lenseConfigEditor').disabled=true;
+  document.getElementById('lenseConfigEditor').value='';
+  document.getElementById('configDetailTitle').textContent='Loading configuration…';
+  document.getElementById('configDetailSubtitle').textContent=id;
   return (async()=>{
     await loadRuntime();
+    if(sequence!==configLoadSequence)return;
     flattenConfigItems();
     const item=lenseConfigItems[id];
-    currentLenseConfigItem=item;
-    currentLenseConfigProposal=null;
-    document.getElementById('btnApplyConfigDraft').disabled=true;
     if(!item){
       document.getElementById('configDetailTitle').textContent='Configuration not found';
       document.getElementById('configDetailSubtitle').textContent=id;
       return;
     }
-    currentLenseConfigOriginal=await loadEffectiveConfigText(item);
+    const effective=await loadEffectiveConfigText(item);
+    if(sequence!==configLoadSequence)return;
+    currentLenseConfigItem=item;
+    currentLenseConfigOriginal=effective.raw;
+    currentLenseConfigIsRemote=effective.isRemote;
+    document.getElementById('lenseConfigEditor').disabled=false;
+    document.getElementById('btnApplyConfigDraft').textContent=effective.isRemote?'Apply proposal':'Save browser draft';
     document.getElementById('configDetailTitle').textContent=(item.label||item.id)+' configuration';
     const bc=document.getElementById('configBreadcrumbs');
     if(bc)bc.innerHTML=configurationBreadcrumbHtml(item);
     document.getElementById('configDetailKind').textContent=item.kind||'Component';
-    document.getElementById('configDetailSubtitle').textContent='Guarded configuration workflow for '+(item.label||item.id)+'. Edit, validate, review diff, then apply.';
+    document.getElementById('configDetailSubtitle').textContent=effective.isRemote?'Change '+(item.label||item.id)+': edit, check the differences, then apply.':'This is a browser draft. Saving it does not change the running component. Open the instance UI to change its settings.';
     document.getElementById('lenseConfigEditor').value=currentLenseConfigOriginal;
     document.getElementById('lenseConfigDiff').textContent='';
     document.getElementById('configWorkflowState').textContent='Idle';
@@ -738,6 +765,10 @@ function loadConfigurationDetail(id){
 }
 
 async function validateLenseConfigDraft(){
+  if(!currentLenseConfigItem || document.getElementById('lenseConfigEditor').disabled)return;
+  const sequence=configLoadSequence, itemId=currentLenseConfigItem.id;
+  invalidateConfigDraft();
+  const version=configDraftVersion;
   const editor=document.getElementById('lenseConfigEditor');
   const diff=document.getElementById('lenseConfigDiff');
   const stateEl=document.getElementById('configWorkflowState');
@@ -745,10 +776,9 @@ async function validateLenseConfigDraft(){
   try{
     const parsed=JSON.parse(editor.value);
     const normalized=JSON.stringify(parsed,null,2);
-    currentLenseConfigProposal=normalized;
-    currentLenseRemoteProposalId=null;
     if(currentLenseConfigIsRemote){
-      const remote=await configWriteJson('/api/remote-config/validate?id='+encodeURIComponent(currentLenseConfigItem.id),{raw:normalized});
+      const remote=await configWriteJson('/api/remote-config/validate?id='+encodeURIComponent(itemId),{raw:normalized});
+      if(sequence!==configLoadSequence || version!==configDraftVersion)return;
       if(!remote.valid){
         diff.textContent=(remote.problems||['Remote validation failed']).join('\n');
         stateEl.textContent='Invalid';
@@ -757,17 +787,20 @@ async function validateLenseConfigDraft(){
         return;
       }
       currentLenseRemoteProposalId=remote.proposal && remote.proposal.id;
+      currentLenseConfigProposal=normalized;
       diff.textContent=(remote.proposal && remote.proposal.diff) || makeDiff(currentLenseConfigOriginal, normalized);
       stateEl.textContent='Validated';
       result.textContent='Remote draft is valid';
-      document.getElementById('btnApplyConfigDraft').disabled=false;
+      document.getElementById('btnApplyConfigDraft').disabled=!currentLenseRemoteProposalId;
       return;
     }
     diff.textContent=makeDiff(currentLenseConfigOriginal, normalized);
+    currentLenseConfigProposal=normalized;
     stateEl.textContent='Validated';
     result.textContent='Draft is valid JSON';
     document.getElementById('btnApplyConfigDraft').disabled=false;
   }catch(err){
+    if(sequence!==configLoadSequence || version!==configDraftVersion)return;
     currentLenseConfigProposal=null;
     currentLenseRemoteProposalId=null;
     diff.textContent=err.message;
@@ -778,34 +811,58 @@ async function validateLenseConfigDraft(){
 }
 async function applyLenseConfigDraft(){
   if(!currentLenseConfigItem || !currentLenseConfigProposal)return;
+  const sequence=configLoadSequence, version=configDraftVersion;
+  const itemId=currentLenseConfigItem.id, proposal=currentLenseConfigProposal;
   if(currentLenseConfigIsRemote){
     if(!currentLenseRemoteProposalId){
       document.getElementById('configWorkflowResult').textContent='Validate the remote draft before applying it';
       return;
     }
-    const result=await configWriteJson('/api/remote-config/apply?id='+encodeURIComponent(currentLenseConfigItem.id),{proposalId:currentLenseRemoteProposalId});
-    currentLenseConfigOriginal=currentLenseConfigProposal;
+    const proposalId=currentLenseRemoteProposalId;
     currentLenseRemoteProposalId=null;
     document.getElementById('btnApplyConfigDraft').disabled=true;
-    document.getElementById('configWorkflowState').textContent='Applied remotely';
-    document.getElementById('configWorkflowResult').textContent='Configuration applied on instance. '+((result.historyFile)?('Snapshot: '+result.historyFile):'');
+    document.getElementById('configWorkflowState').textContent='Applying…';
+    let result;
+    try{
+      result=await configWriteJson('/api/remote-config/apply?id='+encodeURIComponent(itemId),{proposalId});
+    }catch(err){
+      if(sequence!==configLoadSequence || version!==configDraftVersion)return;
+      document.getElementById('configWorkflowState').textContent='Check current settings';
+      document.getElementById('configWorkflowResult').textContent='The result could not be confirmed. Reload this configuration before trying again. '+err.message;
+      return;
+    }
+    if(sequence!==configLoadSequence || version!==configDraftVersion)return;
+    currentLenseConfigOriginal=proposal;
+    currentLenseConfigProposal=null;
+    document.getElementById('btnApplyConfigDraft').disabled=true;
+    document.getElementById('configWorkflowState').textContent=result.status==='restarting'?'Saved; reconnecting':'Applied remotely';
+    document.getElementById('configWorkflowResult').textContent=result.status==='restarting'?'Settings saved. The collector is restarting its connections; check System status before assuming measurements are flowing.':'Configuration applied on instance. '+((result.historyFile)?('Snapshot: '+result.historyFile):'');
     document.getElementById('lenseConfigDiff').textContent='';
     await renderConfigHistory();
     return;
   }
-  saveHistoryForConfig(currentLenseConfigItem.id, currentLenseConfigProposal);
-  localStorage.setItem('iot-lense-config-draft-v37:'+currentLenseConfigItem.id,currentLenseConfigProposal);
-  currentLenseConfigOriginal=currentLenseConfigProposal;
+  saveHistoryForConfig(itemId, proposal);
+  localStorage.setItem('iot-lense-config-draft-v37:'+itemId,proposal);
+  currentLenseConfigOriginal=proposal;
+  currentLenseConfigProposal=null;
   document.getElementById('btnApplyConfigDraft').disabled=true;
-  document.getElementById('configWorkflowState').textContent='Applied locally';
-  document.getElementById('configWorkflowResult').textContent='Configuration snapshot saved in IoT Lense. Backend write-back is intentionally still guarded.';
+  document.getElementById('configWorkflowState').textContent='Browser draft saved';
+  document.getElementById('configWorkflowResult').textContent='Draft saved in this browser. The running component has not changed.';
   document.getElementById('lenseConfigDiff').textContent='';
   await renderConfigHistory();
 }
 async function resetLenseConfigEditor(){
   if(!currentLenseConfigItem)return;
-  localStorage.removeItem('iot-lense-config-draft-v37:'+currentLenseConfigItem.id);
-  currentLenseConfigOriginal=await loadEffectiveConfigText(currentLenseConfigItem);
+  const item=currentLenseConfigItem, sequence=++configLoadSequence;
+  invalidateConfigDraft();
+  document.getElementById('lenseConfigEditor').disabled=true;
+  localStorage.removeItem('iot-lense-config-draft-v37:'+item.id);
+  const effective=await loadEffectiveConfigText(item);
+  if(sequence!==configLoadSequence)return;
+  currentLenseConfigOriginal=effective.raw;
+  currentLenseConfigIsRemote=effective.isRemote;
+  document.getElementById('lenseConfigEditor').disabled=false;
+  document.getElementById('btnApplyConfigDraft').textContent=effective.isRemote?'Apply proposal':'Save browser draft';
   document.getElementById('lenseConfigEditor').value=currentLenseConfigOriginal;
   document.getElementById('lenseConfigDiff').textContent='';
   document.getElementById('btnApplyConfigDraft').disabled=true;
@@ -997,6 +1054,10 @@ document.querySelectorAll('[data-subnav-toggle]').forEach(link=>{
   });
 });
 function route(){
+  routeSequence++;
+  configLoadSequence++;
+  currentLenseConfigItem=null;
+  invalidateConfigDraft();
   const hash=location.hash.replace('#','')||'dashboard';
   const parts=hash.split('/');
   const page=parts[0],id=parts[1];
@@ -1093,6 +1154,7 @@ function renderHealth(summary,agents){
 
 function renderConnectionGraph(summary,agents){
   const box=document.getElementById('connectionGraph');
+  const focusedNode=box.contains(document.activeElement)?document.activeElement.closest('.node')?.graphInfo?.id:null;
   IoTWorkspace.graphViewport(box);
   const topology=runtimeConfig.topology||{};
   IoTWorkspace.setTopology(topology);
@@ -1240,9 +1302,74 @@ function renderConnectionGraph(summary,agents){
   node(targetX,targetY,targetW,targetCls,'Dispense Target MQTT',(targetOk?'':'down | ')+(target.host||'dispense-broker')+':'+(target.externalPort||1884),{id:targetId,label:target.label||'Dispense Target MQTT',kind:'Target Broker'});
   IoTWorkspace.graphLanes(box,[{x:0,width:350,label:'Sources / Presense'},{x:350,width:350,label:'Collection / Sense'},{x:700,width:350,label:'Messaging & Lense'},{x:1050,width:350,label:'Storage & forwarding'},{x:1400,width:380,label:'Destinations'}]);
   renderConnectionGraphLegend();
+  if(focusedNode){
+    const replacement=[...box.querySelectorAll('.node')].find(node=>node.graphInfo?.id===focusedNode);
+    if(replacement){replacement.tabIndex=0;replacement.focus({preventScroll:true});}
+    else box.parentElement.focus({preventScroll:true});
+  }
+}
+
+let historianNextCheck=0;
+let historianRequest=null;
+function loadHistorianOverview(force=false){
+  if(historianRequest)return historianRequest;
+  if(!force && Date.now()<historianNextCheck)return Promise.resolve();
+  historianNextCheck=Date.now()+15000;
+  historianRequest=(async()=>{
+    const results=await Promise.allSettled([safeJson('/api/historian/freshness'),safeJson('/api/historian/status')]);
+    const freshness=results[0].status==='fulfilled'?results[0].value:{status:'unknown'};
+    renderMeasurementUpdates(freshness);
+    const storage=document.getElementById('historianStorage');
+    const status=results[1].status==='fulfilled'?results[1].value:null;
+    storage.replaceChildren();
+    const title=document.createElement('strong');title.textContent='Data storage';storage.append(title);
+    const text=document.createElement('p');
+    if(!status?.database?.connected){text.textContent='Storage could not be checked. Check PostgreSQL and the Lense connection.';storage.append(text);return;}
+    const retention=status.retention||{};
+    text.textContent=retention.metricRetentionDays>0?'Measurements are kept for '+retention.metricRetentionDays+' days. Older measurements are removed automatically in small batches.':'All measurements are kept. Automatic deletion is off.';
+    storage.append(text);
+    const errors=document.createElement('p');errors.textContent=retention.errorRetentionDays>0?'Error history is kept for '+retention.errorRetentionDays+' days.':'Error history is kept without a time limit.';storage.append(errors);
+    if(retention.lastRun?.warning){const warning=document.createElement('p');warning.textContent='The last cleanup needs attention: '+retention.lastRun.warning;storage.append(warning);}
+    const help=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Backup and restore';
+    const hint=document.createElement('p');hint.textContent='The repository includes historian.sh and historian.ps1 to create a PostgreSQL backup. Restore into a new empty database, verify the data, then switch Lense to it. The data management guide explains each step.';
+    const guide=document.createElement('a');guide.href='https://github.com/Zuendelmeister-Dev/otio/blob/main/docs/historian.md';guide.target='_blank';guide.rel='noopener';guide.textContent='Open the data management guide';
+    help.append(summary,hint,guide);storage.append(help);
+  })().finally(()=>{historianRequest=null;});
+  return historianRequest;
+}
+function renderMeasurementUpdates(data){
+  const box=document.getElementById('measurementUpdates');
+  const summary=IoTOperatorUI.freshnessSummary(data);
+  const focused=box.contains(document.activeElement)?document.activeElement:null;
+  const focusedHref=focused?.getAttribute('href');
+  box.dataset.tone=summary.tone;box.replaceChildren();
+  const title=document.createElement('strong');title.textContent=summary.label;
+  const detail=document.createElement('p');detail.textContent=summary.detail;box.append(title,detail);
+  const warnings=(data.items||[]).filter(item=>item.status!=='fresh');
+  if(warnings.length){
+    const list=document.createElement('ul');
+    for(const item of warnings.slice(0,8)){
+      const row=document.createElement('li'),link=document.createElement('a'),age=document.createElement('span');
+      link.href='#agents/'+encodeURIComponent(item.agentId);link.textContent=item.agentId;
+      age.textContent=' — '+IoTOperatorUI.ageLabel(item.ageSeconds);row.append(link,age);
+      if(item.warning)row.title=item.warning;
+      list.append(row);
+    }
+    box.append(list);
+    if(warnings.length>8){const more=document.createElement('p');more.textContent=(warnings.length-8)+' more sources need attention. Open Devices and services to check them.';box.append(more);}
+  }
+  const actions=document.createElement('div');actions.className='operator-actions';
+  const inspect=document.createElement('a');inspect.href=warnings.length?'#agents':'#analytics';inspect.textContent=warnings.length?'Check devices':'View measurements';
+  const refresh=document.createElement('button');refresh.textContent='Check again';refresh.onclick=()=>loadHistorianOverview(true).catch(err=>showUiError(err.message));
+  actions.append(inspect,refresh);box.append(actions);
+  if(focused){
+    const replacement=focusedHref?[...box.querySelectorAll('a')].find(link=>link.getAttribute('href')===focusedHref):refresh;
+    replacement?.focus({preventScroll:true});
+  }
 }
 
 async function loadSummary(){
+  await loadHistorianOverview();
   const s=await safeJson('/api/summary');
   latestSummary=s;
   broker.textContent=s.mqtt.connected?'connected':'disconnected';
@@ -1630,7 +1757,7 @@ function renderTree(node,el,path=[]){
     }
   });
 }
-document.getElementById('lenseConfigEditor').addEventListener('input',()=>{currentLenseConfigProposal=null;currentLenseRemoteProposalId=null;document.getElementById('btnApplyConfigDraft').disabled=true;});
+document.getElementById('lenseConfigEditor').addEventListener('input',invalidateConfigDraft);
 const openedNamespacePaths=new Set(['iot-lense']);
 
 async function loadUNS(force){

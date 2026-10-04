@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"iot-lense-sense/shared/protocolmeta"
 )
 
 func TestLabReader(t *testing.T) {
@@ -39,8 +41,11 @@ func TestLabReader(t *testing.T) {
 	}
 }
 func TestAllLabReadersRegistered(t *testing.T) {
-	for _, protocol := range LabProtocolTypes {
-		if _, err := NewRegistry().Reader("lab-" + protocol); err != nil {
+	for _, protocol := range protocolmeta.Lab() {
+		if !protocol.LabRead {
+			continue
+		}
+		if _, err := NewRegistry().Reader("lab-" + protocol.ID); err != nil {
 			t.Fatal(err)
 		}
 	}

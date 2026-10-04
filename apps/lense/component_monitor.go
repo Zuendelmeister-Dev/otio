@@ -148,16 +148,54 @@ func probeComponent(client http.Client, item componentProbeTarget) (bool, bool, 
 		return false, false, err.Error()
 	}
 	defer response.Body.Close()
-	raw, _ := io.ReadAll(response.Body)
+	raw, readErr := io.ReadAll(io.LimitReader(response.Body, 64*1024))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return false, false, response.Status
+	}
+	if readErr != nil {
+		return true, false, "Status endpoint reachable, but its response could not be read"
+	}
+	if item.Kind == "dispense" {
+		var status struct {
+			InputBroker struct {
+				Connected bool `json:"connected"`
+			} `json:"inputBroker"`
+			Output *struct {
+				Connected bool `json:"connected"`
+			} `json:"output"`
+			OutputBroker struct {
+				Connected bool `json:"connected"`
+			} `json:"outputBroker"`
+		}
+		if err := json.Unmarshal(raw, &status); err != nil {
+			return true, false, "Status endpoint reachable, but its response is invalid"
+		}
+		outputConnected := status.OutputBroker.Connected
+		if status.Output != nil {
+			outputConnected = status.Output.Connected
+		}
+		if !status.InputBroker.Connected {
+			return true, false, "Forwarder reachable, but its input broker is disconnected"
+		}
+		if !outputConnected {
+			return true, false, "Forwarder reachable, but its output has not confirmed readiness"
+		}
+		return true, true, "Input and output are ready"
 	}
 	if item.Kind != "sense" {
 		return true, true, "Health endpoint reachable"
 	}
 	status, parsed := storeSenseAPIStatus(item.ID, raw)
-	if parsed && !status.Broker.Connected {
+	if !parsed {
+		return true, false, "Status endpoint reachable, but its response is invalid"
+	}
+	if !status.Broker.Connected {
 		return true, false, "Status endpoint reachable, but broker is reported disconnected"
+	}
+	for _, source := range status.Sources {
+		if !source.Connected || !source.Healthy {
+			return true, false, "Collector reachable, but a source needs attention"
+		}
 	}
 	return true, true, "Status endpoint reachable"
 }

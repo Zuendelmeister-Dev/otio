@@ -1,12 +1,16 @@
 package app
 
-import "testing"
+import (
+	"testing"
+
+	"iot-lense-sense/sense/internal/protocols"
+)
 
 func TestMetricPayloadAcceptsStringValue(t *testing.T) {
 	source := SourceConfig{AgentID: "opcua-machine-01", Type: "opcua", Host: "presense-opcua-01", Port: 4840}
 	metric := MetricConfig{Name: "state", NodeID: "ns=2;s=Machine.State", Type: "string"}
 
-	payload := metricPayload(source, metric, map[string]any{"nodeId": metric.NodeID, "value": "running"}, "running")
+	payload := metricPayload(source, metric, protocols.MetricValue{Raw: map[string]any{"nodeId": metric.NodeID, "value": "running"}, Value: "running", Quality: protocols.QualityGood})
 	metricPayload, ok := payload["metric"].(map[string]any)
 	if !ok {
 		t.Fatalf("metric payload missing: %#v", payload)

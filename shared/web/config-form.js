@@ -1,26 +1,18 @@
 (function(root){
   'use strict';
-  const protocols={
-    'modbus-tcp':{label:'Modbus TCP',port:5020,metric:{register:0,scale:0.1}},
-    opcua:{label:'OPC UA HTTP demo',port:4840,metric:{nodeId:'ns=2;s=Machine.Temperature',scale:1}},
-    'lab-modbus-tcp':{label:'Modbus TCP · native lab',port:1502,connection:'modbus-tcp://protocol-lab:1502?default-unit-identifier=1',metric:{address:'holding-register:1:UINT',scale:0.01}},
-    'lab-modbus-rtu-tcp':{label:'Modbus RTU over TCP',port:1503,connection:'modbus-rtu:tcp://protocol-lab:1503?default-unit-identifier=1',metric:{address:'holding-register:1:UINT',scale:0.01}},
-    'lab-opcua-tcp':{label:'OPC UA',port:4842,connection:'opc.tcp://protocol-lab:4842',metric:{nodeId:'ns=1;s=Temperature',scale:1}},
-    'lab-mbus-tcp':{label:'M-Bus over TCP · temperature subset',port:1504,connection:'mbus-tcp://protocol-lab:1504',metric:{address:'1',scale:1}},
-    'lab-s7':{label:'Siemens S7',port:102,connection:'s7://192.168.1.10:102?remote-rack=0&remote-slot=1',metric:{address:'%DB1:0:REAL',scale:1}},
-    'lab-ethernet-ip':{label:'EtherNet/IP CIP',port:44818,connection:'eip://192.168.1.10:44818',metric:{address:'%Temperature:REAL',scale:1}},
-    'lab-bacnet-ip':{label:'BACnet/IP',port:47808,connection:'bacnet-ip://192.168.1.10:47808',metric:{address:'0,1/85',scale:1}},
-    'lab-knxnet-ip':{label:'KNXnet/IP',port:3671,connection:'knxnet-ip://192.168.1.10:3671',metric:{address:'1/2/3:DPT_Value_Temp',scale:1}},
-    'lab-iec-60870-5-104':{label:'IEC 60870-5-104',port:2404,connection:'iec-60870-5-104://192.168.1.10:2404',metric:{address:'1/1',scale:1}},
-    'lab-mqtt':{label:'MQTT',port:1883,connection:'tcp://mqtt:1883',metric:{address:'lab/temperature',scale:1}},
-    'lab-amqp':{label:'AMQP 0-9-1',port:5672,connection:'amqp://lab:lab@rabbitmq:5672/',metric:{address:'amq.topic/lab.temperature',scale:1}}
-  };
+  const capabilities=typeof module==='object'&&module.exports?require('./protocol-capabilities.js'):root.IoTProtocolCapabilities;
+  if(!capabilities)throw Error('Load protocol-capabilities.js before the configuration form');
+  const protocols=capabilities.sources;
+  const labels={pollIntervalMs:'Read interval (milliseconds)',broker:'MQTT broker',inputBroker:'Incoming MQTT broker',outputBroker:'Outgoing MQTT broker',sources:'Devices and sources',metrics:'Measurements',host:'Host or IP address',port:'Port',clientId:'Connection ID',topicPrefix:'Topic prefix',agentId:'Device ID',unitId:'Modbus unit ID',readMode:'How to receive values',subscriptionIntervalMs:'Update interval (milliseconds)',gatewayURL:'Gateway address',register:'Register address',nodeId:'Node address',scale:'Value multiplier',unit:'Measurement unit',generatorMode:'Simulation pattern',timeoutSeconds:'Request timeout (seconds)',bearerTokenEnv:'Environment variable containing the access token'};
+  const hints={pollIntervalMs:'1000 milliseconds means one read per second.',clientId:'Use a different connection ID for each running instance.',topicPrefix:'The first part of the names used to publish measurements.',unitId:'The device address configured on the Modbus equipment.',scale:'Multiply the raw device value by this number to get the displayed value.'};
+  function fieldLabel(key,path){if(key==='type')return path[0]==='sources'&&path.length===2?'Protocol':path.includes('metrics')?'Measurement kind':path.at(-1)==='output'?'Output method':'Type';return labels[key]||key.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_-]/g,' ').replace(/^./,char=>char.toUpperCase());}
   function changeProtocol(source,type){
     const p=protocols[type];if(!p)throw Error('Unknown protocol');
-    const result=JSON.parse(JSON.stringify(source));result.type=type;result.port=p.port;result.readMode='poll';
+    const result=JSON.parse(JSON.stringify(source));result.type=type;result.port=p.port;result.readMode=p.poll?'poll':'subscription';
+    if(!p.subscription)delete result.subscriptionIntervalMs;
     result.options=Object.assign({},result.options);
     if(p.connection){result.options.connection=p.connection;result.options.gatewayURL=result.options.gatewayURL||'http://protocol-lab:8500';result.host=new URL(p.connection.replace('modbus-rtu:tcp:', 'tcp:')).hostname;}
-    else {delete result.options.connection;delete result.options.gatewayURL;result.unitId=1;}
+    else {delete result.options.connection;delete result.options.gatewayURL;if(p.requiresUnitId)result.unitId=1;}
     result.metrics=(result.metrics||[{name:'temperature',unit:'°C'}]).map(m=>{
       const next={...m};for(const key of ['register','nodeId','address','path'])delete next[key];return Object.assign(next,p.metric);
     });return result;
@@ -41,11 +33,16 @@
     let draft,writing=false;
     const publish=()=>{writing=true;editor.value=JSON.stringify(draft,null,2);editor.dispatchEvent(new Event('input',{bubbles:true}));writing=false;};
     function field(parent,obj,key,path){
-      const value=obj[key],label=document.createElement('label');label.textContent=key;
+      const value=obj[key],label=document.createElement('label');label.textContent=fieldLabel(key,path);
       let input;
       if(key==='type'&&path.length===2&&path[0]==='sources'){
         input=document.createElement('select');for(const [id,p]of Object.entries(protocols)){const o=document.createElement('option');o.value=id;o.textContent=p.label;input.append(o);}input.value=value;
         input.onchange=()=>{draft.sources[path[1]]=changeProtocol(obj,input.value);publish();draw();};
+      }else if(key==='readMode'&&path.length===2&&path[0]==='sources'&&protocols[obj.type]){
+        input=document.createElement('select');const p=protocols[obj.type];
+        for(const mode of ['poll','subscription'].filter(mode=>p[mode])){const option=document.createElement('option');option.value=mode;option.textContent=mode==='poll'?'Read periodically':'Receive updates';input.append(option);}
+        if(![...input.options].some(option=>option.value===value)){const option=document.createElement('option');option.value=value;option.textContent=value+' (unsupported)';input.append(option);}
+        input.value=value;input.onchange=()=>{obj[key]=input.value;publish();};
       }else if(key==='generatorMode'){
         input=document.createElement('select');for(const name of ['constant','sine','random-int','sawtooth','square','triangle']){const o=document.createElement('option');o.value=name;o.textContent=name;input.append(o);}if(![...input.options].some(o=>o.value===value)){const o=document.createElement('option');o.value=value;o.textContent=value;input.append(o);}input.value=value;input.onchange=()=>{obj[key]=input.value;publish();};
       }else{
@@ -54,14 +51,18 @@
         input.oninput=()=>{if(input.type==='number'&&(input.value===''||!Number.isFinite(input.valueAsNumber))){input.setCustomValidity('Enter a finite number');return;}input.setCustomValidity('');obj[key]=input.type==='checkbox'?input.checked:input.type==='number'?input.valueAsNumber:input.value;publish();};
       }
       if(key==='protocol'&&obj.generatorMode)input.disabled=true;
-      input.setAttribute('aria-label',path.concat(key).join(' / '));label.append(input);parent.append(label);
+      input.setAttribute('aria-label',path.concat(fieldLabel(key,path)).join(' / '));label.append(input);
+      if(hints[key]){const help=document.createElement('small');help.className='config-field-help';help.textContent=hints[key];label.append(help);}
+      parent.append(label);
     }
     function object(parent,obj,path){
       const fields=document.createElement('div');fields.className='config-fields';parent.append(fields);
       for(const key of Object.keys(obj)){
+        // Sense retains this legacy field in JSON but does not use it as a timeout.
+        if(path.length===0&&key==='healthTimeoutSeconds'&&Array.isArray(obj.sources)&&obj.broker)continue;
         if(path.length===0&&obj.generatorMode&&((obj.protocol==='modbus-tcp'&&['speed','current'].includes(key))||(obj.protocol==='opcua'&&['humidity','pressure','vibration'].includes(key))))continue;
         if(obj[key]!==null&&typeof obj[key]==='object'){
-          const details=document.createElement('details'),title=document.createElement('summary');title.textContent=Array.isArray(obj)?(obj[key].agentId||obj[key].name||'Entry '+(Number(key)+1)):key;details.open=path.length===0;details.append(title);parent.append(details);object(details,obj[key],path.concat(key));
+          const details=document.createElement('details'),title=document.createElement('summary');title.textContent=Array.isArray(obj)?(obj[key].agentId||obj[key].name||'Entry '+(Number(key)+1)):fieldLabel(key,path);details.open=path.length===0;details.append(title);parent.append(details);object(details,obj[key],path.concat(key));
           if(Array.isArray(obj)){const remove=document.createElement('button');remove.type='button';remove.textContent='Remove entry from draft';remove.onclick=()=>{obj.splice(Number(key),1);publish();draw();};details.append(remove);}
         }else field(fields,obj,key,path);
       }

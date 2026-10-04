@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-var LabProtocolTypes = []string{"modbus-tcp", "modbus-rtu-tcp", "opcua-tcp", "s7", "ethernet-ip", "bacnet-ip", "knxnet-ip", "iec-60870-5-104", "mqtt", "amqp"}
-
 // LabReader delegates a bounded native read to the separately deployed protocol lab.
 // Keeping PLC4Go in that service avoids loading every driver into each collector.
 type LabReader struct{}
@@ -62,5 +60,5 @@ func (LabReader) Read(ctx context.Context, endpoint SourceEndpoint, metric Metri
 		}
 		value = number * scale
 	}
-	return MetricValue{Name: metric.Name, Raw: result.Value, Value: value}, nil
+	return MetricValue{Name: metric.Name, Raw: result.Value, Value: value, Quality: QualityGood}, nil
 }

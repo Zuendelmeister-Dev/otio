@@ -3,6 +3,8 @@ package protocols
 import (
 	"fmt"
 	"sort"
+
+	"iot-lense-sense/shared/protocolmeta"
 )
 
 type Registry struct {
@@ -16,11 +18,18 @@ func NewRegistry() Registry {
 		readers:     map[string]Reader{},
 		subscribers: map[string]Subscriber{},
 	}
-	registry.RegisterReader("modbus-tcp", ModbusTCPReader{})
-	registry.RegisterReader("opcua", opcua)
-	registry.RegisterSubscriber("opcua", opcua)
-	for _, sourceType := range LabProtocolTypes {
-		registry.RegisterReader("lab-"+sourceType, LabReader{})
+	for _, source := range protocolmeta.Sources() {
+		switch {
+		case source.RequiresConnection:
+			registry.RegisterReader(source.Type, LabReader{})
+		case source.Type == "modbus-tcp":
+			registry.RegisterReader(source.Type, ModbusTCPReader{})
+		case source.Type == "opcua":
+			registry.RegisterReader(source.Type, opcua)
+			if source.Subscription {
+				registry.RegisterSubscriber(source.Type, opcua)
+			}
+		}
 	}
 	return registry
 }

@@ -3,12 +3,15 @@ module iot-lense-sense/protocol-lab
 go 1.27.0
 
 require (
+	iot-lense-sense/shared/protocolmeta v0.0.0
 	github.com/apache/plc4x/plc4go v0.0.0-20260911155029-fd6223dd098d
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gopcua/opcua v0.9.1
 	github.com/rabbitmq/amqp091-go v1.13.0
 	github.com/rs/zerolog v1.35.1
 )
+
+replace iot-lense-sense/shared/protocolmeta => ../../shared/protocolmeta
 
 require (
 	github.com/fatih/color v1.19.0 // indirect

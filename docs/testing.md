@@ -24,7 +24,7 @@ Linux and macOS:
 bash scripts/test.sh
 ```
 
-The repository is a multi-module Go workspace. A plain `go test ./...` from the root is not the canonical command; the scripts run each module, including `apps/plc4go-modbus`.
+The repository is a multi-module Go workspace. A plain `go test ./...` from the root is not the canonical command; the scripts run all ten modules, including `apps/plc4go-modbus`, `shared/mqttx` and `shared/protocolmeta`.
 
 Both runners stop on a failed command and can be invoked from outside the repository by their absolute path.
 
@@ -43,7 +43,7 @@ The [September 2026 review](quality/review-2026-09.md) records the baseline and 
 From a POSIX shell at the repository root:
 
 ```bash
-for module in apps/* shared/mqttx; do
+for module in apps/* shared/mqttx shared/protocolmeta; do
   (cd "$module" && go vet ./... && go test -race ./...) || exit 1
 done
 ```
@@ -54,19 +54,44 @@ The vulnerability scanner needs a module directory, even when scanning the full 
 
 ```bash
 cd apps/lense
-go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ../presense-modbus/... ../presense-opcua/... ../sense/... ../lense/... ../dispense/... ../plc4go-modbus/... ../protocol-lab/... ../ha-agent/... ../../shared/mqttx/...
+go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ../presense-modbus/... ../presense-opcua/... ../sense/... ../lense/... ../dispense/... ../plc4go-modbus/... ../protocol-lab/... ../ha-agent/... ../../shared/mqttx/... ../../shared/protocolmeta/...
 ```
 
 This checks the selected platform and current vulnerability database; it is not a container or deployment audit. The GitHub Actions workflow runs Go/JavaScript tests on Windows and Linux, uploads coverage, and runs vet, race detection, vulnerability scanning and demo image builds on Linux.
 
-## JavaScript tests
+## JavaScript and capability checks
+
+The wrapper scripts include the shared UI suites, deferred-response configuration workflow tests for Lense and Sense, protocol capability and deployment checks, ARM source archive validation and repository checks. Configuration tests execute the page's functions with controlled responses to verify that changing instances, editing drafts and overlapping requests cannot apply an outdated proposal.
+
+The canonical protocol metadata lives in `shared/protocolmeta/catalog.json`. After editing it, regenerate the browser bundle and the Sense capability table:
+
+```bash
+node scripts/generate-protocol-capabilities.cjs
+node scripts/generate-protocol-capabilities.cjs --check
+```
+
+Individual suites can also be run directly, for example:
 
 ```bash
 node shared/web/iot-ui.test.js
 node shared/web/standard-chart.test.js
 node shared/web/workspace-ui.test.js
+node shared/web/operator-ui.test.js
+node scripts/lense-config-workflow.test.js
+node scripts/sense-config-workflow.test.js
+node scripts/protocol-capabilities.test.js
 node scripts/protocol-deployment.test.js
 ```
+
+## Historian backup helper tests
+
+The portable backup/restore helper requires Python 3.10 or newer. Its tests run separately from the Go/JavaScript wrapper scripts and are included in Windows and Linux CI:
+
+```bash
+python -B -m unittest discover -s scripts -p historian_test.py -v
+```
+
+The normal suite checks streaming failures, private temporary files, atomic publication without overwriting an archive and restore safeguards. The real PostgreSQL round trip is opt-in and skipped unless its documented integration settings are supplied; see [historian verification](historian.md#verification). A successful unit run is not a deployed database backup/restore test.
 
 ## Docker build test
 

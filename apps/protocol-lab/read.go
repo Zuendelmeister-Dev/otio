@@ -27,14 +27,13 @@ type ReadRequest struct {
 
 func validateRead(r ReadRequest) error {
 	c, ok := capability(r.Protocol)
-	if !ok || c.Connection == "" {
+	if !ok || !c.LabRead {
 		return errors.New("protocol requires a hardware gateway or is not implemented")
 	}
 	if len(r.Connection) > 2048 || len(r.Address) > 1024 || strings.TrimSpace(r.Address) == "" {
 		return errors.New("a non-empty address and a bounded connection URL are required")
 	}
-	schemes := map[string]string{"mbus-tcp": "mbus-tcp", "modbus-tcp": "modbus-tcp", "modbus-rtu-tcp": "modbus-rtu:tcp", "opcua-tcp": "opc.tcp", "s7": "s7", "ethernet-ip": "eip", "bacnet-ip": "bacnet-ip", "knxnet-ip": "knxnet-ip", "iec-60870-5-104": "iec-60870-5-104", "mqtt": "tcp", "amqp": "amqp"}
-	prefix := schemes[r.Protocol] + "://"
+	prefix := c.Scheme + "://"
 	if !strings.HasPrefix(r.Connection, prefix) {
 		return fmt.Errorf("connection must start with %s", prefix)
 	}

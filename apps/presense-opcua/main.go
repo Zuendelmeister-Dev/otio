@@ -240,7 +240,7 @@ function render(){cards.innerHTML='<div class="overview-grid">'+[["Device",statu
 async function load(){try{status=await j("/health");vals=await j("/api/values");render();}catch(e){logsData.push({level:'ERROR',message:e.message});renderLogs()}}
 document.addEventListener('change',e=>{if(e.target.classList.contains('log-filter'))renderLogs()});
 window.addEventListener("hashchange",route);setInterval(load,2000);route();load()
-</script><script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/presense-ui.js"></script><script src="/static/lab-link.js"></script></body></html>`))
+</script><script src="/static/workspace-ui.js"></script><script src="/static/protocol-capabilities.js"></script><script src="/static/config-form.js"></script><script src="/static/presense-ui.js"></script><script src="/static/lab-link.js"></script></body></html>`))
 	})
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

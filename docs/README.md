@@ -21,6 +21,10 @@ For interactive setup, start with [UI workflows and simulator configuration](ui-
 11. [Quality review](quality/code-review.md)
 12. [Protocol matrix and Protocol Lab](protocols.md)
 
+For data storage, see [retention, stale measurements and backup/restore](historian.md).
+
+The [October implementation and verification record](quality/implementation-2026-10-04.md) covers the shared protocol catalog, failure tests, historian operations, Dispense outputs and interface improvements.
+
 ## Diagrams
 
 The documentation diagrams are written in Mermaid and embedded in `docs/architecture.md`.

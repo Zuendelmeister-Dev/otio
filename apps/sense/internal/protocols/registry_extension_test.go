@@ -3,12 +3,27 @@ package protocols
 import (
 	"context"
 	"testing"
+
+	"iot-lense-sense/shared/protocolmeta"
 )
 
 type fakeReader struct{}
 
 func (fakeReader) Read(ctx context.Context, endpoint SourceEndpoint, metric MetricAddress) (MetricValue, error) {
 	return MetricValue{Name: metric.Name, Raw: "raw", Value: "value"}, nil
+}
+
+func TestRegistryMatchesSharedCapabilities(t *testing.T) {
+	registry := NewRegistry()
+	for _, source := range protocolmeta.Sources() {
+		if _, err := registry.Reader(source.Type); err != nil {
+			t.Fatalf("advertised source %s lacks a reader: %v", source.Type, err)
+		}
+		_, err := registry.Subscriber(source.Type)
+		if source.Subscription != (err == nil) {
+			t.Fatalf("subscription capability disagrees with registry for %s", source.Type)
+		}
+	}
 }
 
 func TestRegistryAllowsCustomReaderRegistration(t *testing.T) {

@@ -8,11 +8,13 @@ I built OT.io as a small, modular connectivity and diagnostics platform for mach
 
 If something breaks, IoT Lense should make it obvious where the flow stopped.
 
-![IoT Lense connection graph with message rates](docs/png/connection-graph.png)
+The updated overview uses a consistent dark interface and separates connection health from measurement freshness. These interface previews use sample data: connections are healthy while one source has old measurements.
 
-Hover over a node or focus it with the keyboard to highlight its configured data flow. Unrelated nodes and connections fade into the background, making the selected route easier to follow. The example below highlights the Modbus flow through Sense, the MQTT broker and Dispense to the target broker. This shows configured routing, not live traffic tracing.
+![IoT Lense overview with a stale-measurement warning, using sample data](docs/png/operator-overview.jpg)
 
-![Highlighted Modbus data flow with unrelated nodes and connections faded out](docs/png/connection-flow-focus.png)
+Hover over a node or focus it with the keyboard to highlight its configured data flow. Unrelated nodes and connections fade into the background, making the selected route easier to follow. The sample-data preview below shows the selected Modbus route in the graph viewport. Scroll horizontally to follow forwarding and destination components. This shows configured routing, not live traffic tracing.
+
+![Highlighted Modbus route with unrelated OPC UA components faded, using sample data](docs/png/operator-flow-focus.jpg)
 
 See the [interface screenshot gallery](docs/ui-workflows.md#current-interface-screenshots) for Logs, Unified Namespace, configuration forms, Protocol Lab, component lists and the PostgreSQL explorer.
 
@@ -25,7 +27,7 @@ See the [interface screenshot gallery](docs/ui-workflows.md#current-interface-sc
 | MQTT Broker | Moves messages between modules. Mosquitto is used in the demo stack. |
 | IoT Lense | Shows health, quick metrics, logs, configurations and the connection graph. |
 | Postgres | Stores telemetry and health data for Lense. |
-| IoT Dispense | Forwards selected data to downstream systems. The first target is another MQTT broker. |
+| IoT Dispense | Forwards selected data to an MQTT broker or HTTP/HTTPS endpoint with bounded queues and explicit retry rules. |
 | Protocol Lab | Native protocol adapters, Presense simulator controls and a shared testing UI connected to Lense and Sense. |
 
 ## Current beta capabilities
@@ -41,12 +43,15 @@ See the [interface screenshot gallery](docs/ui-workflows.md#current-interface-sc
 - Modbus polling in Sense
 - MQTT telemetry publishing
 - central Lense dashboard
+- calm shared dark interface with readable status text and keyboard navigation
+- one protocol capability catalog shared by validation, readers, forms and documentation
 - connection graph with status colors, line styles and flow highlighting that fades unrelated paths
 - Quick Metrics and Unified Namespace views
 - protocol-specific configuration forms alongside the existing JSON workflow
 - bounded read-only PostgreSQL queries, table previews and CSV extracts
+- configurable historian retention, stale-measurement warnings and portable PostgreSQL backup/restore helpers
 - configuration snapshots where write-back is enabled
-- Dispense forwarding to a target MQTT broker
+- Dispense forwarding to MQTT or HTTP/HTTPS with explicit acceptance, failure and duplicate semantics
 - Mermaid documentation diagrams for Markdown rendering
 
 ## Quick start
@@ -92,7 +97,7 @@ Windows PowerShell:
 | [06 Helm](examples/06-helm/README.md) | Deploy and configure the single-replica stack with Helm. |
 | [07 Kubernetes HA](examples/07-kubernetes-ha/README.md) | Active/passive Sense and Lense, clustered MQTT and replicated PostgreSQL. |
 
-The [protocol support matrix](docs/protocols.md) covers all requested protocol families. Ten IP adapters/samplers are integrated; physical-device drivers are marked experimental, and fieldbus gateways and missing native adapters are explicitly identified. The existing `opcua` source remains an HTTP demo; `lab-opcua-tcp` uses native OPC UA Binary.
+The [protocol support matrix](docs/protocols.md) covers all requested protocol families. IP adapters and broker samplers are integrated; physical-device drivers are marked experimental, and fieldbus gateways and missing native adapters are explicitly identified. The existing `opcua` source remains an HTTP demo; `lab-opcua-tcp` uses native OPC UA Binary. The [shared capability catalog](shared/protocolmeta/catalog.json) is the source for the current Sense choices, Lab capabilities and generated presets.
 
 ## Try a failure scenario
 
@@ -125,7 +130,7 @@ Install Go 1.27.1 or newer and Node.js 24. The workspace selects Go 1.27.1 autom
 .\coverage.cmd
 ```
 
-On Linux and macOS, run `bash scripts/test.sh`. The test runner executes all nine Go modules, three shared JavaScript suites and Kubernetes configuration checks. A plain `go test ./...` at the repository root does not cover this multi-module workspace.
+On Linux and macOS, run `bash scripts/test.sh`. The test runner executes all ten Go modules, shared JavaScript and configuration workflow tests, generated capability checks, deployment/archive checks and repository checks. Python backup-helper tests run separately; see [Testing](docs/testing.md#historian-backup-helper-tests). A plain `go test ./...` at the repository root does not cover this multi-module workspace.
 
 The HTML coverage report is written to `coverage/coverage.html`. See [Testing](docs/testing.md) for static analysis, race detection and vulnerability scans, and the [September 2026 review](docs/quality/review-2026-09.md) for measured coverage and remaining gaps.
 
@@ -140,6 +145,8 @@ Start here:
 - [IoT Presense](docs/presense.md)
 - [IoT Sense](docs/sense.md)
 - [IoT Lense](docs/lense.md)
+- [Data retention, measurement freshness and backup/restore](docs/historian.md)
+- [Interface guide and navigation](docs/ui-workflows.md)
 - [IoT Dispense](docs/dispense.md)
 - [Deployment](docs/deployment.md)
 - [Extension guide](docs/extension-guide.md)
@@ -166,7 +173,7 @@ Potential next steps:
 - improved UI navigation and dashboards
 - physical-device validation for the experimental S7, EtherNet/IP, BACnet/IP, KNXnet/IP and IEC 104 adapters
 - PLC4Go based device and PLC simulations
-- more target protocols, for example Kafka, NATS, HTTP APIs, databases and cloud endpoints
+- more target protocols, for example Kafka, NATS, databases and cloud-specific endpoints
 - stronger analytics, trend comparison and aggregations
 - anomaly detection and AI-assisted diagnostics
 - alerting and notification rules

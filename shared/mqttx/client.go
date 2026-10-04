@@ -15,6 +15,13 @@ import (
 // The underlying MQTT operation may still complete later.
 var ErrTimeout = errors.New("MQTT operation timed out")
 
+// ErrNotReady rejects a publish while the socket is closed, including reconnect.
+var ErrNotReady = errors.New("MQTT connection is not open")
+
+// ErrConnectionLost is conservative: the socket closed around a completed
+// publish token, so a local handoff cannot be reported with confidence.
+var ErrConnectionLost = errors.New("MQTT connection closed during publish; delivery is uncertain")
+
 // BrokerConfig contains the common MQTT connection settings used by OT.io modules.
 type BrokerConfig struct {
 	Host     string
@@ -70,4 +77,10 @@ func BrokerURL(host string, port int) string {
 // IsConnected returns true when the client exists and is connected.
 func IsConnected(client Client) bool {
 	return client != nil && client.IsConnected()
+}
+
+// IsReady requires an open connection, rather than Paho's logical connected
+// state, which can remain true during automatic reconnect.
+func IsReady(client Client) bool {
+	return client != nil && client.IsConnectionOpen()
 }

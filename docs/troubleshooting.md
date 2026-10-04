@@ -5,14 +5,13 @@
 Linux and macOS:
 
 ```bash
-chmod +x scripts/*.sh
-./scripts/start-demo.sh
+bash scripts/start-local-docker-compose-demo.sh
 ```
 
 Windows PowerShell:
 
 ```powershell
-scripts/start-demo.ps1
+./scripts/start-local-docker-compose-demo.ps1
 ```
 
 Manual start on all platforms:
@@ -34,24 +33,28 @@ then the OT.io code is not the problem. Docker Desktop cannot resolve or reach D
 
 The first local build needs access to Docker Hub because the Dockerfiles use official base images:
 
-- `golang:1.22-alpine`
-- `alpine:3.20`
+- `golang:1.26.8-alpine` (existing modules)
+- `golang:1.27.1-alpine` (Protocol Lab)
+- `alpine:3.24`
 - `postgres:16`
 - `eclipse-mosquitto:2`
+- `rabbitmq:4-management`
 
 Run the preflight script from the repository root:
 
 ```powershell
-scripts/preflight.ps1 -Pull
+./scripts/preflight.ps1
 ```
 
 If this fails, try:
 
 ```powershell
-docker pull alpine:3.20
-docker pull golang:1.22-alpine
+docker pull alpine:3.24
+docker pull golang:1.26.8-alpine
+docker pull golang:1.27.1-alpine
 docker pull postgres:16
 docker pull eclipse-mosquitto:2
+docker pull rabbitmq:4-management
 ```
 
 If Docker still cannot resolve Docker Hub:
@@ -73,16 +76,16 @@ docker compose up --build
 On Windows:
 
 ```powershell
-scripts/start-demo.ps1
+./scripts/start-local-docker-compose-demo.ps1
 ```
 
 or:
 
 ```cmd
-scripts\start-demo.cmd
+scripts\start-local-docker-compose-demo.cmd
 ```
 
-The script checks Docker, pulls required base images and then starts the stack.
+The script checks Docker and Compose, then builds and starts Example 01. Docker downloads missing images during that build/start. The preflight command checks availability; it does not pull images.
 
 
 ## Linux DNS checks

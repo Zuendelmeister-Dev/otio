@@ -22,7 +22,7 @@ type mqttEventPublisher struct {
 }
 
 func (publisher mqttEventPublisher) Connected() bool {
-	return mqttx.IsConnected(publisher.client)
+	return mqttx.IsReady(publisher.client)
 }
 
 func (publisher mqttEventPublisher) PublishJSON(topic string, payload any) error {

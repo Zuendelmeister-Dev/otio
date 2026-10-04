@@ -19,6 +19,8 @@ type AppState struct {
 	ConfigLoaded    bool
 	ConfigValid     bool
 	ConfigError     string
+	ConfigRevision  string
+	ConfigUpdate    ConfigUpdate
 	BrokerConnected bool
 	LastPublish     string
 	PublishCount    int64

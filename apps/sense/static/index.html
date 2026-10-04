@@ -80,7 +80,7 @@ addLine(sourceAnchorX,y+36,senseX,senseY+38,value.connected,presenseColor)
 addLine(senseX+senseW,senseY+38,brokerX,brokerY+38,status.broker.connected,senseColor)
 */
 </style>
-<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script></head>
+<script src="/static/workspace-ui.js"></script><script src="/static/protocol-capabilities.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script></head>
 <body>
 <div class="layout">
 <aside>
@@ -154,6 +154,7 @@ addLine(senseX+senseW,senseY+38,brokerX,brokerY+38,status.broker.connected,sense
         <button onclick="validateConfig()">Validate changes</button>
         <button id="applyButton" onclick="applyProposal()" disabled>Apply proposal</button>
         <button onclick="resetConfigEditor()">Reset editor</button>
+        <button onclick="reloadCurrentConfig()">Reload current settings</button>
         <span id="configFeedback" class="status-pill">Idle</span><span id="configApplyResult" class="status-pill">No changes applied yet</span>
       </div>
       <div class="two-col">
@@ -280,6 +281,12 @@ let proposalId='';
 let configLoaded=false;
 let configDirty=false;
 let lastConfigRaw='';
+let currentConfigRevision='';
+let currentConfigUpdate=null;
+let configLoadVersion=0;
+let configEditVersion=0;
+let configValidationVersion=0;
+let configActionInFlight=false;
 let currentStatus=null;
 let currentLogs=[];
 const senseChart=IoTStandardChart.createChart({canvasId:'senseChart',legendId:'senseLegend',tooltipId:'senseTooltip',height:360,yLabel:'value'});
@@ -575,6 +582,7 @@ function exportSenseMetrics(format){
 async function loadStatus(){
   const s=await safeJson('/api/status');
   currentStatus=s;
+  if(s.config.update && (!currentConfigRevision || s.config.update.revision===currentConfigRevision))renderConfigUpdate(s.config.update);
   senseName.textContent=s.config.clientId||'iot-sense';
   broker.textContent=s.broker.connected?'connected':'disconnected';
   const rows=Object.entries(s.sources||{});
@@ -639,8 +647,13 @@ document.querySelectorAll('#logFilters input').forEach(i=>i.onchange=renderLogs)
 
 async function loadConfig(force=false){
   if(configDirty && !force) return;
+  const version=++configLoadVersion;
+  const editVersion=configEditVersion;
   const c=await safeJson('/api/config');
+  if(version!==configLoadVersion || editVersion!==configEditVersion)return;
+  configValidationVersion++;
   lastConfigRaw=c.raw||JSON.stringify(c.parsed,null,2);
+  currentConfigRevision=c.revision||'';
   configEditor.value=lastConfigRaw;
   configLoaded=true;
   configDirty=false;
@@ -649,12 +662,40 @@ async function loadConfig(force=false){
   applyButton.disabled=true;
   proposalId='';
   setFeedback('Loaded current config','ok');
+  renderConfigUpdate(c.update);
   await loadHistory();
 }
 
-configEditor.addEventListener('input',()=>{configDirty=true;proposalId='';applyButton.disabled=true;setFeedback('Unsaved editor changes','');});
+function invalidateSenseConfigDraft(){
+  configEditVersion++;
+  configValidationVersion++;
+  configDirty=true;
+  proposalId='';
+  applyButton.disabled=true;
+  validation.textContent='';
+  diff.textContent='';
+  setFeedback('Unsaved editor changes','');
+}
+configEditor.addEventListener('input',invalidateSenseConfigDraft);
+
+function renderConfigUpdate(update){
+  if(update)currentConfigUpdate=update;
+  const phase=currentConfigUpdate&&currentConfigUpdate.phase;
+  configEditor.readOnly=configActionInFlight;
+  applyButton.disabled=configActionInFlight||phase==='restarting'||!proposalId;
+  document.querySelectorAll('.rollback-btn').forEach(button=>button.disabled=configActionInFlight||phase==='restarting');
+  if(!phase)return;
+  const messages={restarting:'Saved. Restarting collection; please wait.',connecting:'Saved. Waiting for the messaging connection.',ready:'Configuration is active. Messaging is connected.'};
+  const message=messages[phase]||currentConfigUpdate.message||phase;
+  if(configApplyResult.textContent!==message)configApplyResult.textContent=message;
+  configApplyResult.style.borderColor=phase==='ready'?'#28c76f':'#c99346';
+  configApplyResult.setAttribute('role','status');
+  configApplyResult.setAttribute('aria-live','polite');
+}
 
 function resetConfigEditor(){
+  configEditVersion++;
+  configValidationVersion++;
   configEditor.value=lastConfigRaw;
   configDirty=false;
   proposalId='';
@@ -664,19 +705,30 @@ function resetConfigEditor(){
   setFeedback('Editor reset','ok');
 }
 
+async function reloadCurrentConfig(){
+  if(configActionInFlight)return;
+  if(configDirty&&!confirm('Reload the saved settings and discard unsaved editor changes?'))return;
+  await loadConfig(true);
+}
+
 async function validateConfig(){
+  const version=++configValidationVersion;
+  proposalId='';
+  applyButton.disabled=true;
   setFeedback('Validating...','');
   const raw=configEditor.value;
   const response=await configWriteFetch('/api/config/validate',{method:'POST',body:JSON.stringify({raw})});
+  if(version!==configValidationVersion || raw!==configEditor.value)return;
   if(!response.ok){
     const text=await response.text();
+    if(version!==configValidationVersion || raw!==configEditor.value)return;
     validation.textContent='Validation failed: '+text;
     setFeedback('Validation failed','error');
     return;
   }
   const r=await response.json();
+  if(version!==configValidationVersion || raw!==configEditor.value)return;
   validation.textContent=r.valid?'Valid config. Review the diff and apply.':'Invalid config: '+(r.problems||[]).join('; ');
-  applyButton.disabled=!r.valid;
   if(r.valid){
     proposalId=r.proposal.id;
     diff.innerHTML=IoTStandardChart.escapeHtml(r.proposal.diff).replace(/^\+ .*/gm,m=>'<span class="plus">'+m+'</span>').replace(/^- .*/gm,m=>'<span class="minus">'+m+'</span>');
@@ -685,21 +737,27 @@ async function validateConfig(){
     diff.textContent='';
     setFeedback('Validation failed','error');
   }
+  renderConfigUpdate();
 }
 
 async function applyProposal(){
+  if(configActionInFlight || currentConfigUpdate&&currentConfigUpdate.phase==='restarting')return;
   if(!proposalId){
     showToast('No proposal ready','Validate your changes first.','error');
     return;
   }
+  const applyingId=proposalId;
+  configActionInFlight=true;
+  renderConfigUpdate();
   setFeedback('Applying proposal...','');
   showLoading('Applying configuration...');
   try{
-    const response=await configWriteFetch('/api/config/apply',{method:'POST',body:JSON.stringify({proposalId})});
+    const response=await configWriteFetch('/api/config/apply',{method:'POST',body:JSON.stringify({proposalId:applyingId})});
     if(!response.ok){
       const text=await response.text();
       setFeedback('Apply failed: '+text,'error');
       showToast('Configuration apply failed', text, 'error');
+      if(response.status===409){proposalId='';validation.textContent='Reload the current configuration and validate again before applying.';}
       return;
     }
     const result=await response.json().catch(()=>({status:'ok'}));
@@ -707,16 +765,17 @@ async function applyProposal(){
     applyButton.disabled=true;
     configDirty=false;
     diff.textContent='';
-    validation.textContent='Applied successfully.';
-    const applyTimestamp=new Date().toLocaleTimeString();
-    setFeedback('Applied successfully','ok');
+    currentConfigRevision=result.update&&result.update.revision||currentConfigRevision;
+    validation.textContent='Saved successfully. Connection status is shown above.';
+    setFeedback('Configuration saved','ok');
+    renderConfigUpdate(result.update);
     await loadConfig(true);
-    configApplyResult.textContent='Applied successfully at '+applyTimestamp;
-    configApplyResult.style.borderColor='#28c76f';
-    showToast('Configuration applied', 'The new configuration is active. '+((result.historyFile)?('Snapshot: '+result.historyFile):'Snapshot history was refreshed.'), 'ok');
+    showToast('Configuration saved', 'Collection is restarting. If messaging is unavailable, the saved settings are kept. '+((result.historyFile)?('Previous settings were saved in history.'):''), 'ok');
     await loadHistory();
     await loadStatus();
   }finally{
+    configActionInFlight=false;
+    renderConfigUpdate();
     hideLoading();
   }
 }
@@ -743,21 +802,34 @@ async function loadHistory(){
   document.querySelectorAll('.rollback-btn').forEach(button=>{
     button.addEventListener('click',()=>rollback(button.dataset.file));
   });
+  renderConfigUpdate();
 }
 
 async function rollback(name){
+  if(configActionInFlight || currentConfigUpdate&&currentConfigUpdate.phase==='restarting')return;
   if(!confirm('Rollback to '+name+'?'))return;
+  configActionInFlight=true;
+  renderConfigUpdate();
   setFeedback('Rolling back...','');
-  const response=await configWriteFetch('/api/config/rollback',{method:'POST',body:JSON.stringify({fileName:name})});
-  if(!response.ok){
-    setFeedback('Rollback failed: '+await response.text(),'error');
-    return;
+  try{
+    const response=await configWriteFetch('/api/config/rollback',{method:'POST',body:JSON.stringify({fileName:name,baseRevision:currentConfigRevision})});
+    if(!response.ok){
+      setFeedback('Rollback failed: '+await response.text(),'error');
+      return;
+    }
+    const result=await response.json();
+    currentConfigRevision=result.update&&result.update.revision||currentConfigRevision;
+    proposalId='';
+    renderConfigUpdate(result.update);
+    await loadConfig(true);
+    await loadStatus();
+    await loadHistory();
+    setFeedback('Previous configuration saved','ok');
+    showToast('Previous configuration restored', 'The snapshot is saved. Collection is restarting; messaging status is shown above.', 'ok');
+  }finally{
+    configActionInFlight=false;
+    renderConfigUpdate();
   }
-  await loadConfig(true);
-  await loadStatus();
-  await loadHistory();
-  setFeedback('Rollback applied','ok');
-  showToast('Configuration rolled back', 'The selected snapshot is now active.', 'ok');
 }
 
 async function tick(){
@@ -766,6 +838,22 @@ async function tick(){
   if(p==='analytics')await loadMetrics();
   if(p==='logs')await loadLogs();
   if(p==='components')await loadStatus();
+  if(p==='config')await loadConfigUpdate();
+}
+
+async function loadConfigUpdate(){
+  const status=await safeJson('/api/status');
+  const update=status.config&&status.config.update;
+  if(!update)return;
+  if(currentConfigRevision && update.revision!==currentConfigRevision){
+    if(!configActionInFlight){
+      proposalId='';
+      applyButton.disabled=true;
+      setFeedback('Configuration changed elsewhere. Reload it before applying changes.','');
+    }
+    return;
+  }
+  renderConfigUpdate(update);
 }
 
 setInterval(tick,3000);

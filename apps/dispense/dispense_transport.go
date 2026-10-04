@@ -64,21 +64,24 @@ func connectOutput(config Config) mqttx.Client {
 func onMetric(client mqttx.Client, msg mqttx.Message) {
 	state.Lock()
 	config := state.Config
-	output := state.OutputClient
+	output := state.Output
 	state.ReceivedCount++
 	state.LastInput = nowISO()
 	state.Topics[msg.Topic()] = true
 	state.Unlock()
 
 	var metric MetricMessage
-	if err := json.Unmarshal(msg.Payload(), &metric); err != nil {
+	if len(msg.Payload()) > 1024*1024 || json.Unmarshal(msg.Payload(), &metric) != nil {
 		state.Lock()
 		state.DroppedCount++
 		state.Unlock()
-		addLog("WARN", "router", "Dropped invalid JSON from "+msg.Topic())
+		addLog("WARN", "router", "Dropped invalid JSON or oversized message")
 		return
 	}
 	if config.SourceFilter != "" && metric.Source.Type != config.SourceFilter {
+		state.Lock()
+		state.FilteredCount++
+		state.Unlock()
 		return
 	}
 
@@ -110,25 +113,14 @@ func onMetric(client mqttx.Client, msg mqttx.Message) {
 		state.Unlock()
 	}
 
-	if !mqttx.IsConnected(output) {
-		state.Lock()
-		state.DroppedCount++
-		state.Unlock()
-		addLog("WARN", "router", "Target broker not connected. Dropped "+targetTopic)
-		return
-	}
-
-	if err := mqttx.Publish(output, targetTopic, 0, false, msg.Payload(), 2*time.Second); err != nil {
-		state.Lock()
-		state.DroppedCount++
-		state.Unlock()
-		addLog("ERROR", "router", err.Error())
-		return
-	}
-
-	messageTraffic.Record(targetTopic, msg.Payload())
 	state.Lock()
-	state.ForwardedCount++
-	state.LastOutput = nowISO()
+	state.PendingCount++
 	state.Unlock()
+	if output == nil || !output.Submit(targetTopic, msg.Payload()) {
+		state.Lock()
+		state.PendingCount--
+		state.DroppedCount++
+		state.Unlock()
+		addLog("WARN", "router", "Output queue is full or unavailable; message dropped")
+	}
 }

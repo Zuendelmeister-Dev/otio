@@ -1,6 +1,6 @@
 # OT.io Architecture
 
-OT.io is a lightweight connectivity and diagnostics platform. It connects machine data to target systems and helps me find broken links quickly.
+OT.io is a lightweight connectivity and diagnostics platform. It connects machine data to target systems and helps operators find broken links quickly.
 
 The documentation uses Mermaid diagrams directly in Markdown so common Markdown renderers can show them without a separate build step.
 
@@ -70,9 +70,9 @@ flowchart LR
 flowchart LR
     subgraph DemoStack["OT.io Docker Compose demo stack"]
         PM["Presense Modbus<br/>simulated Modbus TCP endpoint"]
-        PO["Presense OPC UA<br/>simulated OPC UA endpoint"]
+        PO["Presense OPC UA HTTP demo<br/>simulated HTTP/SSE endpoint"]
         SM["Sense Modbus<br/>polls Modbus sources"]
-        SO["Sense OPC UA<br/>subscribes to OPC UA sources"]
+        SO["Sense OPC UA HTTP demo<br/>subscribes to HTTP/SSE sources"]
         MQTT["MQTT Broker<br/>Mosquitto input broker"]
         LENSE["IoT Lense<br/>health, quick metrics, configuration overview"]
         PG[("Postgres<br/>historian database")]
@@ -133,15 +133,15 @@ flowchart LR
     subgraph Host["Docker host"]
         subgraph Network["docker-compose network"]
             PM["presense-modbus-01..03<br/>ports 8301..8303 / 5020"]
-            PO["presense-opcua-01..02<br/>ports 4840..4841"]
+            PO["presense-opcua-01..02<br/>host 4840..4841 / container 4840"]
             SM["sense-modbus<br/>port 8100"]
-            SO["sense-opcua<br/>port 8101"]
+            SO["sense-opcua<br/>host 8101 / container 8100"]
             MQTT["mqtt<br/>port 1883"]
             LENSE["lense<br/>port 8000"]
             PG[("postgres<br/>port 5432")]
             DM["dispense-modbus<br/>port 8200"]
-            DO["dispense-opcua<br/>port 8201"]
-            TARGET["dispense-broker<br/>port 1884"]
+            DO["dispense-opcua<br/>host and container 8201"]
+            TARGET["dispense-broker<br/>host 1884 / container 1883"]
         end
     end
 
@@ -170,6 +170,10 @@ flowchart LR
 ```
 
 ## Extension Points
+
+Protocol metadata lives in the shared [catalog](../shared/protocolmeta/catalog.json). Sense's registry, configuration validator, Protocol Lab and the generated form presets consume it. An additional reader or subscriber registers its supported mode in the registry and implements the corresponding interface; the catalog must describe the same capabilities. See [Sense](sense.md) for the extension steps.
+
+Dispense separates routing from output delivery through an `outputWriter` interface. MQTT forwarding and HTTP/HTTPS POST are implemented. Each output declares which failures can be retried and what a successful send acknowledges; the bounded memory queue is not a durable outbox. See [Dispense](dispense.md) for delivery and duplicate-handling semantics.
 
 ```mermaid
 flowchart LR
@@ -209,7 +213,7 @@ flowchart LR
 
 The beta stack supports an OPC UA style subscription path between IoT Presense and IoT Sense. Presense exposes a streaming subscription endpoint and Sense can consume it with `readMode: "subscription"`.
 
-This models subscription behavior for the demo stack. Security, certificates and encrypted real OPC UA sessions are planned later.
+This legacy path models subscription behavior over HTTP; it is separate from native OPC UA Binary. Protocol Lab's `lab-opcua-tcp` reader already supports certificate profiles, Basic256Sha256 / SignAndEncrypt and trusted-server pinning. See [Certificates](certificates.md) for setup and current authentication limits.
 
 ## Main Building Blocks
 
@@ -219,8 +223,8 @@ This models subscription behavior for the demo stack. Security, certificates and
 | IoT Sense | Reads source endpoints | Publishes telemetry, status and errors |
 | MQTT Broker | Transports messages | Current default transport |
 | IoT Lense | Shows health, quick metrics and configuration | Helps find the broken link quickly |
-| Postgres | Stores telemetry and health data | Used by IoT Lense |
-| IoT Dispense | Forwards selected messages | Sends data to target systems |
+| Postgres | Stores telemetry and health data | Used by IoT Lense; optional retention and manual [backup/restore](historian.md) |
+| IoT Dispense | Forwards selected messages | MQTT or HTTP/HTTPS output with bounded retries |
 | Target systems | Receives forwarded data | External to OT.io |
 
 ## Real Machines and Presense Simulations

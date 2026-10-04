@@ -98,6 +98,10 @@ func run() error {
 			return fmt.Errorf("%s is required", key)
 		}
 	}
+	watchdog, err := loadWatchdogConfig()
+	if err != nil {
+		return err
+	}
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return err
@@ -138,7 +142,13 @@ func run() error {
 	}
 	var leading atomic.Bool
 	mux := http.NewServeMux()
-	mux.HandleFunc("/live", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc("/live", func(w http.ResponseWriter, r *http.Request) {
+		if ctx.Err() != nil {
+			http.Error(w, "supervisor stopping", http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
 		if ctx.Err() != nil || (leading.Load() && !healthy()) {
 			http.Error(w, "application unavailable", http.StatusServiceUnavailable)
@@ -175,20 +185,12 @@ func run() error {
 				}
 				ticker := time.NewTicker(time.Second)
 				defer ticker.Stop()
-				for {
-					select {
-					case <-leaderCtx.Done():
-						return
-					case <-ticker.C:
-						if healthy() {
-							if err := markActive(leaderCtx, true); err == nil {
-								return
-							} else {
-								log.Printf("activate endpoint: %v", err)
-							}
-						}
-					}
-				}
+				supervise(leaderCtx, ticker.C, time.Now(), watchdog, healthy, func(ctx context.Context) error {
+					return markActive(ctx, true)
+				}, func() {
+					cancel()
+					process.stop()
+				})
 			},
 			OnStoppedLeading: func() {
 				cancel()

@@ -59,15 +59,15 @@ func metricAddress(source SourceConfig, metric MetricConfig) string {
 	return fmt.Sprintf("holding-register:%d", metric.Register)
 }
 
-func metricPayload(source SourceConfig, metric MetricConfig, raw any, value any) map[string]any {
+func metricPayload(source SourceConfig, metric MetricConfig, value protocols.MetricValue) map[string]any {
 	return map[string]any{
 		"schemaVersion": "1.0",
 		"timestamp":     nowISO(),
 		"agentId":       source.AgentID,
 		"source":        map[string]any{"type": source.Type, "host": source.Host, "port": source.Port, "unitId": source.UnitID, "address": metricAddress(source, metric)},
-		"metric":        map[string]any{"name": metric.Name, "value": value, "unit": metric.Unit, "type": metric.Type},
-		"quality":       map[string]any{"status": "good"},
-		"raw":           raw,
+		"metric":        map[string]any{"name": metric.Name, "value": value.Value, "unit": metric.Unit, "type": metric.Type},
+		"quality":       map[string]any{"status": string(protocols.NormalizeQuality(string(value.Quality)))},
+		"raw":           value.Raw,
 	}
 }
 
@@ -165,9 +165,9 @@ func readMetricValue(source SourceConfig, metric MetricConfig) (any, any, error)
 	return value.Raw, value.Value, nil
 }
 
-func publishMetric(prefix string, source SourceConfig, metric MetricConfig, raw any, value any) {
-	publishJSON(mqttx.MetricTopic(prefix, source.AgentID, metric.Name), metricPayload(source, metric, raw, value))
-	if numericValue, ok := value.(float64); ok {
+func publishMetric(prefix string, source SourceConfig, metric MetricConfig, value protocols.MetricValue) {
+	publishJSON(mqttx.MetricTopic(prefix, source.AgentID, metric.Name), metricPayload(source, metric, value))
+	if numericValue, ok := value.Value.(float64); ok {
 		rememberMetric(source.AgentID, metric, numericValue)
 	}
 }
@@ -214,7 +214,7 @@ func pollSource(ctx context.Context, config Config, source SourceConfig) {
 				break
 			}
 			metricNames = append(metricNames, metric.Name)
-			publishMetric(prefix, source, metric, value.Raw, value.Value)
+			publishMetric(prefix, source, metric, value)
 		}
 
 		if readError != nil {
@@ -254,14 +254,12 @@ func subscribeSource(ctx context.Context, config Config, source SourceConfig) {
 		default:
 		}
 
-		var received []string
 		err := subscriber.Subscribe(ctx, sourceEndpoint(source), metrics, int(interval/time.Millisecond), func(value protocols.MetricValue) {
 			metric, ok := metricsByName[value.Name]
 			if !ok {
 				return
 			}
-			received = append(received, metric.Name)
-			publishMetric(prefix, source, metric, value.Raw, value.Value)
+			publishMetric(prefix, source, metric, value)
 
 			// A subscription can be a long-running stream. In that case Subscribe
 			// does not return after the first successful value, so the source must be
@@ -269,9 +267,6 @@ func subscribeSource(ctx context.Context, config Config, source SourceConfig) {
 			// a red source/edge although metrics are already flowing through MQTT.
 			markSourceHealthy(prefix, source, "Subscription update received for "+metric.Name)
 		})
-		if len(received) > 0 {
-			markSourceHealthy(prefix, source, "Subscription update received for "+strings.Join(received, ", "))
-		}
 		if err != nil && ctx.Err() == nil {
 			publishSourceFailure(prefix, source, err.Error())
 		}
@@ -298,13 +293,16 @@ func restartWorkers() {
 		state.CancelWorkers()
 	}
 	config := state.Config
-	if state.Publisher != nil && state.Publisher.Connected() {
-		state.Publisher.Disconnect(250)
-	}
+	previousPublisher := state.Publisher
 	ctx, cancel := context.WithCancel(context.Background())
 	state.CancelWorkers = cancel
 	state.Sources = map[string]SourceStatus{}
 	state.Unlock()
+	// An unready publisher may still be automatically reconnecting. Stop it
+	// before replacing it, or its connection and callbacks outlive this config.
+	if previousPublisher != nil {
+		previousPublisher.Disconnect(250)
+	}
 	connectTransport(config)
 	for _, source := range config.Sources {
 		state.Lock()

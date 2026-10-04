@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"iot-lense-sense/shared/mqttx"
 )
 
 func findRemoteBaseURL(id string) string {
@@ -538,11 +541,12 @@ func apiUNS(w http.ResponseWriter, r *http.Request) {
 	state.Lock()
 	var topics []string
 	for topic := range state.Topics {
-		parts := strings.Split(topic, "/")
-		if len(parts) >= 2 {
-			if _, ok := configured[parts[1]]; !ok && parts[1] != "_sense" {
-				continue
-			}
+		parts, matched := mqttx.RelativeTopic(getenv("MQTT_TOPIC_PREFIX", "iot-lense"), topic)
+		if !matched {
+			continue
+		}
+		if _, ok := configured[parts[0]]; !ok && parts[0] != "_sense" {
+			continue
 		}
 		if search == "" || strings.Contains(strings.ToLower(topic), search) {
 			topics = append(topics, topic)
@@ -585,10 +589,26 @@ func apiExport(w http.ResponseWriter, r *http.Request) {
 	if format == "" {
 		format = "json"
 	}
-	rows, _ := db.Query(`SELECT ts, agent_id, metric_name, metric_value, metric_text, metric_unit FROM metric_events ORDER BY ts DESC LIMIT 1000`)
+	if format != "json" && format != "csv" {
+		http.Error(w, "format must be json or csv", http.StatusBadRequest)
+		return
+	}
+	if db == nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rows, err := db.QueryContext(ctx, `SELECT ts, agent_id, metric_name, metric_value, metric_text, metric_unit FROM metric_events ORDER BY ts DESC LIMIT 1000`)
+	if err != nil {
+		http.Error(w, "export could not read measurements", http.StatusServiceUnavailable)
+		return
+	}
+	defer rows.Close()
 	if format == "csv" {
-		w.Header().Set("Content-Type", "text/csv")
-		_, _ = w.Write([]byte("timestamp,agent_id,metric_name,metric_value,metric_text,metric_unit\n"))
+		var buffer bytes.Buffer
+		writer := csv.NewWriter(&buffer)
+		_ = writer.Write([]string{"timestamp", "agent_id", "metric_name", "metric_value", "metric_text", "metric_unit"})
 		if rows != nil {
 			defer rows.Close()
 			for rows.Next() {
@@ -596,17 +616,32 @@ func apiExport(w http.ResponseWriter, r *http.Request) {
 				var agent, metric string
 				var unit, textValue sql.NullString
 				var numericValue sql.NullFloat64
-				_ = rows.Scan(&ts, &agent, &metric, &numericValue, &textValue, &unit)
+				if err := rows.Scan(&ts, &agent, &metric, &numericValue, &textValue, &unit); err != nil {
+					http.Error(w, "export could not decode measurements", http.StatusInternalServerError)
+					return
+				}
 				valueText := ""
 				if numericValue.Valid {
 					valueText = strconv.FormatFloat(numericValue.Float64, 'f', -1, 64)
 				}
-				_, _ = w.Write([]byte(scanTimeString(ts) + "," + agent + "," + metric + "," + valueText + "," + nullStringValue(textValue) + "," + nullStringValue(unit) + "\n"))
+				_ = writer.Write([]string{scanTimeString(ts), spreadsheetSafeCSV(agent), spreadsheetSafeCSV(metric), valueText, spreadsheetSafeCSV(nullStringValue(textValue)), spreadsheetSafeCSV(nullStringValue(unit))})
 			}
 		}
+		if err := rows.Err(); err != nil {
+			http.Error(w, "export could not finish reading measurements", http.StatusServiceUnavailable)
+			return
+		}
+		writer.Flush()
+		if err := writer.Error(); err != nil {
+			http.Error(w, "export could not encode measurements", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="measurements.csv"`)
+		_, _ = w.Write(buffer.Bytes())
 		return
 	}
-	var items []map[string]any
+	items := []map[string]any{}
 	if rows != nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -614,7 +649,10 @@ func apiExport(w http.ResponseWriter, r *http.Request) {
 			var agent, metric string
 			var unit, textValue sql.NullString
 			var numericValue sql.NullFloat64
-			_ = rows.Scan(&ts, &agent, &metric, &numericValue, &textValue, &unit)
+			if err := rows.Scan(&ts, &agent, &metric, &numericValue, &textValue, &unit); err != nil {
+				http.Error(w, "export could not decode measurements", http.StatusInternalServerError)
+				return
+			}
 			var value any
 			if numericValue.Valid {
 				value = numericValue.Float64
@@ -624,7 +662,19 @@ func apiExport(w http.ResponseWriter, r *http.Request) {
 			items = append(items, map[string]any{"timestamp": scanTimeString(ts), "agentId": agent, "metricName": metric, "value": value, "textValue": nullStringValue(textValue), "unit": nullStringValue(unit)})
 		}
 	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "export could not finish reading measurements", http.StatusServiceUnavailable)
+		return
+	}
 	writeJSON(w, map[string]any{"items": items})
+}
+
+func spreadsheetSafeCSV(value string) string {
+	trimmed := strings.TrimLeft(value, " \t\r\n")
+	if len(trimmed) > 0 && strings.ContainsAny(trimmed[:1], "=+-@") {
+		return "'" + value
+	}
+	return value
 }
 
 func apiAvailability(w http.ResponseWriter, r *http.Request) {

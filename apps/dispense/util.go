@@ -46,6 +46,18 @@ func loadConfig() Config {
 		SourcePrefix: getenv("DISPENSE_SOURCE_PREFIX", "iot-lense"),
 		TargetPrefix: getenv("DISPENSE_TARGET_PREFIX", "dispense/out"),
 		BufferLimit:  getenvInt("DISPENSE_BUFFER_LIMIT", 1500),
+		Output: OutputConfig{
+			Type:           getenv("DISPENSE_OUTPUT_TYPE", "mqtt"),
+			URL:            getenv("DISPENSE_HTTP_URL", ""),
+			BearerTokenEnv: getenv("DISPENSE_HTTP_TOKEN_ENV", ""),
+			TimeoutMs:      getenvInt("DISPENSE_OUTPUT_TIMEOUT_MS", 2000),
+		},
+		Delivery: DeliveryConfig{
+			MaxRetries:       getenvInt("DISPENSE_MAX_RETRIES", 0),
+			InitialBackoffMs: getenvInt("DISPENSE_RETRY_BACKOFF_MS", 200),
+			MaxBackoffMs:     getenvInt("DISPENSE_MAX_BACKOFF_MS", 2000),
+			QueueLimit:       getenvInt("DISPENSE_QUEUE_LIMIT", 128),
+		},
 		InputBroker: BrokerConfig{
 			Host:     getenv("DISPENSE_INPUT_BROKER_HOST", "mqtt"),
 			Port:     getenvInt("DISPENSE_INPUT_BROKER_PORT", 1883),

@@ -64,10 +64,21 @@ type MetricPoint struct {
 }
 
 type Proposal struct {
-	ID        string `json:"id"`
-	CreatedAt string `json:"createdAt"`
-	ConfigRaw string `json:"configRaw"`
-	Diff      string `json:"diff"`
+	ID           string `json:"id"`
+	CreatedAt    string `json:"createdAt"`
+	ConfigRaw    string `json:"configRaw"`
+	Diff         string `json:"diff"`
+	BaseRevision string `json:"baseRevision"`
+}
+
+// ConfigUpdate separates saving a configuration from connecting its workers.
+// A saved configuration can be in use while the broker is still unavailable.
+type ConfigUpdate struct {
+	Phase       string `json:"phase"`
+	Revision    string `json:"revision"`
+	StartedAt   string `json:"startedAt,omitempty"`
+	CompletedAt string `json:"completedAt,omitempty"`
+	Message     string `json:"message,omitempty"`
 }
 
 type HistoryItem struct {

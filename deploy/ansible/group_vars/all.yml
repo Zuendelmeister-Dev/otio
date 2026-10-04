@@ -7,6 +7,12 @@ otio_enable_configure_distributed_node: true
 otio_enable_compose_up: true
 otio_enable_systemd_service: false
 
+# Redeployment preserves runtime edits and configuration history.
+# Opt in deliberately when inventory templates should replace runtime settings.
+otio_replace_runtime_config: false
+otio_replace_environment: false
+otio_config_write_token: "{{ lookup('ansible.builtin.env', 'OTIO_CONFIG_WRITE_TOKEN') }}"
+
 otio_required_architectures:
   - aarch64
   - arm64
@@ -43,6 +49,7 @@ otio_source_directories:
   - shared
   - db
   - deploy/mosquitto
+  - examples/03-protocol-lab
 
 otio_source_files:
   - go.work

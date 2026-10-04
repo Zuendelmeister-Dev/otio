@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,7 +30,7 @@ func requireConfigWriteToken(w http.ResponseWriter, r *http.Request) bool {
 func apiStatus(w http.ResponseWriter, r *http.Request) {
 	state.Lock()
 	broker := map[string]any{"connected": state.BrokerConnected, "lastPublish": state.LastPublish, "publishCount": state.PublishCount}
-	config := map[string]any{"loaded": state.ConfigLoaded, "valid": state.ConfigValid, "path": state.ConfigPath, "error": state.ConfigError, "clientId": state.Config.Broker.ClientID, "topicPrefix": state.Config.Broker.TopicPrefix, "brokerHost": state.Config.Broker.Host, "brokerPort": state.Config.Broker.Port}
+	config := map[string]any{"loaded": state.ConfigLoaded, "valid": state.ConfigValid, "path": state.ConfigPath, "error": state.ConfigError, "clientId": state.Config.Broker.ClientID, "topicPrefix": state.Config.Broker.TopicPrefix, "brokerHost": state.Config.Broker.Host, "brokerPort": state.Config.Broker.Port, "revision": configRevision(state.ConfigRaw), "update": configUpdateLocked()}
 	state.Unlock()
 	writeJSON(w, map[string]any{"broker": broker, "config": config, "sources": snapshotSources()})
 }
@@ -49,7 +50,7 @@ func apiLogs(w http.ResponseWriter, r *http.Request) {
 func apiConfig(w http.ResponseWriter, r *http.Request) {
 	state.Lock()
 	defer state.Unlock()
-	writeJSON(w, map[string]any{"raw": state.ConfigRaw, "parsed": state.Config})
+	writeJSON(w, map[string]any{"raw": state.ConfigRaw, "parsed": state.Config, "revision": configRevision(state.ConfigRaw), "update": configUpdateLocked()})
 }
 
 func apiHistory(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +81,7 @@ func apiValidateConfig(w http.ResponseWriter, r *http.Request) {
 	state.Lock()
 	oldRaw := state.ConfigRaw
 	state.Unlock()
-	proposal := Proposal{ID: randomID(), CreatedAt: nowISO(), ConfigRaw: normalized, Diff: makeDiff(oldRaw, normalized)}
+	proposal := Proposal{ID: randomID(), CreatedAt: nowISO(), ConfigRaw: normalized, Diff: makeDiff(oldRaw, normalized), BaseRevision: configRevision(oldRaw)}
 	state.Lock()
 	state.Proposals[proposal.ID] = proposal
 	state.Unlock()
@@ -98,28 +99,29 @@ func apiApplyConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if !lockConfigMutation(w) {
+		return
+	}
+	defer configMutation.Unlock()
 	state.Lock()
 	proposal, ok := state.Proposals[request.ProposalID]
-	configPath := state.ConfigPath
-	oldRaw := state.ConfigRaw
 	state.Unlock()
 	if !ok {
 		http.Error(w, "proposal not found", http.StatusNotFound)
 		return
 	}
-	historyFile, err := saveHistorySnapshot(oldRaw)
+	historyFile, update, err := commitConfig(proposal.ConfigRaw, proposal.BaseRevision)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeConfigCommitError(w, err)
 		return
 	}
-	if err := os.WriteFile(configPath, []byte(proposal.ConfigRaw), 0644); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	loadConfigFromDisk()
-	restartWorkersAfterConfigApply()
+	state.Lock()
+	delete(state.Proposals, request.ProposalID)
+	state.Unlock()
 	addLog("INFO", "config", "Applied config proposal "+request.ProposalID)
-	writeJSON(w, map[string]any{"status": "ok", "historyFile": historyFile})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, map[string]any{"status": "restarting", "saved": true, "historyFile": historyFile, "update": update})
 }
 
 func apiRollbackConfig(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +129,8 @@ func apiRollbackConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		FileName string `json:"fileName"`
+		FileName     string `json:"fileName"`
+		BaseRevision string `json:"baseRevision"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -137,11 +140,17 @@ func apiRollbackConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid file name", http.StatusBadRequest)
 		return
 	}
+	if !lockConfigMutation(w) {
+		return
+	}
+	defer configMutation.Unlock()
 	state.Lock()
 	dir := state.HistoryDir
-	configPath := state.ConfigPath
-	oldRaw := state.ConfigRaw
+	revision := configRevision(state.ConfigRaw)
 	state.Unlock()
+	if request.BaseRevision != "" {
+		revision = request.BaseRevision
+	}
 	raw, err := os.ReadFile(filepath.Join(dir, request.FileName))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -152,19 +161,44 @@ func apiRollbackConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, strings.Join(problems, "; "), http.StatusBadRequest)
 		return
 	}
-	historyFile, err := saveHistorySnapshot(oldRaw)
+	normalized, err := normalizeJSON(string(raw))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := os.WriteFile(configPath, raw, 0644); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	historyFile, update, err := commitConfig(normalized, revision)
+	if err != nil {
+		writeConfigCommitError(w, err)
 		return
 	}
-	loadConfigFromDisk()
-	restartWorkersAfterConfigApply()
 	addLog("WARN", "config", "Rolled back to "+request.FileName)
-	writeJSON(w, map[string]any{"status": "ok", "historyFile": historyFile})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, map[string]any{"status": "restarting", "saved": true, "historyFile": historyFile, "update": update})
+}
+
+func lockConfigMutation(w http.ResponseWriter) bool {
+	if !configMutation.TryLock() {
+		http.Error(w, "another configuration update is in progress", http.StatusConflict)
+		return false
+	}
+	state.Lock()
+	restarting := state.ConfigUpdate.Phase == "restarting"
+	state.Unlock()
+	if restarting {
+		configMutation.Unlock()
+		http.Error(w, "configuration is saved and workers are restarting; wait before applying another change", http.StatusConflict)
+		return false
+	}
+	return true
+}
+
+func writeConfigCommitError(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	if errors.Is(err, errConfigConflict) {
+		status = http.StatusConflict
+	}
+	http.Error(w, err.Error(), status)
 }
 
 func apiTestRead(w http.ResponseWriter, r *http.Request) {

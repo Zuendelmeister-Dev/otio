@@ -2,6 +2,20 @@ package mqttx
 
 import "strings"
 
+// RelativeTopic returns the segments beneath the exact configured namespace.
+// Prefixes may contain multiple levels; a topic from a neighboring prefix is rejected.
+func RelativeTopic(prefix, topic string) ([]string, bool) {
+	base := strings.TrimRight(prefix, "/") + "/"
+	if !strings.HasPrefix(topic, base) {
+		return nil, false
+	}
+	parts := strings.Split(strings.TrimPrefix(topic, base), "/")
+	if len(parts) < 2 || parts[0] == "" {
+		return nil, false
+	}
+	return parts, true
+}
+
 // SplitTopic splits an MQTT topic into path segments.
 func SplitTopic(topic string) []string {
 	if topic == "" {

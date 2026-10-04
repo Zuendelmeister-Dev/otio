@@ -91,7 +91,7 @@ func simulatorSource(s simulatorSettings, id, host string, port int) map[string]
 func registerSimulatorConfig(mux *http.ServeMux, id, host string, port int) {
 	mux.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
 		name := filepath.Base(r.URL.Path)
-		allowed := map[string]bool{"workspace-ui.js": true, "config-form.js": true, "presense-ui.js": true, "lab-link.js": true}
+		allowed := map[string]bool{"workspace-ui.js": true, "protocol-capabilities.js": true, "config-form.js": true, "presense-ui.js": true, "lab-link.js": true}
 		if !allowed[name] {
 			http.NotFound(w, r)
 			return

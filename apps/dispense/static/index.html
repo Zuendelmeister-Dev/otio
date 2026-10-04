@@ -47,7 +47,7 @@ pre{background:#0e0f12;border:1px solid var(--border);border-radius:12px;padding
 .edge-presense{stroke:#8a9099!important}.edge-sense{stroke:#14b8a6!important}.edge-lense{stroke:#ff8a1d!important}.edge-dispense{stroke:#ef4444!important}.edge-system{stroke:#facc15!important}
 
 </style>
-<script src="/static/workspace-ui.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script></head>
+<script src="/static/workspace-ui.js"></script><script src="/static/protocol-capabilities.js"></script><script src="/static/config-form.js"></script><script src="/static/lab-link.js" defer></script></head>
 <body>
 <div class="layout">
 <aside><div class="brand">IoT <span>Dispense</span></div><nav>
@@ -77,7 +77,7 @@ pre{background:#0e0f12;border:1px solid var(--border);border-radius:12px;padding
   <div class="card"><h3>Connection graph</h3><div id="dispenseComponentsConnectionGraph" class="connection-graph"></div></div>
   <div class="grid">
     <div class="card"><h3>Input broker connection</h3><div id="inputOverview"></div><div class="chart-wrap"><canvas id="inputChart" width="900" height="260"></canvas><div id="inputTooltip" class="tooltip"></div></div><div id="inputLegend" class="legend"></div></div>
-    <div class="card"><h3>Target broker connection</h3><div id="outputOverview"></div><div class="chart-wrap"><canvas id="outputChart" width="900" height="260"></canvas><div id="outputTooltip" class="tooltip"></div></div><div id="outputLegend" class="legend"></div></div>
+    <div class="card"><h3>Output status</h3><div id="outputOverview"></div><div class="chart-wrap"><canvas id="outputChart" width="900" height="260"></canvas><div id="outputTooltip" class="tooltip"></div></div><div id="outputLegend" class="legend"></div></div>
   </div>
 </section>
 <section id="page-config" class="hidden">
@@ -101,7 +101,7 @@ function renderDispenseConnectionGraph(targetId){
   const box=document.getElementById(targetId);
   if(!box)return;
   const input=statusData.inputBroker||{};
-  const output=statusData.outputBroker||{};
+  const output=statusData.output||statusData.outputBroker||{};
   const instance=statusData.instanceId||'IoT Dispense';
   box.dataset.defaultFlow=instance;
   const w=1040; box.style.width=w+"px"; IoTWorkspace.graphViewport(box);
@@ -144,7 +144,7 @@ function renderDispenseConnectionGraph(targetId){
   addLine(dispenseX+dispenseW,dispenseY+42,targetX,targetY+42,Boolean(output.connected),dispenseColor,'dispense');
   addNode(brokerX,brokerY,brokerW,'system','Input MQTT Broker',(input.connected?'connected':'down')+' | '+(input.host||'mqtt')+':'+(input.port||1883));
   addNode(dispenseX,dispenseY,dispenseW,'dispense',instance,statusData.sourceFilter||'forwarder');
-  addNode(targetX,targetY,targetW,'system','Target MQTT Broker',(output.connected?'connected':'down')+' | '+(output.host||'dispense-broker')+':'+(output.port||1883));
+  addNode(targetX,targetY,targetW,'system',output.type==='http'?'HTTP API':'Target MQTT Broker',(output.connected?'available':'unavailable')+' | '+(output.host||'dispense-broker')+':'+(output.port||1883));
 }
 
 
@@ -152,16 +152,21 @@ async function loadStatus(){
  statusData=await json('/api/status');
  renderDispenseConnectionGraph('dispenseConnectionGraph');
  renderDispenseConnectionGraph('dispenseComponentsConnectionGraph');
- const input=statusData.inputBroker||{},output=statusData.outputBroker||{},stats=statusData.stats||{};
+ const input=statusData.inputBroker||{},output=statusData.output||statusData.outputBroker||{},stats=statusData.stats||{};
+ const outputLabel=output.type==='http'?'HTTP API':'Target broker';
+ const acceptance=output.type==='http'?'HTTP 2xx accepted; downstream processing is not confirmed':'Local MQTT QoS 0 handoff; subscriber delivery is not confirmed';
  IoTUI.renderOverviewCards('dashboardCards',[
   {label:'Instance',value:statusData.instanceId||'n/a',hint:statusData.sourceFilter||''},
   {label:'Input broker',value:input.connected?'connected':'disconnected',hint:(input.host||'')+':'+(input.port||'')},
-  {label:'Target broker',value:output.connected?'connected':'disconnected',hint:(output.host||'')+':'+(output.port||'')},
-  {label:'Forwarded',value:String(stats.forwarded||0),hint:'Messages forwarded'}
+  {label:outputLabel,value:output.connected?'available':'unavailable',hint:(output.host||'')+':'+(output.port||'')},
+  {label:'Forwarded',value:String(stats.forwarded||0),hint:acceptance},
+  {label:'Pending',value:String(stats.pending||0),hint:'Memory queue and current attempt'},
+  {label:'Retries',value:String(stats.retries||0),hint:'Additional output attempts'},
+  {label:'Uncertain',value:String(stats.uncertain||0),hint:'Messages with an ambiguous attempt; duplicates or delivery may have occurred'}
  ]);
  IoTUI.renderStatusDetails('healthDetails',[
   {label:'Input broker',value:input.connected?'connected':'down',ok:input.connected},
-  {label:'Target broker',value:output.connected?'connected':'down',ok:output.connected},
+  {label:outputLabel,value:output.connected?'available':'unavailable',ok:output.connected},
   {label:'Received',value:String(stats.received||0),ok:true},
   {label:'Dropped',value:String(stats.dropped||0),ok:(stats.dropped||0)===0}
  ]);
@@ -173,7 +178,7 @@ async function loadStatus(){
  if(sum)sum.innerHTML='healthy: '+healthyCount+'<br>unhealthy: '+unhealthyCount;
  IoTUI.renderStatusDetails('dispenseHealthDetails',[
   {label:'Input broker',value:input.connected?'connected':'down',ok:input.connected},
-  {label:'Target broker',value:output.connected?'connected':'down',ok:output.connected},
+  {label:outputLabel,value:output.connected?'available':'unavailable',ok:output.connected},
   {label:'Received',value:String(stats.received||0),ok:true},
   {label:'Forwarded',value:String(stats.forwarded||0),ok:true},
   {label:'Dropped',value:String(stats.dropped||0),ok:(stats.dropped||0)===0}
@@ -182,12 +187,12 @@ async function loadStatus(){
   {label:'Dispense instance',value:statusData.instanceId||'n/a',hint:'Forwarder module'},
   {label:'Source filter',value:statusData.sourceFilter||'all',hint:'Only matching source type is forwarded'},
   {label:'Input broker',value:(input.host||'')+':'+(input.port||''),hint:input.connected?'connected':'down'},
-  {label:'Target broker',value:(output.host||'')+':'+(output.port||''),hint:output.connected?'connected':'down'},
+  {label:outputLabel,value:(output.host||'')+':'+(output.port||''),hint:output.connected?'available':'unavailable'},
   {label:'Received',value:String(stats.received||0),hint:'Input messages'},
   {label:'Forwarded',value:String(stats.forwarded||0),hint:'Output messages'}
  ]);
  IoTUI.renderConnectionOverview({cardsElementId:'inputOverview',canvasId:'inputChart',legendId:'inputLegend',tooltipId:'inputTooltip',name:'Input broker',host:input.host,port:input.port,connected:input.connected,historyKey:'dispense:'+statusData.instanceId+':input',color:CONNECTION_PALETTE.system,windowMinutes:1440});
- IoTUI.renderConnectionOverview({cardsElementId:'outputOverview',canvasId:'outputChart',legendId:'outputLegend',tooltipId:'outputTooltip',name:'Target broker',host:output.host,port:output.port,connected:output.connected,historyKey:'dispense:'+statusData.instanceId+':output',color:CONNECTION_PALETTE.dispense,windowMinutes:1440});
+ IoTUI.renderConnectionOverview({cardsElementId:'outputOverview',canvasId:'outputChart',legendId:'outputLegend',tooltipId:'outputTooltip',name:outputLabel,host:output.host,port:output.port,connected:output.connected,historyKey:'dispense:'+statusData.instanceId+':output',color:CONNECTION_PALETTE.dispense,windowMinutes:1440});
 }
 async function loadMetrics(){
  metricsData=await json('/api/metrics');

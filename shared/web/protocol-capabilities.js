@@ -1,0 +1,560 @@
+// Generated from shared/protocolmeta/catalog.json; run scripts/generate-protocol-capabilities.cjs to update.
+(function(root){
+  'use strict';
+  const catalog = [
+  {
+    "id": "opcua-http-demo",
+    "name": "OPC UA HTTP demo",
+    "transport": "HTTP / SSE",
+    "status": "demo",
+    "notes": "HTTP demo adapter with polling or a continuous Server-Sent Events subscription; distinct from native OPC UA TCP.",
+    "connection": "",
+    "address": "",
+    "lab": false,
+    "labRead": false,
+    "simulator": false,
+    "sources": [
+      {
+        "type": "opcua",
+        "label": "OPC UA HTTP demo",
+        "port": 4840,
+        "metric": {
+          "nodeId": "ns=2;s=Machine.Temperature",
+          "scale": 1
+        },
+        "addressField": "nodeId",
+        "poll": true,
+        "subscription": true
+      }
+    ]
+  },
+  {
+    "id": "modbus-tcp",
+    "name": "Modbus TCP",
+    "transport": "TCP",
+    "status": "read",
+    "notes": "Holding registers. Local Presense simulator included.",
+    "connection": "modbus-tcp://localhost:1502?default-unit-identifier=1",
+    "address": "holding-register:1:UINT",
+    "scheme": "modbus-tcp",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 1502,
+      "connection": "modbus-tcp://{host}:1502?default-unit-identifier=1",
+      "address": "holding-register:1:UINT",
+      "scale": 0.01,
+      "notes": "Unit 1 · wire register 0 = temperature ×100; register 1 = running."
+    },
+    "sources": [
+      {
+        "type": "modbus-tcp",
+        "label": "Modbus TCP",
+        "port": 5020,
+        "metric": {
+          "register": 0,
+          "scale": 0.1
+        },
+        "addressField": "register",
+        "requiresUnitId": true,
+        "poll": true,
+        "subscription": false
+      },
+      {
+        "type": "lab-modbus-tcp",
+        "label": "Modbus TCP · native lab",
+        "port": 1502,
+        "connection": "modbus-tcp://protocol-lab:1502?default-unit-identifier=1",
+        "metric": {
+          "address": "holding-register:1:UINT",
+          "scale": 0.01
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "modbus-rtu-tcp",
+    "name": "Modbus RTU over TCP",
+    "transport": "TCP gateway",
+    "status": "read",
+    "notes": "RTU framing with CRC over a transparent TCP tunnel. Native serial RTU requires a gateway.",
+    "connection": "modbus-rtu:tcp://localhost:1503?default-unit-identifier=1",
+    "address": "holding-register:1:UINT",
+    "scheme": "modbus-rtu:tcp",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 1503,
+      "connection": "modbus-rtu:tcp://{host}:1503?default-unit-identifier=1",
+      "address": "holding-register:1:UINT",
+      "scale": 0.01,
+      "notes": "Transparent TCP tunnel with RTU CRC framing. Unit 1, temperature at wire register 0."
+    },
+    "sources": [
+      {
+        "type": "lab-modbus-rtu-tcp",
+        "label": "Modbus RTU over TCP",
+        "port": 1503,
+        "connection": "modbus-rtu:tcp://protocol-lab:1503?default-unit-identifier=1",
+        "metric": {
+          "address": "holding-register:1:UINT",
+          "scale": 0.01
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "opcua-tcp",
+    "name": "OPC UA",
+    "transport": "TCP",
+    "status": "read",
+    "notes": "Native OPC UA read, separate from the existing HTTP demo. Choose unencrypted demo access or a certificate profile for Basic256Sha256 / SignAndEncrypt.",
+    "connection": "opc.tcp://localhost:4842",
+    "address": "ns=1;s=Temperature",
+    "scheme": "opc.tcp",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 4842,
+      "connection": "opc.tcp://{host}:4842",
+      "address": "ns=1;s=Temperature",
+      "scale": 1,
+      "notes": "Anonymous / None. Temperature is °C; ns=1;s=Running is boolean."
+    },
+    "sources": [
+      {
+        "type": "lab-opcua-tcp",
+        "label": "OPC UA",
+        "port": 4842,
+        "connection": "opc.tcp://protocol-lab:4842",
+        "metric": {
+          "nodeId": "ns=1;s=Temperature",
+          "scale": 1
+        },
+        "addressField": "nodeId",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "s7",
+    "name": "Siemens S7 / RFC1006",
+    "transport": "TCP",
+    "status": "experimental",
+    "notes": "PLC4Go S7 read. Requires a reachable PLC with permitted S7 access; does not implement PROFINET IO.",
+    "connection": "s7://192.168.1.10:102?remote-rack=0&remote-slot=1",
+    "address": "%DB1:0:REAL",
+    "scheme": "s7",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 1102,
+      "connection": "s7://{host}:1102?remote-rack=0&remote-slot=1&controller-type=S7_1200",
+      "address": "%DB1:0:REAL",
+      "scale": 1,
+      "notes": "Read-only fixture: DB1 bytes 0..3, REAL temperature. No PLC program, writes or CPU control."
+    },
+    "sources": [
+      {
+        "type": "lab-s7",
+        "label": "Siemens S7",
+        "port": 102,
+        "connection": "s7://192.168.1.10:102?remote-rack=0&remote-slot=1",
+        "metric": {
+          "address": "%DB1:0:REAL",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "ethernet-ip",
+    "name": "EtherNet/IP (CIP)",
+    "transport": "TCP",
+    "status": "experimental",
+    "notes": "PLC4Go explicit CIP symbolic tag reads. Not cyclic I/O or a certified adapter.",
+    "connection": "eip://192.168.1.10:44818",
+    "address": "%Temperature:REAL",
+    "scheme": "eip",
+    "lab": true,
+    "labRead": true,
+    "simulator": false,
+    "sources": [
+      {
+        "type": "lab-ethernet-ip",
+        "label": "EtherNet/IP CIP",
+        "port": 44818,
+        "connection": "eip://192.168.1.10:44818",
+        "metric": {
+          "address": "%Temperature:REAL",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "bacnet-ip",
+    "name": "BACnet/IP",
+    "transport": "UDP",
+    "status": "experimental",
+    "notes": "PLC4Go ReadProperty. Requires an IP device, not an MS/TP serial network.",
+    "connection": "bacnet-ip://192.168.1.10:47808",
+    "address": "0,1/85",
+    "scheme": "bacnet-ip",
+    "lab": true,
+    "labRead": true,
+    "simulator": false,
+    "sources": [
+      {
+        "type": "lab-bacnet-ip",
+        "label": "BACnet/IP",
+        "port": 47808,
+        "connection": "bacnet-ip://192.168.1.10:47808",
+        "metric": {
+          "address": "0,1/85",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "knxnet-ip",
+    "name": "KNXnet/IP",
+    "transport": "UDP",
+    "status": "experimental",
+    "notes": "PLC4Go group communication; read where supported, otherwise wait for one group event. A tunnelling gateway and matching DPT are required.",
+    "connection": "knxnet-ip://192.168.1.10:3671",
+    "address": "1/2/3:DPT_Value_Temp",
+    "scheme": "knxnet-ip",
+    "lab": true,
+    "labRead": true,
+    "simulator": false,
+    "sources": [
+      {
+        "type": "lab-knxnet-ip",
+        "label": "KNXnet/IP",
+        "port": 3671,
+        "connection": "knxnet-ip://192.168.1.10:3671",
+        "metric": {
+          "address": "1/2/3:DPT_Value_Temp",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "iec-60870-5-104",
+    "name": "IEC 60870-5-104",
+    "transport": "TCP",
+    "status": "experimental",
+    "notes": "PLC4Go event sample: wait for the first matching ASDU/IOA update. A timeout does not mean a point is zero.",
+    "connection": "iec-60870-5-104://192.168.1.10:2404",
+    "address": "1/1",
+    "scheme": "iec-60870-5-104",
+    "lab": true,
+    "labRead": true,
+    "simulator": false,
+    "sources": [
+      {
+        "type": "lab-iec-60870-5-104",
+        "label": "IEC 60870-5-104",
+        "port": 2404,
+        "connection": "iec-60870-5-104://192.168.1.10:2404",
+        "metric": {
+          "address": "1/1",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "mqtt",
+    "name": "MQTT 3.1.1",
+    "transport": "TCP",
+    "status": "sample",
+    "notes": "Sample the next or retained JSON message on a topic. Local retained demo publisher included.",
+    "connection": "tcp://localhost:1883",
+    "address": "lab/temperature",
+    "scheme": "tcp",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 1883,
+      "connection": "tcp://mqtt:1883",
+      "address": "lab/temperature",
+      "scale": 1,
+      "notes": "Retained JSON temperature."
+    },
+    "sources": [
+      {
+        "type": "lab-mqtt",
+        "label": "MQTT",
+        "port": 1883,
+        "connection": "tcp://mqtt:1883",
+        "metric": {
+          "address": "lab/temperature",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "amqp",
+    "name": "AMQP 0-9-1",
+    "transport": "TCP",
+    "status": "sample",
+    "notes": "Sample an exchange routing key via an exclusive temporary queue. Does not consume another application's queue. AMQP 1.0 is not implemented.",
+    "connection": "amqp://guest:guest@localhost:5672/",
+    "address": "amq.topic/lab.temperature",
+    "scheme": "amqp",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 5672,
+      "connection": "amqp://lab:lab@rabbitmq:5672/",
+      "address": "amq.topic/lab.temperature",
+      "scale": 1,
+      "notes": "AMQP 0-9-1 exchange/routing key. Match the configured broker credentials."
+    },
+    "sources": [
+      {
+        "type": "lab-amqp",
+        "label": "AMQP 0-9-1",
+        "port": 5672,
+        "connection": "amqp://lab:lab@rabbitmq:5672/",
+        "metric": {
+          "address": "amq.topic/lab.temperature",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "mbus-tcp",
+    "name": "M-Bus over TCP",
+    "transport": "TCP gateway",
+    "status": "experimental",
+    "notes": "Transparent TCP gateway; primary address 1..250. Limited diagnostic subset: one CI72 / DIF02 / VIF5A flow-temperature record. No serial or wireless interface.",
+    "connection": "mbus-tcp://localhost:1504",
+    "address": "1",
+    "scheme": "mbus-tcp",
+    "lab": true,
+    "labRead": true,
+    "simulator": true,
+    "simulatorPreset": {
+      "port": 1504,
+      "connection": "mbus-tcp://{host}:1504",
+      "address": "1",
+      "scale": 1,
+      "notes": "TCP gateway fixture: primary 1; one CI72 / DIF02 / VIF5A temperature record. No wireless M-Bus."
+    },
+    "sources": [
+      {
+        "type": "lab-mbus-tcp",
+        "label": "M-Bus over TCP · temperature subset",
+        "port": 1504,
+        "connection": "mbus-tcp://protocol-lab:1504",
+        "metric": {
+          "address": "1",
+          "scale": 1
+        },
+        "addressField": "address",
+        "requiresConnection": true,
+        "poll": true,
+        "subscription": false
+      }
+    ]
+  },
+  {
+    "id": "profinet",
+    "name": "PROFINET",
+    "transport": "Ethernet / hardware",
+    "status": "gateway",
+    "notes": "Cyclic RT/IRT uses Ethernet frames and requires a controller stack. Use an OPC UA, S7 or MQTT gateway; no native PROFINET IO driver.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "profibus",
+    "name": "PROFIBUS DP / PA",
+    "transport": "Serial fieldbus",
+    "status": "gateway",
+    "notes": "Requires a PROFIBUS master and hardware gateway.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "ethercat",
+    "name": "EtherCAT",
+    "transport": "Raw Ethernet",
+    "status": "gateway",
+    "notes": "Requires an EtherCAT master, dedicated interface and suitable timing. TCP transport is not EtherCAT process I/O.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "canopen",
+    "name": "CAN / CANopen",
+    "transport": "CAN bus",
+    "status": "gateway",
+    "notes": "Requires a CAN interface or a gateway with a documented application mapping.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "j1939",
+    "name": "J1939",
+    "transport": "CAN bus",
+    "status": "gateway",
+    "notes": "Requires a CAN/J1939 gateway and PGN/SPN mapping.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "io-link",
+    "name": "IO-Link",
+    "transport": "Point-to-point",
+    "status": "gateway",
+    "notes": "Use an IO-Link master exposing OPC UA, MQTT or another implemented IP protocol. No universal TCP device protocol.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "hart",
+    "name": "HART / HART-IP",
+    "transport": "Fieldbus / IP variant",
+    "status": "unimplemented",
+    "notes": "Wired HART needs a modem/gateway. HART-IP is network based but a HART-IP command adapter is not implemented.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "mbus",
+    "name": "M-Bus / Wireless M-Bus",
+    "transport": "Wired / radio",
+    "status": "gateway",
+    "notes": "Requires a level converter or radio receiver and a gateway-specific mapping. TCP tunnelling alone does not decode meter telegrams.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "iec61850",
+    "name": "IEC 61850",
+    "transport": "MMS TCP / Ethernet",
+    "status": "unimplemented",
+    "notes": "MMS is IP based but not implemented. GOOSE and sampled values require separate Ethernet support; an OPC UA/MQTT gateway is an alternative.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "dnp3",
+    "name": "DNP3",
+    "transport": "TCP / serial",
+    "status": "unimplemented",
+    "notes": "DNP3 over TCP is applicable but no native outstation/master adapter is integrated yet. Use a gateway; no simulated support claim.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  },
+  {
+    "id": "asi",
+    "name": "AS-Interface (AS-i)",
+    "transport": "Fieldbus",
+    "status": "gateway",
+    "notes": "Requires an AS-i master with an implemented upstream IP protocol.",
+    "connection": "",
+    "address": "",
+    "lab": true,
+    "labRead": false,
+    "simulator": false,
+    "sources": []
+  }
+];
+  const sources = Object.fromEntries(catalog.flatMap(item => item.sources || []).map(item => [item.type, item]));
+  const api = {catalog, sources};
+  root.IoTProtocolCapabilities = api;
+  if(typeof module === 'object' && module.exports) module.exports = api;
+})(typeof window === 'undefined' ? globalThis : window);

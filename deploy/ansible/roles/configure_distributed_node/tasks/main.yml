@@ -27,6 +27,7 @@
   ansible.builtin.template:
     src: sense-modbus-config.json.j2
     dest: "{{ otio_remote_root }}/config/sense-modbus/config.json"
+    force: "{{ otio_replace_runtime_config | bool }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
@@ -39,6 +40,7 @@
   ansible.builtin.template:
     src: sense-opcua-config.json.j2
     dest: "{{ otio_remote_root }}/config/sense-opcua/config.json"
+    force: "{{ otio_replace_runtime_config | bool }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
@@ -63,6 +65,7 @@
   ansible.builtin.template:
     src: lense-topology.json.j2
     dest: "{{ otio_remote_root }}/config/lense/topology.json"
+    force: "{{ otio_replace_runtime_config | bool }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"

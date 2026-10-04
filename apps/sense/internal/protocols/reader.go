@@ -1,6 +1,34 @@
 package protocols
 
-import "context"
+import (
+	"context"
+	"strings"
+)
+
+type QualityStatus string
+
+const (
+	QualityGood      QualityStatus = "good"
+	QualityBad       QualityStatus = "bad"
+	QualityUncertain QualityStatus = "uncertain"
+	QualityUnknown   QualityStatus = "unknown"
+)
+
+// NormalizeQuality accepts the quality classes and OPC UA status-code names.
+// Missing or unrecognized upstream quality must never imply a good value.
+func NormalizeQuality(status string) QualityStatus {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch {
+	case strings.HasPrefix(status, "good"):
+		return QualityGood
+	case strings.HasPrefix(status, "bad"):
+		return QualityBad
+	case strings.HasPrefix(status, "uncertain"):
+		return QualityUncertain
+	default:
+		return QualityUnknown
+	}
+}
 
 // MetricAddress identifies the protocol-specific address for one metric.
 type MetricAddress struct {
@@ -17,9 +45,10 @@ type MetricAddress struct {
 
 // MetricValue is the normalized result returned by a protocol reader.
 type MetricValue struct {
-	Name  string
-	Raw   any
-	Value any
+	Name    string
+	Raw     any
+	Value   any
+	Quality QualityStatus
 }
 
 // SourceEndpoint contains the connection details needed by a reader.

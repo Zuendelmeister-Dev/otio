@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func ui(w http.ResponseWriter, r *http.Request) {
@@ -11,17 +16,42 @@ func ui(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	config := loadConfig()
+	if err := validateOutputConfig(config); err != nil {
+		log.Fatal(err)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	state.Lock()
 	state.Config = config
 	state.Unlock()
 
 	addLog("INFO", "startup", "Starting "+config.InstanceID+" for "+config.SourceFilter)
+	var writer outputWriter
+	if config.Output.Type == "http" {
+		output, err := newHTTPOutput(config.Output)
+		if err != nil {
+			log.Fatal(err)
+		}
+		writer = output
+	} else {
+		output := connectOutput(config)
+		state.Lock()
+		state.OutputClient = output
+		state.Unlock()
+		writer = &mqttOutput{client: output}
+	}
+	queue := newDeliveryQueue(ctx, writer, config, recordDelivery)
+	defer queue.Close()
+	state.Lock()
+	state.Output = queue
+	state.Unlock()
+	// Install the output before subscribing; retained input must not hit an
+	// uninitialized output while the target broker is still being connected.
 	input := connectInput(config)
-	output := connectOutput(config)
+	defer input.Disconnect(0)
 
 	state.Lock()
 	state.InputClient = input
-	state.OutputClient = output
 	state.Unlock()
 
 	port := getenv("DISPENSE_UI_PORT", "8200")
@@ -35,5 +65,14 @@ func main() {
 	http.HandleFunc("/", ui)
 
 	addLog("INFO", "ui", "IoT Dispense UI listening on :"+port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	server := &http.Server{Addr: ":" + port, Handler: nil, ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		<-ctx.Done()
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdown)
+	}()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Print(err)
+	}
 }
